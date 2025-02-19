@@ -1,0 +1,205 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html lang="es-ES" xmlns="http://www.w3.org/1999/xhtml">
+<link rel="shortcut icon" href="/favicon.ico" />
+
+<head>
+	<link rel="apple-touch-icon" href="ruta/apple-touch-icon.png">
+	<script async src="https://www.googletagmanager.com/gtag/js?id=UA-141261485-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-141261485-1');
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "url": "https://www.flechaextreme.com",
+  "name": "Flecha Extreme Centro Náutico",
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "+34 617 000 546",
+    "contactType": "Customer service"
+  }
+}
+</script>
+
+  <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+  <meta name="keywords" content="Viento actual en Huelva, viento online Huela, El Portil">
+  <title>Flecha Extreme-Meteo</title>
+  <link rel="stylesheet" href="weatherstyle.css">
+  <link rel="stylesheet" href="lib/steelseries/css/gauges-ss.css">
+  <link href="css/stylefx.css" rel="stylesheet" type="text/css">
+<link href="https://fonts.googleapis.com/css?family=Gloria+Hallelujah" rel="stylesheet">
+<link href="css/bootstrap.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body>
+<header>
+    <nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container">
+    <input type="checkbox" id="navbar-toggle-cbox">
+    <div class="navbar-header">
+      <label for="navbar-toggle-cbox" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </label>
+      <a class="navbar-brand" href="#"><span class="ico icoicono-logo"></span></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        		<li><a href="index.html"><span class="ico icoicono-logo-chico"></span> INICIO</a></li>
+                <li><a class="" href="kitesurf.html"><span class="ico icoicono-kite"></span> KITE</a></li>
+                <li><a href="kayaks.html"><span class="ico icoicono-kayak"></span> KAYAK</a></li>  
+                <li><a href="paddle.html"><span class="ico icoicono-paddle"></span> PADDLE</a></li> 
+                <li><a href="surf.html"><span class="ico icoicono-surf"></span> SURF</a></li>
+                <li><a href="camps.html"><span class="ico icocamp"></span> CAMPS</a></li> 
+                <li><a href="regala.html"><span class="icon icogift"></span> REGALA</a></li>
+                <li><a href="mapa.html"><span class="ico icolocation"></span> MAPA</a></li>
+                <li><a href="reservas.html"><span class="ico icomail"></span> RESERVA</a></li>
+                <li><a href="http://www.flechaextreme.com/blog" title="Blog" target="_self"><span class="surf surf-pencil2"></span> BLOG</a></li>
+                <li><a href="campsenglish.html"><span class="cuadrado"> ENG</span></a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+  <div id="fondohead" class="hidem"></div>
+</header>
+
+
+  <div class="row">
+    <div id="tip_6" class="gauge">
+      <canvas id="canvas_wind" width="500" height="500"></canvas>
+    </div>
+    <div id="tip_7" class="gauge">
+      <canvas id="canvas_dir" width="500" height="500"></canvas>
+    </div>
+</div>
+<tr class="td_temperature_data">
+    <td>Temperature</td>
+    <td><#temp>&nbsp;<#tempunit></td>
+  </tr>
+
+
+  <div class="content">
+    <div class="unitsTable">
+      <div style="display:table-row">
+        <div id="temperature" class="cellRight">
+          <span id="lang_temperature">Temperature</span>:
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsTemp1" type="radio" name="rad_unitsTemp" value="C" checked onClick="gauges.setUnits(this);"><label id="lab_unitsTemp1" for="rad_unitsTemp1">&deg;C</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsTemp2" type="radio" name="rad_unitsTemp" value="F" onClick="gauges.setUnits(this);"><label id="lab_unitsTemp2" for="rad_unitsTemp2">&deg;F</label>
+        </div>
+      </div>
+      <div style="display:table-row">
+        <div id ="rainfall" class="cellRight">
+          <span id="lang_rainfall">Rainfall</span>:
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsRain1" type="radio" name="rad_unitsRain" value="mm" checked onClick="gauges.setUnits(this);"><label id="lab_unitsRain1" for="rad_unitsRain1">mm</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsRain2" type="radio" name="rad_unitsRain" value="in" onClick="gauges.setUnits(this);"><label id="lab_unitsRain2" for="rad_unitsRain2">Inch</label>
+        </div>
+      </div>
+      <div style="display:table-row">
+        <div id="pressure" class="cellRight">
+          <span id="lang_pressure">Pressure</span>:
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsPress1" type="radio" name="rad_unitsPress" value="hPa" checked onClick="gauges.setUnits(this);"><label id="lab_unitsPress1" for="rad_unitsPress1">hPa</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsPress2" type="radio" name="rad_unitsPress" value="inHg" onClick="gauges.setUnits(this);"><label id="lab_unitsPress2" for="rad_unitsPress2">inHg</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsPress3" type="radio" name="rad_unitsPress" value="mb" onClick="gauges.setUnits(this);"><label id="lab_unitsPress3" for="rad_unitsPress3">mb</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsPress4" type="radio" name="rad_unitsPress" value="kPa" onClick="gauges.setUnits(this);"><label id="lab_unitsPress4" for="rad_unitsPress4">kPa</label>
+        </div>
+      </div>
+      <div style="display:table-row">
+        <div id="wind" class="cellRight">
+          <span id="lang_windSpeed">Wind Speed</span>:
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsWind4" type="radio" name="rad_unitsWind" value="km/h" checked onClick="gauges.setUnits(this);"><label id="lab_unitsWind4" for="rad_unitsWind4">km/h</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsWind3" type="radio" name="rad_unitsWind" value="m/s" onClick="gauges.setUnits(this);"><label id="lab_unitsWind3" for="rad_unitsWind3">m/s</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsWind1" type="radio" name="rad_unitsWind" value="mph" onClick="gauges.setUnits(this);"><label id="lab_unitsWind1" for="rad_unitsWind1">mph</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsWind2" type="radio" name="rad_unitsWind" value="kts" onClick="gauges.setUnits(this);"><label id="lab_unitsWind2" for="rad_unitsWind2">knots</label>
+        </div>
+      </div>
+	  <div style="display:table-row">
+        <div id ="cloud" class="cellRight">
+          <span id="lang_cloudbase">CloudBase</span>:
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsCloudBase1" type="radio" name="rad_unitsCloud" value="m" checked onClick="gauges.setUnits(this);"><label id="lab_unitsCloudBase1" for="rad_unitsCloudBase1">m</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsCloudBase2" type="radio" name="rad_unitsCloud" value="ft" onClick="gauges.setUnits(this);"><label id="lab_unitsCloudBase2" for="rad_unitsCloudBase2">ft</label>
+        </div>
+      </div>
+    </div>
+    <div class="credits" style="padding: 0px 10px 10px 10px; text-align: left">
+      <hr>
+      Scripts by Mark Crossley - version <span id="scriptVer"></span><br>
+      Gauges drawn using Gerrit Grunwald's <a href="http://harmoniccode.blogspot.com" target="_blank">SteelSeries</a> <a href="https://github.com/HanSolo/SteelSeries-Canvas">JavaScript library</a>
+      <span id="rgraph_attrib"><br>Wind Rose drawn using RGraph</span>
+    </div>
+
+    <!-- Start of navigation menus at the bottom -->
+    <table>
+      <tr>
+        <td class="td_navigation_bar">
+          :<a href="index.htm">now</a>: :<a href="gauges.htm">gauges</a>: :<a href="today.htm">today</a>: :<a href="yesterday.htm">yesterday</a>: :<a href="thismonth.htm">this&nbsp;month</a>: :<a href="thisyear.htm">this&nbsp;year</a>: :<a href="record.htm">records</a>: :<a href="trends.htm">trends</a>: <#forum> <#webcam>
+        </td>
+      </tr>
+    </table><!-- End of navigation menus at the bottom -->
+
+    <!-- Credits -->
+    <p class="credits">
+      <br>
+      Page updated <#update>
+      <br>
+      powered by <span id="programName"></span> v<span id="programVersion"></span> (b<span id="programBuild"></span>)
+    </p><!-- Credits -->
+  </div><!-- id content -->
+
+  <!-- Included Scripts -->
+
+  <!-- Google CDN hosted JQuery library -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+  <!-- or... -->
+  <!-- Local JQuery library, do not use if your containing page already pulls in a copy of JQuery -->
+  <!-- <script src="scripts/jquery-1.8.2.min.js"></script> -->
+
+  <!-- Combined steelseries.js & tween.js -->
+  <script src="lib/steelseries/scripts/steelseries_tween.min.js"></script>
+
+  <!-- Once you have customised this scripts to your requirements you should minimise
+       and concatenate them into a single file in the same order  as below -->
+  <script src="lib/steelseries/scripts/language.min.js"></script>
+  <script src="lib/steelseries/scripts/gauges.js"></script>
+
+  <!--Optional Wind Rose scripts -->
+
+  <script src="lib/steelseries/scripts/RGraph.common.core.min.js"></script>
+  <script src="lib/steelseries/scripts/RGraph.rose.min.js"></script>
+
+</body>
+</html>

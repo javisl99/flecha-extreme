@@ -1,0 +1,9 @@
+.awcfe-inline-item .woocommerce-input-wrapper .input-radio {
+  display: inline-block !important; margin-right: 5px; margin-top: 5px;
+}
+.awcfe-inline-item .woocommerce-input-wrapper label {
+    display: inline-block !important; margin: 0px 10px 0px 0px;
+}
+.awcfe-hidden {
+	display: none;
+}

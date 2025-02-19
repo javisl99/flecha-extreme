@@ -1,0 +1,290 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="description" content=" weather data" />
+<meta name="keywords" content="Cumulus,  weather data, weather, data, weather station" />
+<title> weather</title>
+<link href="weatherstyle.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div id="content">
+<h1> weather</h1>
+<h2 style="text-align: left; text-transform: none;">&nbsp;Latitude&nbsp;N&nbsp;00&deg;&nbsp;00&#39;&nbsp;00&quot;&nbsp;&nbsp;&nbsp;&nbsp;Longitude&nbsp;E&nbsp;00&deg;&nbsp;00&#39;&nbsp;00&quot;&nbsp;&nbsp;&nbsp;&nbsp;Elevation&nbsp;0&nbsp;ft</h2>
+
+<p>Records began on 10 septiembre 2019. Here are the month-by-month extremes recorded since then.</p>
+<input type="button" value="Jan" onclick="changeData(0)"/>
+<input type="button" value="Feb" onclick="changeData(1)"/>
+<input type="button" value="Mar" onclick="changeData(2)"/>
+<input type="button" value="Apr" onclick="changeData(3)"/>
+<input type="button" value="May" onclick="changeData(4)"/>
+<input type="button" value="Jun" onclick="changeData(5)"/>
+<input type="button" value="Jul" onclick="changeData(6)"/>
+<input type="button" value="Aug" onclick="changeData(7)"/>
+<input type="button" value="Sep" onclick="changeData(8)"/>
+<input type="button" value="Oct" onclick="changeData(9)"/>
+<input type="button" value="Nov" onclick="changeData(10)"/>
+<input type="button" value="Dec" onclick="changeData(11)"/>
+<table style="width:100%;border-collapse: collapse; border-spacing: 0;" >
+   <caption>Records for the month of <span id="MonthName">January</span></caption>
+  <tr>
+    <td colspan="3" class="tableseparator_temp">Temperature and Humidity </td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Temperature</td>
+    <td class="right_align_indented"><span id="TempH">21,1</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="TempHT">at 16:27 on 27 enero 2021</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Temperature </td>
+    <td class="right_align_indented"><span id="TempL">-0,2</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="TempLT">at 08:56 on 13 enero 2021</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Dew&nbsp;Point</td>
+    <td class="right_align_indented"><span id="DewPointH">16,6</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="DewPointHT">at 22:04 on 01 enero 2023</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Dew&nbsp;Point </td>
+    <td class="right_align_indented"><span id="DewPointL">-4,6</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="DewPointLT">at 13:27 on 22 enero 2023</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Apparent&nbsp;Temperature</td>
+    <td class="right_align_indented"><span id="AppTempH">22,6</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="AppTempHT">at 16:27 on 27 enero 2021</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Apparent&nbsp;Temperature </td>
+    <td class="right_align_indented"><span id="AppTempL">-4,0</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="AppTempLT">at 08:56 on 13 enero 2021</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Wind&nbsp;Chill&nbsp;Temperature</td>
+    <td class="right_align_indented"><span id="WChillL">-3,0</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="WChillLT">at 08:56 on 13 enero 2021</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Heat&nbsp;Index</td>
+    <td class="right_align_indented"><span id="HeatIndexH">21,1</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="HeatIndexHT">at 16:27 on 27 enero 2021</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest Minimum </td>
+    <td class="right_align_indented"><span id="MinTempH">15,9</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="MinTempHT">at 20:30 on 08 enero 2023</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest Maximum </td>
+    <td class="right_align_indented"><span id="MaxTempL">0,0</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="MaxTempLT">at 14:05 on 17 enero 2024</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Humidity</td>
+    <td class="right_align_indented"><span id="HumH">100</span>&nbsp;%</td>
+    <td class="right_align_indented"><span id="HumHT">at 03:12 on 22 enero 2021</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Humidity </td>
+    <td class="right_align_indented"><span id="HumL">30</span>&nbsp;%</td>
+    <td class="right_align_indented"><span id="HumLT">at 13:27 on 22 enero 2023</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Daily&nbsp;Range</td>
+    <td class="right_align_indented"><span id="HighDailyTempRange">16,6</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="HighDailyTempRangeT">on 15 enero 2020</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Daily&nbsp;Range</td>
+    <td class="right_align_indented"><span id="LowDailyTempRange">0,0</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="LowDailyTempRangeT">on 17 enero 2024</span></td>
+  </tr>
+  <tr>
+    <td colspan="3" class="tableseparator_rainfall">Rainfall</td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Highest&nbsp;Rain&nbsp;Rate</td>
+    <td class="right_align_indented"><span id="RainRateH">115,2</span>&nbsp;mm/hr</td>
+    <td class="right_align_indented"><span id="RainRateHT">at 07:29 on 23 enero 2020</span></td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Highest&nbsp;Hourly&nbsp;Rainfall</td>
+    <td class="right_align_indented"><span id="HourlyRainH">6,0</span>&nbsp;mm</td>
+    <td class="right_align_indented"><span id="HourlyRainHT">at 16:40 on 22 enero 2020</span></td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Highest&nbsp;Daily&nbsp;Rainfall</td>
+    <td class="right_align_indented"><span id="DailyRainH">22,8</span>&nbsp;mm</td>
+    <td class="right_align_indented"><span id="DailyRainHT">on 15 enero 2020</span></td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Highest&nbsp;Monthly&nbsp;Rainfall</td>
+    <td class="right_align_indented"><span id="MonthlyRainH">68,8</span>&nbsp;mm</td>
+    <td class="right_align_indented"><span id="MonthlyRainHT">enero 2020</span></td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Longest&nbsp;Dry&nbsp;Period</td>
+    <td class="right_align_indented"><span id="LongestDryPeriod">16</span>&nbsp;days</td>
+    <td class="right_align_indented"><span id="LongestDryPeriodT">to 31 enero 2023</span></td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Longest&nbsp;Wet&nbsp;Period</td>
+    <td class="right_align_indented"><span id="LongestWetPeriod">9</span>&nbsp;days</td>
+    <td class="right_align_indented"><span id="LongestWetPeriodT">to 30 enero 2020</span></td>
+  </tr>
+  <tr>
+    <td colspan="3" class="tableseparator_wind">Wind</td>
+  </tr>
+  <tr class="td_wind_data">
+    <td class="main_table_text_labels">Highest&nbsp;Wind&nbsp;Gust</td>
+    <td class="right_align_indented"><span id="GustH">30,4</span>&nbsp;kts</td>
+    <td class="right_align_indented"><span id="GustHT">at 04:37 on 20 enero 2021</span></td>
+  </tr>
+  <tr class="td_wind_data">
+    <td class="main_table_text_labels">Highest&nbsp;Wind&nbsp;Speed&nbsp;Average</td>
+    <td class="right_align_indented"><span id="WindH">22,6</span>&nbsp;kts</td>
+    <td class="right_align_indented"><span id="WindHT">at 14:55 on 24 enero 2020</span></td>
+  </tr>
+  <tr class="td_wind_data">
+    <td class="main_table_text_labels">Highest&nbsp;Daily Wind Run</td>
+    <td class="right_align_indented"><span id="WindRunH">298,4</span>&nbsp;nm</td>
+    <td class="right_align_indented"><span id="WindRunHT">on 08 enero 2023</span></td>
+  </tr>
+
+  <tr>
+    <td colspan="3" class="tableseparator_pressure">Pressure</td>
+  </tr>
+  <tr class="td_pressure_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Pressure&nbsp;(sl) </td>
+    <td class="right_align_indented"><span id="PressL">997,36</span>&nbsp;mb</td>
+    <td class="right_align_indented"><span id="PressLT">at 16:46 on 08 enero 2021</span></td>
+  </tr>
+  <tr class="td_pressure_data">
+    <td class="main_table_text_labels">Highest&nbsp;Pressure&nbsp;(sl)</td>
+    <td class="right_align_indented"><span id="PressH">1032,78</span>&nbsp;mb</td>
+    <td class="right_align_indented"><span id="PressHT">at 11:59 on 17 enero 2020</span></td>
+  </tr>
+  <tr>
+    <td colspan="3" class="td_navigation_bar">:<a href="index.htm">now</a>::<a href="gauges.htm">gauges</a>::<a href="today.htm">today</a>::<a href="yesterday.htm">yesterday</a>::<a href="thismonth.htm">this&nbsp;month</a>::<a href="thisyear.htm">this&nbsp;year</a>::<a href="record.htm">records</a>::<a href="monthlyrecord.htm">monthly&nbsp;records</a>::<a href="trends.htm">trends</a>::<a href="https://cumulus.hosiene.co.uk/">forum</a>:</td>
+  </tr>
+</table>
+<p class="credits"><br />
+Page updated 25/09/2024 7:28:00<br />
+powered by
+<a href="https://cumuluswiki.wxforum.net/a/Software" target="_blank">Cumulus</a> v3.0.0 (3050)
+</p>
+</div>
+<script type="text/javascript">
+var monthnames = new Array("January","February","March","April","May","June","July","August","September","October","November","December");
+var hightemp = new Array("21,1","23,4","26,9","29,6","33,6","35,2","42,7","40,9","34,8","32,0","24,8","23,7");
+var hightempT = new Array("at 16:27 on 27 enero 2021","at 17:38 on 27 febrero 2020","at 13:40 on 11 marzo 2020","at 12:02 on 26 abril 2023","at 17:49 on 19 mayo 2021","at 15:49 on 21 junio 2020","at 15:23 on 25 julio 2022","at 16:03 on 01 agosto 2020","at 16:57 on 11 septiembre 2019","at 17:17 on 14 octubre 2022","at 14:27 on 13 noviembre 2023","at 16:57 on 26 diciembre 2022");
+var lowtemp = new Array("-0,2","2,7","1,1","7,1","8,3","11,7","14,1","14,4","12,9","7,8","3,2","3,0");
+var lowtempT = new Array("at 08:56 on 13 enero 2021","at 08:55 on 01 febrero 2023","at 08:33 on 03 marzo 2023","at 07:57 on 02 abril 2022","at 07:51 on 02 mayo 2021","at 07:17 on 13 junio 2020","at 07:43 on 07 julio 2024","at 08:10 on 09 agosto 2021","at 07:41 on 26 septiembre 2022","at 08:43 on 22 octubre 2019","at 07:49 on 28 noviembre 2021","at 02:50 on 27 diciembre 2020");
+var highDP = new Array("16,6","16,7","18,1","19,6","21,0","23,6","25,4","24,2","22,5","21,8","20,6","18,7");
+var highDPT = new Array("at 22:04 on 01 enero 2023","at 16:07 on 10 febrero 2021","at 12:14 on 26 marzo 2023","at 13:48 on 01 abril 2023","at 11:03 on 29 mayo 2020","at 20:22 on 29 junio 2023","at 10:27 on 16 julio 2020","at 17:03 on 10 agosto 2024","at 16:17 on 18 septiembre 2020","at 13:48 on 14 octubre 2023","at 15:15 on 01 noviembre 2021","at 14:27 on 13 diciembre 2022");
+var lowDP = new Array("-4,6","-1,7","-3,8","-1,9","0,1","2,0","2,8","2,1","1,2","0,2","-2,1","-4,7");
+var lowDPT = new Array("at 13:27 on 22 enero 2023","at 08:55 on 01 febrero 2023","at 08:33 on 03 marzo 2023","at 11:05 on 03 abril 2022","at 17:48 on 22 mayo 2021","at 15:08 on 06 junio 2022","at 15:12 on 25 julio 2022","at 14:11 on 16 agosto 2021","at 21:00 on 10 septiembre 2019","at 16:44 on 12 octubre 2020","at 09:07 on 30 noviembre 2022","at 08:54 on 26 diciembre 2020");
+var highapptemp = new Array("22,6","22,5","26,5","29,0","33,3","35,4","40,8","41,6","35,5","32,0","26,5","25,2");
+var highapptempT = new Array("at 16:27 on 27 enero 2021","at 17:38 on 27 febrero 2020","at 13:40 on 11 marzo 2020","at 11:20 on 26 abril 2023","at 12:14 on 23 mayo 2020","at 18:28 on 08 junio 2022","at 15:29 on 25 julio 2022","at 16:27 on 01 agosto 2020","at 17:00 on 11 septiembre 2019","at 18:24 on 14 octubre 2022","at 14:27 on 13 noviembre 2023","at 16:51 on 26 diciembre 2022");
+var lowapptemp = new Array("-4,0","-4,0","-4,0","-4,0","-4,0","-4,0","-4,0","-4,0","11,8","5,7","1,1","-4,0");
+var lowapptempT = new Array("at 08:56 on 13 enero 2021","at 16:17 on 04 febrero 2021","at 11:19 on 21 marzo 2021","at 05:37 on 13 abril 2021","at 20:17 on 11 mayo 2020","at 11:17 on 16 junio 2020","at 12:18 on 18 julio 2020","at 15:05 on 15 agosto 2022","at 08:12 on 26 septiembre 2020","at 08:37 on 13 octubre 2020","at 07:49 on 28 noviembre 2021","at 23:43 on 10 diciembre 2020");
+var lowchill = new Array("-3,0","0,0","0,0","0,0","0,0","0,0","0,0","0,0","12,9","7,4","3,2","0,0");
+var lowchillT = new Array("at 08:56 on 13 enero 2021","at 16:17 on 04 febrero 2021","at 11:19 on 21 marzo 2021","at 05:37 on 13 abril 2021","at 20:17 on 11 mayo 2020","at 11:17 on 16 junio 2020","at 12:18 on 18 julio 2020","at 15:05 on 15 agosto 2022","at 07:41 on 26 septiembre 2022","at 08:57 on 16 octubre 2020","at 07:49 on 28 noviembre 2021","at 23:43 on 10 diciembre 2020");
+var highheatindex = new Array("21,1","23,4","26,7","28,4","32,1","35,8","40,1","43,1","33,6","31,8","24,8","23,7");
+var highheatindexT = new Array("at 16:27 on 27 enero 2021","at 17:38 on 27 febrero 2020","at 13:40 on 11 marzo 2020","at 12:02 on 26 abril 2023","at 12:17 on 23 mayo 2020","at 13:00 on 24 junio 2023","at 15:44 on 25 julio 2022","at 16:27 on 01 agosto 2020","at 17:00 on 11 septiembre 2019","at 13:02 on 08 octubre 2023","at 14:27 on 13 noviembre 2023","at 16:57 on 26 diciembre 2022");
+var highmintemp = new Array("15,9","15,2","17,0","29,6","29,6","23,9","29,4","24,3","23,0","21,2","18,3","18,7");
+var highmintempT = new Array("at 20:30 on 08 enero 2023","at 21:23 on 11 febrero 2021","at 00:00 on 11 marzo 2021","at 00:00 on 27 abril 2023","at 00:00 on 01 mayo 2023","at 01:06 on 29 junio 2020","at 00:00 on 04 julio 2021","at 00:00 on 14 agosto 2022","at 22:35 on 10 septiembre 2019","at 02:46 on 19 octubre 2022","at 09:35 on 02 noviembre 2019","at 00:00 on 12 diciembre 2022");
+var lowmaxtemp = new Array("0,0","0,0","0,0","0,0","0,0","18,3","0,0","0,0","21,1","17,7","14,3","0,0");
+var lowmaxtempT = new Array("at 14:05 on 17 enero 2024","at 00:00 on 01 febrero 2024","at 06:06 on 11 marzo 2021","at 00:00 on 13 abril 2021","at 00:00 on 11 mayo 2020","at 00:00 on 02 junio 2021","at 05:45 on 04 julio 2021","at 14:50 on 14 agosto 2022","at 19:56 on 03 septiembre 2023","at 01:33 on 22 octubre 2023","at 13:35 on 19 noviembre 2019","at 07:33 on 10 diciembre 2020");
+var highhum = new Array("100","100","98","98","97","97","94","97","97","97","98","100");
+var highhumT = new Array("at 03:12 on 22 enero 2021","at 03:17 on 01 febrero 2021","at 07:38 on 16 marzo 2022","at 08:28 on 06 abril 2020","at 07:43 on 17 mayo 2020","at 06:57 on 08 junio 2023","at 05:10 on 19 julio 2020","at 09:26 on 12 agosto 2021","at 11:52 on 23 septiembre 2021","at 03:09 on 29 octubre 2019","at 08:15 on 26 noviembre 2019","at 13:28 on 01 diciembre 2022");
+var lowhum = new Array("30","23","24","25","17","16","9","10","17","17","29","35");
+var lowhumT = new Array("at 13:27 on 22 enero 2023","at 14:46 on 21 febrero 2022","at 17:06 on 09 marzo 2020","at 13:47 on 17 abril 2023","at 17:38 on 22 mayo 2021","at 14:55 on 06 junio 2022","at 15:11 on 25 julio 2022","at 16:11 on 16 agosto 2021","at 18:30 on 10 septiembre 2019","at 16:41 on 12 octubre 2020","at 13:28 on 07 noviembre 2021","at 16:16 on 26 diciembre 2020");
+var hightemprange = new Array("16,6","16,6","23,2","26,0","30,7","28,1","31,7","33,8","23,8","21,8","18,4","20,4");
+var hightemprangeT = new Array("on 15 enero 2020","on 18 febrero 2021","on 14 marzo 2021","on 25 abril 2023","on 21 mayo 2021","on 09 junio 2021","on 13 julio 2021","on 28 agosto 2020","on 17 septiembre 2019","on 20 octubre 2022","on 04 noviembre 2020","on 11 diciembre 2020");
+var lowtemprange = new Array("0,0","0,0","0,0","0,0","0,0","0,0","0,0","0,0","0,0","0,9","1,8","0,0");
+var lowtemprangeT = new Array("on 17 enero 2024","on 01 febrero 2024","on 11 marzo 2021","on 13 abril 2021","on 11 mayo 2020","on 02 junio 2024","on 04 julio 2021","on 14 agosto 2022","on 04 septiembre 2022","on 19 octubre 2022","on 03 noviembre 2020","on 10 diciembre 2020");
+var rainrate = new Array("115,2","20,6","162,2","111,8","79,4","32,8","---","15,6","886,2","140,4","198,6","107,6");
+var rainrateT = new Array("at 07:29 on 23 enero 2020","at 04:59 on 12 febrero 2021","at 03:19 on 31 marzo 2020","at 07:37 on 14 abril 2020","at 17:54 on 02 mayo 2022","at 05:22 on 08 junio 2023","----","at 14:26 on 13 agosto 2022","at 15:48 on 11 septiembre 2019","at 17:46 on 19 octubre 2023","at 00:43 on 05 noviembre 2020","at 01:03 on 15 diciembre 2022");
+var hourlyrain = new Array("6,0","3,6","15,4","8,0","17,4","5,4","---","0,8","67,2","36,2","32,6","10,6");
+var hourlyrainT = new Array("at 16:40 on 22 enero 2020","at 13:02 on 08 febrero 2023","at 03:33 on 31 marzo 2020","at 07:29 on 16 abril 2021","at 19:45 on 22 mayo 2023","at 12:10 on 08 junio 2023","----","at 14:29 on 13 agosto 2022","at 12:05 on 23 septiembre 2021","at 18:11 on 22 octubre 2023","at 05:37 on 05 noviembre 2020","at 15:28 on 07 diciembre 2022");
+var dailyrain = new Array("22,8","15,4","47,4","21,6","20,6","16,0","---","2,4","73,0","76,6","68,0","35,2");
+var dailyrainT = new Array("on 15 enero 2020","on 26 febrero 2021","on 23 marzo 2022","on 27 abril 2020","on 22 mayo 2023","on 08 junio 2023","----","on 13 agosto 2022","on 23 septiembre 2021","on 22 octubre 2023","on 05 noviembre 2020","on 09 diciembre 2020");
+var monthlyrain = new Array("68,8","34,6","96,2","43,8","22,6","18,2","---","2,8","77,6","98,4","164,4","76,8");
+var monthlyrainT = new Array("enero 2020","febrero 2021","marzo 2022","abril 2020","mayo 2023","junio 2023","----","agosto 2022","septiembre 2021","octubre 2023","noviembre 2020","diciembre 2022");
+var dryperiod = new Array("16","23","22","54","75","54","97","128","141","21","9","11");
+var dryperiodT = new Array("to 31 enero 2023","to 07 febrero 2023","to 31 marzo 2023","to 30 abril 2023","to 16 mayo 2023","to 30 junio 2024","to 31 julio 2021","to 31 agosto 2021","to 13 septiembre 2021","to 13 octubre 2023","to 10 noviembre 2021","to 15 diciembre 2020");
+var wetperiod = new Array("9","4","8","4","6","3","---","1","3","5","8","9");
+var wetperiodT = new Array("to 30 enero 2020","to 13 febrero 2021","to 02 marzo 2024","to 28 abril 2021","to 11 mayo 2020","to 08 junio 2023","----","to 05 agosto 2022","to 19 septiembre 2020","to 26 octubre 2023","to 10 noviembre 2020","to 31 diciembre 2021");
+var highgust = new Array("30,4","31,3","40,0","33,0","39,1","27,8","35,6","23,5","38,2","38,2","35,6","38,2");
+var highgustT = new Array("at 04:37 on 20 enero 2021","at 02:24 on 08 febrero 2021","at 17:03 on 20 marzo 2022","at 00:03 on 15 abril 2020","at 14:19 on 21 mayo 2023","at 17:05 on 15 junio 2022","at 14:33 on 09 julio 2023","at 16:49 on 13 agosto 2024","at 12:34 on 18 septiembre 2020","at 16:36 on 19 octubre 2023","at 15:05 on 06 noviembre 2020","at 23:33 on 04 diciembre 2022");
+var highwind = new Array("22,6","23,5","29,5","23,5","28,7","20,9","22,6","17,4","23,5","28,7","25,2","26,1");
+var highwindT = new Array("at 14:55 on 24 enero 2020","at 02:27 on 08 febrero 2021","at 17:08 on 20 marzo 2022","at 15:17 on 16 abril 2020","at 14:28 on 21 mayo 2023","at 20:30 on 03 junio 2020","at 03:19 on 21 julio 2020","at 14:51 on 02 agosto 2020","at 20:36 on 18 septiembre 2020","at 16:37 on 19 octubre 2023","at 17:06 on 22 noviembre 2019","at 11:50 on 25 diciembre 2021");
+var highwindrun = new Array("298,4","355,7","258,0","370,1","280,8","299,4","213,6","229,1","355,9","442,7","280,7","277,7");
+var highwindrunT = new Array("on 08 enero 2023","on 08 febrero 2021","on 20 marzo 2022","on 22 abril 2022","on 14 mayo 2020","on 09 junio 2023","on 21 julio 2020","on 17 agosto 2022","on 18 septiembre 2020","on 30 octubre 2021","on 15 noviembre 2022","on 25 diciembre 2021");
+var highpress = new Array("1032,78","1031,76","1027,70","1025,47","1023,13","1023,10","1019,30","1019,44","1023,33","1025,67","1027,74","1029,73");
+var highpressT = new Array("at 11:59 on 17 enero 2020","at 10:54 on 16 febrero 2022","at 10:30 on 11 marzo 2021","at 10:53 on 01 abril 2023","at 12:30 on 11 mayo 2021","at 12:04 on 15 junio 2020","at 13:04 on 07 julio 2022","at 11:58 on 22 agosto 2020","at 12:12 on 25 septiembre 2020","at 10:42 on 31 octubre 2019","at 11:02 on 30 noviembre 2021","at 11:18 on 21 diciembre 2020");
+var lowpress = new Array("997,36","999,70","1000,68","998,82","1002,30","1006,16","1006,84","1006,16","1004,30","985,64","997,56","998,92");
+var lowpressT = new Array("at 16:46 on 08 enero 2021","at 16:19 on 05 febrero 2021","at 03:22 on 31 marzo 2020","at 17:50 on 22 abril 2022","at 09:02 on 14 mayo 2020","at 19:31 on 25 junio 2024","at 19:21 on 04 julio 2024","at 17:58 on 29 agosto 2020","at 21:30 on 05 septiembre 2024","at 18:23 on 22 octubre 2023","at 16:55 on 22 noviembre 2019","at 08:12 on 09 diciembre 2022");
+
+function changeData(month) {
+	document.getElementById('MonthName').innerHTML = monthnames[month];
+	document.getElementById('TempH').innerHTML = hightemp[month];
+	document.getElementById('TempHT').innerHTML = hightempT[month];
+	document.getElementById('TempL').innerHTML = lowtemp[month];
+	document.getElementById('TempLT').innerHTML = lowtempT[month];
+	document.getElementById('DewPointH').innerHTML = highDP[month];
+	document.getElementById('DewPointHT').innerHTML = highDPT[month];
+	document.getElementById('DewPointL').innerHTML = lowDP[month];
+	document.getElementById('DewPointLT').innerHTML = lowDPT[month];
+	document.getElementById('AppTempH').innerHTML = highapptemp[month];
+	document.getElementById('AppTempHT').innerHTML = highapptempT[month];
+	document.getElementById('AppTempL').innerHTML = lowapptemp[month];
+	document.getElementById('AppTempLT').innerHTML = lowapptempT[month];
+	document.getElementById('WChillL').innerHTML = lowchill[month];
+	document.getElementById('WChillLT').innerHTML = lowchillT[month];
+	document.getElementById('HeatIndexH').innerHTML = highheatindex[month];
+	document.getElementById('HeatIndexHT').innerHTML = highheatindexT[month];
+	document.getElementById('MinTempH').innerHTML = highmintemp[month];
+	document.getElementById('MinTempHT').innerHTML = highmintempT[month];
+	document.getElementById('MaxTempL').innerHTML = lowmaxtemp[month];
+	document.getElementById('MaxTempLT').innerHTML = lowmaxtempT[month];
+	document.getElementById('HumH').innerHTML = highhum[month];
+	document.getElementById('HumHT').innerHTML = highhumT[month];
+	document.getElementById('HumL').innerHTML = lowhum[month];
+	document.getElementById('HumLT').innerHTML = lowhumT[month];
+	document.getElementById('HighDailyTempRange').innerHTML = hightemprange[month];
+	document.getElementById('HighDailyTempRangeT').innerHTML = hightemprangeT[month];
+	document.getElementById('LowDailyTempRange').innerHTML = lowtemprange[month];
+	document.getElementById('LowDailyTempRangeT').innerHTML = lowtemprangeT[month];
+	document.getElementById('RainRateH').innerHTML = rainrate[month];
+	document.getElementById('RainRateHT').innerHTML = rainrateT[month];
+	document.getElementById('HourlyRainH').innerHTML = hourlyrain[month];
+	document.getElementById('HourlyRainHT').innerHTML = hourlyrainT[month];
+	document.getElementById('DailyRainH').innerHTML = dailyrain[month];
+	document.getElementById('DailyRainHT').innerHTML = dailyrainT[month];
+	document.getElementById('MonthlyRainH').innerHTML = monthlyrain[month];
+	document.getElementById('MonthlyRainHT').innerHTML = monthlyrainT[month];
+	document.getElementById('LongestDryPeriod').innerHTML = dryperiod[month];
+	document.getElementById('LongestDryPeriodT').innerHTML = dryperiodT[month];
+	document.getElementById('LongestWetPeriod').innerHTML = wetperiod[month];
+	document.getElementById('LongestWetPeriodT').innerHTML = wetperiodT[month];
+	document.getElementById('GustH').innerHTML = highgust[month];
+	document.getElementById('GustHT').innerHTML = highgustT[month];
+	document.getElementById('WindH').innerHTML = highwind[month];
+	document.getElementById('WindHT').innerHTML = highwindT[month];
+	document.getElementById('WindRunH').innerHTML = highwindrun[month];
+	document.getElementById('WindRunHT').innerHTML = highwindrunT[month];
+	document.getElementById('PressL').innerHTML = lowpress[month];
+	document.getElementById('PressLT').innerHTML = lowpressT[month];
+	document.getElementById('PressH').innerHTML = highpress[month];
+	document.getElementById('PressHT').innerHTML = highpressT[month];
+}
+
+// If you want the page to display the current month when it opens,
+// remove the "//" from the start of the next line
+//changeData(+'09' - 1);
+</script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+@charset "utf-8";
+/* CSS Document */
+@font-face {
+  font-family: 'iconos';
+  src:  url('../fonts/iconos.eot?jy90md');
+  src:  url('../fonts/iconos.eot?jy90md#iefix') format('embedded-opentype'),
+    url('../fonts/iconos.ttf?jy90md') format('truetype'),
+    url('../fonts/iconos.woff?jy90md') format('woff'),
+    url('../fonts/iconos.svg?jy90md#iconos') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+
+[class^="ico"], [class*=" ico"] {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'iconos' !important;
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icoicono-kayak:before {
+  content: "\f1900";
+}
+.icoicono-kite:before {
+  content: "\f1901";
+}
+.icoicono-logo-chico:before {
+  content: "\f1902";
+}
+.icoicono-logo:before {
+  content: "\f1903";
+}
+.icoicono-paddle:before {
+  content: "\f1904";
+}
+
+.icoicono-surf:before {
+  content: "\f1907";
+}
+.icoicono-surf .path2:before {
+  content: "\f1908";
+  margin-left: -0.8330078125em;
+  color: rgb(0, 0, 0);
+}
+.icoicono-surf .path3:before {
+  content: "\f1909";
+  margin-left: -0.8330078125em;
+  color: rgb(0, 0, 0);
+}
+.icoicono-surf .path4:before {
+  content: "\f190a";
+  margin-left: -0.8330078125em;
+  color: rgb(2, 2, 2);
+}
+.icoicono-surf .path5:before {
+  content: "\f190b";
+  margin-left: -0.8330078125em;
+  color: rgb(4, 4, 4);
+}
+.icoicono-surf .path6:before {
+  content: "\f190c";
+  margin-left: -0.8330078125em;
+  color: rgb(5, 5, 5);
+}
+.icoicono-surf .path7:before {
+  content: "\f190d";
+  margin-left: -0.8330078125em;
+  color: rgb(4, 4, 4);
+}
+.icoicono-surf .path8:before {
+  content: "\f190e";
+  margin-left: -0.8330078125em;
+  color: rgb(83, 83, 83);
+}
+.icoblog:before {
+  content: "\e922";
+}
+.icophone:before {
+  content: "\e942";
+}
+.icolocation:before {
+  content: "\e947";
+}
+.icolocation2:before {
+  content: "\e948";
+}
+.icocamp:before {
+  content: "\e985";
+}
+.icomail:before {
+  content: "\ea83";
+}
+.icofacebook:before {
+  content: "\ea91";
+  font-size:45px;
+}
+.icofacebook3:before {
+  content: "\ea91";
+
+}
+.icoinstagram:before {
+  content: "\ea92";
+  font-size:45px;
+}
+.icowhatsapp:before {
+  content: "\ea93";
+}
+.icotwitter:before {
+  content: "\ea96";
+  font-size:45px;
+}
+.icoyoutube:before {
+  content: "\ea9d";
+  font-size:45px;
+}
+.icovimeo:before {
+  content: "\eaa1";
+}
+.icofacebook2:before {
+  content: "\ea91";
+   font-size:25px;
+  margin-top:10px;
+  margin-left:5px;
+}
+.icoinstagram2:before {
+  content: "\ea92";
+    font-size:25px;
+  margin-top:10px;
+  margin-left:5px;
+}
+.icotwitter2:before {
+  content: "\ea96";
+  font-size:25px;
+  margin-top:10px;
+  margin-left:5px;
+}
+.icoyoutube2:before {
+  content: "\ea9d";
+  font-size:25px;
+  margin-top:10px;
+  margin-left:5px;
+}
+
+@font-face {
+  font-family: 'later';
+  src:  url('../fonts/later.eot?zel7iz');
+  src:  url('../fonts/later.eot?zel7iz#iefix') format('embedded-opentype'),
+    url('../fonts/later.ttf?zel7iz') format('truetype'),
+    url('../fonts/later.woff?zel7iz') format('woff'),
+    url('../fonts/later.svg?zel7iz#later') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+
+[class^="lat"], [class*=" lat"] {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'later' !important;
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.laticosurf:before {
+  content: "\e9501";
+}
+
+.laticotienda:before {
+  content: "\e9500";
+}
+
+@font-face {
+  font-family: 'sat';
+  src:  url('../fonts/sat.eot?j8swf3');
+  src:  url('../fonts/sat.eot?j8swf3#iefix') format('embedded-opentype'),
+    url('../fonts/sat.ttf?j8swf3') format('truetype'),
+    url('../fonts/sat.woff?j8swf3') format('woff'),
+    url('../fonts/sat.svg?j8swf3#sat') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+
+[class^="ic"], [class*=" ic"] {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'sat' !important;
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icsatellite:before {
+  content: "\e950";
+}

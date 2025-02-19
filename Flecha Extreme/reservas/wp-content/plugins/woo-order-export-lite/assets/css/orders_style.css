@@ -1,0 +1,19 @@
+@media (min-width: 576px) and (max-width: 782px) {
+    th#woe_export_status {
+        display: table-cell !important;
+    }
+    th.manage-column.column-woe_export_status {
+        display: table-cell !important;
+    }
+    td.woe_export_status.column-woe_export_status {
+        display: table-cell !important;
+        padding: 1em;
+        line-height: 26px;
+    }
+    .wp-list-table tr:not(.inline-edit-row):not(.no-items) td:not(.column-primary)::before {
+        content: none;
+    }
+    .post-type-shop_order .wp-list-table tbody td {
+        padding: 1em !important;
+    }
+}

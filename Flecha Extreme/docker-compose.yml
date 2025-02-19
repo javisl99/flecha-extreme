@@ -1,0 +1,28 @@
+version: '3.1'
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: flecha-extreme
+      POSTGRES_PASSWORD: 0091Robe*#
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+  odoo:
+    image: odoo:latest
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./config:/etc/odoo
+      - ./addons:/mnt/extra-addons
+      - ./odoo_logs:/var/log/odoo
+    environment:
+      HOST: db
+      USER: flecha-extreme
+      PASSWORD: 0091Robe*#
+volumes:
+  odoo-db-data:
+  odoo-web-data:

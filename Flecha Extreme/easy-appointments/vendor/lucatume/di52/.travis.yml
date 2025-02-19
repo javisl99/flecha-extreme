@@ -1,0 +1,22 @@
+language: php
+
+php:
+#  - '5.2'
+#  - '5.3'
+#  - '5.4'
+#  - '5.5'
+  - '5.6'
+  - '7.0'
+  - '7.1'
+  - '7.2'
+  - '7.3'
+
+before_install:
+  - composer update
+
+script:
+  - ./vendor/bin/phpunit-php52 --version
+  - ./vendor/bin/phpunit-php52
+
+notifications:
+  email: false 

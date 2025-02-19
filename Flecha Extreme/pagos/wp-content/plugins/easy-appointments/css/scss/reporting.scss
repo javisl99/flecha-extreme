@@ -1,0 +1,234 @@
+.report-container {
+
+	button.go-back,
+	.ea-export-form button,
+	button#ea-export-save-custom-columns {
+    	font-family: RobotoRegular;
+    	height: 35px;
+		padding: 0 20px 1px;
+	}
+	
+	.report-items {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(13vw, 1fr));
+		grid-gap: 15px;
+
+		.report-item {
+			background: #ffffff;
+    		border: 1px solid #e2e2e2;
+    		display: flex;
+    		flex-direction: column;
+    		align-items: center;
+    		font-family: RobotoRegular;
+    		padding: 1vw;
+    		cursor: pointer;
+    		transition: all .8s;
+
+    		.icon {
+			    width: 5vw;
+			    height: 5vw;
+			    border-radius: 100%;
+			    align-self: center;
+			    display: flex;
+			    font-size: 3.5vw;
+			    color: #ffffff;
+
+			    &:before {
+			    	margin: auto;
+			    }
+    		}
+
+    		&.time-table .icon {
+			    background-color: #515e5f;
+    		}
+    		&.money .icon {
+			    background-color: #fe9c2b;
+    		}
+    		&.export .icon {
+			    background-color: #00a99c;
+    		}
+
+    		span {
+			    margin: 1vw 0;
+			    text-align: center;
+
+    			&.rep-title {
+					font-size: 1.1vw;
+	    		}
+    			&.rep-description {
+					font-size: 0.8vw;
+					margin-top: 0;
+	    		}
+	    	}
+
+	    	&:hover {
+	    		border: 1px solid rgba(0, 115, 170, 1);
+	    	}
+		}
+	}
+
+	.report-content {
+
+		.form-item {
+			flex: 1;
+			display: flex;
+		    align-items: center;
+		    margin-right: 1vw;
+			font-family: 'RobotoRegular';
+
+			label {
+				font-size: 15px;
+    			line-height: 20px
+			}
+
+		    .field {
+		    	flex: 1;
+		    	height: 32px;
+			    padding: 4px 11px;
+			    color: rgba(0, 0, 0, 0.65);
+			    font-size: 14px;
+			    line-height: 1.5;
+			    background-color: #fff;
+			    background-image: none;
+			    border: 1px solid #d9d9d9;
+			    border-radius: 4px;
+			    -webkit-transition: all .3s;
+			    transition: all .3s;
+		    }
+		}
+
+		.filter-select {
+			margin-right: 20px;
+
+			& > div {
+				width: 75vw;
+			    box-sizing: border-box;
+			    min-width: 70em;
+			    font-family: 'RobotoRegular';
+			    font-size: 16px;
+			    margin: 0 auto;
+			    margin-bottom: 2vh;
+			    padding: 0 5vw 1.5vh;
+			    border-bottom: 1px solid #dadada;
+			    display: flex;
+    			justify-content: space-between;
+    			align-items: center;
+
+    			button {
+    				height: 32px;
+    				padding: 0 20px 1px;
+    			}
+			}
+		}
+		
+		.overview-month {
+			margin-right: 20px;
+
+			.ui-datepicker {
+			    width: 75vw;
+			    box-sizing: border-box;
+			    min-width: 70em;
+			    font-family: 'RobotoRegular';
+			    font-size: 16px;
+			    margin: 0 auto;
+
+			    .ui-datepicker-header {
+			    	background: #2d85ba;
+    				color: #ffffff;
+
+    				.ui-datepicker-title {
+    					text-transform: uppercase;
+    				}
+
+    				a.ui-datepicker-next,
+    				a.ui-datepicker-prev {
+    					background: rgba(230, 230, 230, 0.6);
+    				}
+    				a.ui-datepicker-next.ui-state-hover,
+    				a.ui-datepicker-prev.ui-state-hover {
+    					background: rgba(230, 230, 230, 1);
+    					top: 2px;
+    					border: 0;
+    				}
+    				a.ui-datepicker-prev.ui-state-hover {
+    					left: 2px;
+    				}
+    				a.ui-datepicker-next.ui-state-hover {
+    					right: 2px;
+    				}
+    				.ui-state-hover .ui-icon, .ui-state-focus .ui-icon {
+    					background-image: url('../images/ui-icons_222222_256x240.png');
+    				}
+			    }
+			    .ui-datepicker-calendar {
+					margin: 0 0 .2em;
+			    	
+			    	.ui-datepicker-unselectable {
+				    	.single-item {
+				    		padding: 5px 0;
+				    		background-color: #ffffff;
+				    	}
+				    	span.ui-state-default {
+				    		position: absolute;
+						    top: 0px;
+						    right: 0;
+						    font-size: 1.3em;
+						    color: black;
+						    border: 0 solid black;
+						    padding: 0;
+						    margin: 0;
+						    height: 25px;
+						    width: 95%;
+						    background: #cfe4ff;
+						    padding-right: 5%;
+						    padding-top: 5px;
+				    	}
+				    }
+			    }
+			}
+		}
+		.ea-export-form , .custom-cols-block {
+			.form-item {
+				width: 600px;
+				margin-bottom: 15px;
+				
+				label {
+					width: 70px;
+				}
+			}
+		}
+		.custom-cols-block {
+			margin-top: 40px;
+
+			.form-item {
+				align-items: flex-start;
+
+				label {
+					padding-top: 5px;
+				}
+			}
+			div.field {
+				padding: 0 11px;
+				min-height: 32px;
+	    		height: auto;
+
+	    		a {
+	    			line-height: 32px;
+
+	    			&:active, &:focus {
+	    				outline: none;
+	    				box-shadow: none;
+	    			};
+	    		}
+	    		#ea-export-customize-columns {
+	    			padding-bottom: 11px;
+
+		    		input#ea-export-custom-columns {
+		    			width: 100%;
+		    			height: 32px;
+		    		}
+		    	}
+			}
+		}
+	}
+}

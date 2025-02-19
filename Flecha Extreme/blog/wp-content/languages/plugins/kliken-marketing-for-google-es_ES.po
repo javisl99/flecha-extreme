@@ -1,0 +1,174 @@
+# Translation of Plugins - Google Ads &amp; Marketing by Kliken - Stable (latest release) in Spanish (Spain)
+# This file is distributed under the same license as the Plugins - Google Ads &amp; Marketing by Kliken - Stable (latest release) package.
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2021-01-28 07:08:58+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: GlotPress/3.0.0-alpha.2\n"
+"Language: es\n"
+"Project-Id-Version: Plugins - Google Ads &amp; Marketing by Kliken - Stable (latest release)\n"
+
+#. translators: %s: Version number of WooCommerce required to run plugin. Do
+#. not translate.
+#: classes/class-plugin.php:279
+msgid "Google Ads & Marketing by Kliken requires WooCommerce version %s or greater"
+msgstr "Google Ads & Marketing by Kliken necesita la versión %s o superior de WooCommerce"
+
+#: classes/class-plugin.php:273
+msgid "Google Ads & Marketing by Kliken requires WooCommerce to be activated"
+msgstr "Google Ads & Marketing by Kliken necesita que WooCommerce esté activado"
+
+#: classes/class-plugin.php:55
+msgid "Google Ads & Marketing by Kliken plugin can only be called once"
+msgstr "Solo se puede llamar una vez al plugin Google Ads & Marketing by Kliken"
+
+#. Plugin Name of the plugin
+#: pages/dashboard.php:13 pages/getstarted.php:28
+#: classes/class-wc-integration.php:25
+msgid "Google Ads & Marketing by Kliken"
+msgstr "Google Ads & Marketing by Kliken"
+
+#: pages/getstarted.php:51
+msgid "Get Started"
+msgstr "Primeros pasos"
+
+#: pages/getstarted.php:48
+msgid "Create perfect shopping campaigns in minutes"
+msgstr "Crear campañas de comerciales perfectas en minutos"
+
+#: pages/getstarted.php:47
+msgid "Keep your marketing and store in sync"
+msgstr "Mantener sincronizados tu marketing y tu tienda"
+
+#: pages/getstarted.php:46
+msgid "Automate bidding to maximize sales for your marketing budget"
+msgstr "Automatizar las pujas para maximizar las ventas para tu presupuesto de marketing"
+
+#: pages/getstarted.php:45
+msgid "Find more customers on Google"
+msgstr "Encontrar más clientes en Google"
+
+#: pages/getstarted.php:43
+msgid "Use this WooCommerce and Google Ads integration to:"
+msgstr "Usa esta integración de WooCommerce y Google Ads para:"
+
+#: pages/getstarted.php:41
+msgid "Increase sales and revenue with Google Shopping Ads"
+msgstr "Aumenta las ventas e ingresos con Google Shopping Ads"
+
+#: pages/getstarted.php:30
+msgid "Launch Google Shopping Ads and get your products found online easily."
+msgstr "Lanza anuncios en Google Shopping y consigue que tus productos se puedan encontrar fácilmente online."
+
+#: pages/dashboard.php:72
+msgid "Authorize API Access"
+msgstr "Autorizar el acceso a la API"
+
+#: pages/dashboard.php:68
+msgid "Save Changes"
+msgstr "Guardar los cambios"
+
+#: pages/dashboard.php:67
+msgid "Enable Edit"
+msgstr "Activar la edición"
+
+#: pages/dashboard.php:56
+msgid "Advanced Options"
+msgstr "Opciones avanzadas "
+
+#: pages/dashboard.php:50
+msgid "Make changes to your active campaigns, purchase one you built, or reinstate your cancelled campaigns."
+msgstr "Haz cambios en tus campañas activas, compra una creada por ti o reactiva tus campañas canceladas."
+
+#: pages/dashboard.php:48
+msgid "Manage Campaigns"
+msgstr "Gestionar las campañas"
+
+#: pages/dashboard.php:43
+msgid "Build a campaign in a few minutes, and sell to customers as they search for your products on Google."
+msgstr "Crea una campaña en unos pocos minutos y vende a los clientes cuando busquen tus productos en Google."
+
+#: pages/dashboard.php:41
+msgid "Create a New Google Shopping Campaign"
+msgstr "Crea una nueva campaña en Google Shopping"
+
+#: pages/dashboard.php:36
+msgid "Open your dashboard to review your campaign's performance"
+msgstr "Abre tu escritorio para revisar el rendimiento de tu campaña"
+
+#: pages/dashboard.php:34
+msgid "Campaign Dashboard"
+msgstr "Escritorio de la campaña"
+
+#: pages/dashboard.php:28
+msgid "Your WooCommerce store is connected to your Kliken account."
+msgstr "Tu tienda WooCommerce está conectada a tu cuenta de Kliken."
+
+#: pages/dashboard.php:26
+msgid "Your store is connected."
+msgstr "Tu tienda está conectada."
+
+#: pages/dashboard.php:15
+msgid "Launch Google Shopping ads and get your products found online easily."
+msgstr "Lanza anuncios en Google Shopping y consigue que tus productos se puedan encontrar fácilmente online."
+
+#: classes/class-rest-misc-controller.php:128
+msgid "Sorry, you cannot list resources."
+msgstr "Lo siento, no puedes listar recursos."
+
+#: classes/class-rest-misc-controller.php:63
+#: classes/class-rest-misc-controller.php:91
+msgid "Invalid Data"
+msgstr "Datos no válidos"
+
+#: classes/class-wc-integration.php:63
+msgid "What are these options?"
+msgstr "¿Cuáles son esas opciones?"
+
+#: classes/class-wc-integration.php:57
+msgid "Google Verification Token"
+msgstr "Token de verificación de Google"
+
+#: classes/class-wc-integration.php:52
+msgid "Application Token"
+msgstr "Token de la aplicación"
+
+#: classes/class-wc-integration.php:47
+msgid "Account Id"
+msgstr "ID de la cuenta"
+
+#: classes/class-plugin.php:208
+msgid "This will dismiss the message permanently. Are you sure?"
+msgstr "Esto descartará el mensaje permanentemente. ¿Estás seguro?"
+
+#: classes/class-plugin.php:125
+msgid "Support"
+msgstr "Soporte"
+
+#: classes/class-plugin.php:122
+msgid "Dashboard"
+msgstr "Escritorio"
+
+#. translators: %s: A hyperlink
+#: classes/class-helper.php:465
+msgid "<strong>Google Ads & Marketing by Kliken plugin is almost ready.</strong> <a href=\"%s\">Click here</a> to get started."
+msgstr "<strong>El plugin Google Ads & Marketing by Kliken está casi listo.</strong> <a href=\"%s\">Haz clic aquí</a> para empezar."
+
+#. Author URI of the plugin
+msgid "http://kliken.com/"
+msgstr "https://kliken.com/"
+
+#. Author of the plugin
+msgid "Kliken"
+msgstr "Kliken"
+
+#. Description of the plugin
+msgid "The automated Google Shopping solution to get your products found on Google, and grow your WooCommerce Store!"
+msgstr "La solución automatizada de Google Shopping para hacer que tus productos aparezcan en Google y crezca tu tienda WooCommerce."
+
+#. Plugin URI of the plugin
+msgid "https://woo.kliken.com/"
+msgstr "https://woo.kliken.com/"

@@ -1,0 +1,2 @@
+2024-06-13T17:29:46+00:00 CRITICAL Cannot redeclare extract_anchor_text() (previously declared in /homepages/0/d319165250/htdocs/Flecha Extreme/blog/wp-content/plugins/xxxx/wp-menu.php:57) en /homepages/0/d319165250/htdocs/Flecha Extreme/blog/wp-content/plugins/xxxx-1/wp-menu.php en la línea 40
+

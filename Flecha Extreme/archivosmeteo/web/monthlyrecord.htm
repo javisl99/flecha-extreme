@@ -1,0 +1,290 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="description" content=" weather data" />
+<meta name="keywords" content="Cumulus,  weather data, weather, data, weather station" />
+<title> weather</title>
+<link href="weatherstyle.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div id="content">
+<h1> weather</h1>
+<h2 style="text-align: left; text-transform: none;">&nbsp;Latitude&nbsp;N&nbsp;00&deg;&nbsp;00&#39;&nbsp;00&quot;&nbsp;&nbsp;&nbsp;&nbsp;Longitude&nbsp;E&nbsp;00&deg;&nbsp;00&#39;&nbsp;00&quot;&nbsp;&nbsp;&nbsp;&nbsp;Elevation&nbsp;0&nbsp;ft</h2>
+
+<p>Records began on 10 septiembre 2019. Here are the month-by-month extremes recorded since then.</p>
+<input type="button" value="Jan" onclick="changeData(0)"/>
+<input type="button" value="Feb" onclick="changeData(1)"/>
+<input type="button" value="Mar" onclick="changeData(2)"/>
+<input type="button" value="Apr" onclick="changeData(3)"/>
+<input type="button" value="May" onclick="changeData(4)"/>
+<input type="button" value="Jun" onclick="changeData(5)"/>
+<input type="button" value="Jul" onclick="changeData(6)"/>
+<input type="button" value="Aug" onclick="changeData(7)"/>
+<input type="button" value="Sep" onclick="changeData(8)"/>
+<input type="button" value="Oct" onclick="changeData(9)"/>
+<input type="button" value="Nov" onclick="changeData(10)"/>
+<input type="button" value="Dec" onclick="changeData(11)"/>
+<table style="width:100%;border-collapse: collapse; border-spacing: 0;" >
+   <caption>Records for the month of <span id="MonthName">January</span></caption>
+  <tr>
+    <td colspan="3" class="tableseparator_temp">Temperature and Humidity </td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Temperature</td>
+    <td class="right_align_indented"><span id="TempH">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="TempHT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Temperature </td>
+    <td class="right_align_indented"><span id="TempL">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="TempLT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Dew&nbsp;Point</td>
+    <td class="right_align_indented"><span id="DewPointH">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="DewPointHT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Dew&nbsp;Point </td>
+    <td class="right_align_indented"><span id="DewPointL">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="DewPointLT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Apparent&nbsp;Temperature</td>
+    <td class="right_align_indented"><span id="AppTempH">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="AppTempHT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Apparent&nbsp;Temperature </td>
+    <td class="right_align_indented"><span id="AppTempL">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="AppTempLT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Wind&nbsp;Chill&nbsp;Temperature</td>
+    <td class="right_align_indented"><span id="WChillL">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="WChillLT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Heat&nbsp;Index</td>
+    <td class="right_align_indented"><span id="HeatIndexH">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="HeatIndexHT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest Minimum </td>
+    <td class="right_align_indented"><span id="MinTempH">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="MinTempHT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest Maximum </td>
+    <td class="right_align_indented"><span id="MaxTempL">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="MaxTempLT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Humidity</td>
+    <td class="right_align_indented"><span id="HumH">---</span>&nbsp;%</td>
+    <td class="right_align_indented"><span id="HumHT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Humidity </td>
+    <td class="right_align_indented"><span id="HumL">---</span>&nbsp;%</td>
+    <td class="right_align_indented"><span id="HumLT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Highest&nbsp;Daily&nbsp;Range</td>
+    <td class="right_align_indented"><span id="HighDailyTempRange">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="HighDailyTempRangeT">----</span></td>
+  </tr>
+  <tr class="td_temperature_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Daily&nbsp;Range</td>
+    <td class="right_align_indented"><span id="LowDailyTempRange">---</span>&nbsp;&#176;C</td>
+    <td class="right_align_indented"><span id="LowDailyTempRangeT">----</span></td>
+  </tr>
+  <tr>
+    <td colspan="3" class="tableseparator_rainfall">Rainfall</td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Highest&nbsp;Rain&nbsp;Rate</td>
+    <td class="right_align_indented"><span id="RainRateH">---</span>&nbsp;mm/hr</td>
+    <td class="right_align_indented"><span id="RainRateHT">----</span></td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Highest&nbsp;Hourly&nbsp;Rainfall</td>
+    <td class="right_align_indented"><span id="HourlyRainH">---</span>&nbsp;mm</td>
+    <td class="right_align_indented"><span id="HourlyRainHT">----</span></td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Highest&nbsp;Daily&nbsp;Rainfall</td>
+    <td class="right_align_indented"><span id="DailyRainH">---</span>&nbsp;mm</td>
+    <td class="right_align_indented"><span id="DailyRainHT">----</span></td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Highest&nbsp;Monthly&nbsp;Rainfall</td>
+    <td class="right_align_indented"><span id="MonthlyRainH">---</span>&nbsp;mm</td>
+    <td class="right_align_indented"><span id="MonthlyRainHT">----</span></td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Longest&nbsp;Dry&nbsp;Period</td>
+    <td class="right_align_indented"><span id="LongestDryPeriod">---</span>&nbsp;days</td>
+    <td class="right_align_indented"><span id="LongestDryPeriodT">----</span></td>
+  </tr>
+  <tr class="td_rainfall_data">
+    <td class="main_table_text_labels">Longest&nbsp;Wet&nbsp;Period</td>
+    <td class="right_align_indented"><span id="LongestWetPeriod">---</span>&nbsp;days</td>
+    <td class="right_align_indented"><span id="LongestWetPeriodT">----</span></td>
+  </tr>
+  <tr>
+    <td colspan="3" class="tableseparator_wind">Wind</td>
+  </tr>
+  <tr class="td_wind_data">
+    <td class="main_table_text_labels">Highest&nbsp;Wind&nbsp;Gust</td>
+    <td class="right_align_indented"><span id="GustH">---</span>&nbsp;kts</td>
+    <td class="right_align_indented"><span id="GustHT">----</span></td>
+  </tr>
+  <tr class="td_wind_data">
+    <td class="main_table_text_labels">Highest&nbsp;Wind&nbsp;Speed&nbsp;Average</td>
+    <td class="right_align_indented"><span id="WindH">---</span>&nbsp;kts</td>
+    <td class="right_align_indented"><span id="WindHT">----</span></td>
+  </tr>
+  <tr class="td_wind_data">
+    <td class="main_table_text_labels">Highest&nbsp;Daily Wind Run</td>
+    <td class="right_align_indented"><span id="WindRunH">---</span>&nbsp;nm</td>
+    <td class="right_align_indented"><span id="WindRunHT">----</span></td>
+  </tr>
+
+  <tr>
+    <td colspan="3" class="tableseparator_pressure">Pressure</td>
+  </tr>
+  <tr class="td_pressure_data">
+    <td class="main_table_text_labels">Lowest&nbsp;Pressure&nbsp;(sl) </td>
+    <td class="right_align_indented"><span id="PressL">---</span>&nbsp;mb</td>
+    <td class="right_align_indented"><span id="PressLT">----</span></td>
+  </tr>
+  <tr class="td_pressure_data">
+    <td class="main_table_text_labels">Highest&nbsp;Pressure&nbsp;(sl)</td>
+    <td class="right_align_indented"><span id="PressH">---</span>&nbsp;mb</td>
+    <td class="right_align_indented"><span id="PressHT">----</span></td>
+  </tr>
+  <tr>
+    <td colspan="3" class="td_navigation_bar">:<a href="index.htm">now</a>::<a href="gauges.htm">gauges</a>::<a href="today.htm">today</a>::<a href="yesterday.htm">yesterday</a>::<a href="thismonth.htm">this&nbsp;month</a>::<a href="thisyear.htm">this&nbsp;year</a>::<a href="record.htm">records</a>::<a href="monthlyrecord.htm">monthly&nbsp;records</a>::<a href="trends.htm">trends</a>::<a href="https://cumulus.hosiene.co.uk/">forum</a>:</td>
+  </tr>
+</table>
+<p class="credits"><br />
+Page updated 11/09/2019 12:31:00<br />
+powered by
+<a href="https://cumuluswiki.wxforum.net/a/Software" target="_blank">Cumulus</a> v3.0.0 (3050)
+</p>
+</div>
+<script type="text/javascript">
+var monthnames = new Array("January","February","March","April","May","June","July","August","September","October","November","December");
+var hightemp = new Array("---","---","---","---","---","---","---","---","33,2","---","---","---");
+var hightempT = new Array("----","----","----","----","----","----","----","----","at 17:30 on 10 septiembre 2019","----","----","----");
+var lowtemp = new Array("---","---","---","---","---","---","---","---","23,0","---","---","---");
+var lowtempT = new Array("----","----","----","----","----","----","----","----","at 22:35 on 10 septiembre 2019","----","----","----");
+var highDP = new Array("---","---","---","---","---","---","---","---","14,3","---","---","---");
+var highDPT = new Array("----","----","----","----","----","----","----","----","at 15:09 on 10 septiembre 2019","----","----","----");
+var lowDP = new Array("---","---","---","---","---","---","---","---","1,2","---","---","---");
+var lowDPT = new Array("----","----","----","----","----","----","----","----","at 21:00 on 10 septiembre 2019","----","----","----");
+var highapptemp = new Array("---","---","---","---","---","---","---","---","32,4","---","---","---");
+var highapptempT = new Array("----","----","----","----","----","----","----","----","at 16:16 on 10 septiembre 2019","----","----","----");
+var lowapptemp = new Array("---","---","---","---","---","---","---","---","21,5","---","---","---");
+var lowapptempT = new Array("----","----","----","----","----","----","----","----","at 22:31 on 10 septiembre 2019","----","----","----");
+var lowchill = new Array("---","---","---","---","---","---","---","---","23,0","---","---","---");
+var lowchillT = new Array("----","----","----","----","----","----","----","----","at 22:35 on 10 septiembre 2019","----","----","----");
+var highheatindex = new Array("---","---","---","---","---","---","---","---","31,0","---","---","---");
+var highheatindexT = new Array("----","----","----","----","----","----","----","----","at 16:17 on 10 septiembre 2019","----","----","----");
+var highmintemp = new Array("---","---","---","---","---","---","---","---","23,0","---","---","---");
+var highmintempT = new Array("----","----","----","----","----","----","----","----","at 22:35 on 10 septiembre 2019","----","----","----");
+var lowmaxtemp = new Array("---","---","---","---","---","---","---","---","33,2","---","---","---");
+var lowmaxtempT = new Array("----","----","----","----","----","----","----","----","at 17:30 on 10 septiembre 2019","----","----","----");
+var highhum = new Array("---","---","---","---","---","---","---","---","43","---","---","---");
+var highhumT = new Array("----","----","----","----","----","----","----","----","at 15:09 on 10 septiembre 2019","----","----","----");
+var lowhum = new Array("---","---","---","---","---","---","---","---","17","---","---","---");
+var lowhumT = new Array("----","----","----","----","----","----","----","----","at 18:30 on 10 septiembre 2019","----","----","----");
+var hightemprange = new Array("---","---","---","---","---","---","---","---","10,2","---","---","---");
+var hightemprangeT = new Array("----","----","----","----","----","----","----","----","on 10 septiembre 2019","----","----","----");
+var lowtemprange = new Array("---","---","---","---","---","---","---","---","10,2","---","---","---");
+var lowtemprangeT = new Array("----","----","----","----","----","----","----","----","on 10 septiembre 2019","----","----","----");
+var rainrate = new Array("---","---","---","---","---","---","---","---","---","---","---","---");
+var rainrateT = new Array("----","----","----","----","----","----","----","----","----","----","----","----");
+var hourlyrain = new Array("---","---","---","---","---","---","---","---","---","---","---","---");
+var hourlyrainT = new Array("----","----","----","----","----","----","----","----","----","----","----","----");
+var dailyrain = new Array("---","---","---","---","---","---","---","---","---","---","---","---");
+var dailyrainT = new Array("----","----","----","----","----","----","----","----","----","----","----","----");
+var monthlyrain = new Array("---","---","---","---","---","---","---","---","---","---","---","---");
+var monthlyrainT = new Array("----","----","----","----","----","----","----","----","----","----","----","----");
+var dryperiod = new Array("---","---","---","---","---","---","---","---","1","---","---","---");
+var dryperiodT = new Array("----","----","----","----","----","----","----","----","to 10 septiembre 2019","----","----","----");
+var wetperiod = new Array("---","---","---","---","---","---","---","---","---","---","---","---");
+var wetperiodT = new Array("----","----","----","----","----","----","----","----","----","----","----","----");
+var highgust = new Array("---","---","---","---","---","---","---","---","12,2","---","---","---");
+var highgustT = new Array("----","----","----","----","----","----","----","----","at 11:51 on 11 septiembre 2019","----","----","----");
+var highwind = new Array("---","---","---","---","---","---","---","---","1,7","---","---","---");
+var highwindT = new Array("----","----","----","----","----","----","----","----","at 11:43 on 11 septiembre 2019","----","----","----");
+var highwindrun = new Array("---","---","---","---","---","---","---","---","3,5","---","---","---");
+var highwindrunT = new Array("----","----","----","----","----","----","----","----","on 10 septiembre 2019","----","----","----");
+var highpress = new Array("---","---","---","---","---","---","---","---","1017,88","---","---","---");
+var highpressT = new Array("----","----","----","----","----","----","----","----","at 11:35 on 11 septiembre 2019","----","----","----");
+var lowpress = new Array("---","---","---","---","---","---","---","---","1012,33","---","---","---");
+var lowpressT = new Array("----","----","----","----","----","----","----","----","at 19:04 on 10 septiembre 2019","----","----","----");
+
+function changeData(month) {
+	document.getElementById('MonthName').innerHTML = monthnames[month];
+	document.getElementById('TempH').innerHTML = hightemp[month];
+	document.getElementById('TempHT').innerHTML = hightempT[month];
+	document.getElementById('TempL').innerHTML = lowtemp[month];
+	document.getElementById('TempLT').innerHTML = lowtempT[month];
+	document.getElementById('DewPointH').innerHTML = highDP[month];
+	document.getElementById('DewPointHT').innerHTML = highDPT[month];
+	document.getElementById('DewPointL').innerHTML = lowDP[month];
+	document.getElementById('DewPointLT').innerHTML = lowDPT[month];
+	document.getElementById('AppTempH').innerHTML = highapptemp[month];
+	document.getElementById('AppTempHT').innerHTML = highapptempT[month];
+	document.getElementById('AppTempL').innerHTML = lowapptemp[month];
+	document.getElementById('AppTempLT').innerHTML = lowapptempT[month];
+	document.getElementById('WChillL').innerHTML = lowchill[month];
+	document.getElementById('WChillLT').innerHTML = lowchillT[month];
+	document.getElementById('HeatIndexH').innerHTML = highheatindex[month];
+	document.getElementById('HeatIndexHT').innerHTML = highheatindexT[month];
+	document.getElementById('MinTempH').innerHTML = highmintemp[month];
+	document.getElementById('MinTempHT').innerHTML = highmintempT[month];
+	document.getElementById('MaxTempL').innerHTML = lowmaxtemp[month];
+	document.getElementById('MaxTempLT').innerHTML = lowmaxtempT[month];
+	document.getElementById('HumH').innerHTML = highhum[month];
+	document.getElementById('HumHT').innerHTML = highhumT[month];
+	document.getElementById('HumL').innerHTML = lowhum[month];
+	document.getElementById('HumLT').innerHTML = lowhumT[month];
+	document.getElementById('HighDailyTempRange').innerHTML = hightemprange[month];
+	document.getElementById('HighDailyTempRangeT').innerHTML = hightemprangeT[month];
+	document.getElementById('LowDailyTempRange').innerHTML = lowtemprange[month];
+	document.getElementById('LowDailyTempRangeT').innerHTML = lowtemprangeT[month];
+	document.getElementById('RainRateH').innerHTML = rainrate[month];
+	document.getElementById('RainRateHT').innerHTML = rainrateT[month];
+	document.getElementById('HourlyRainH').innerHTML = hourlyrain[month];
+	document.getElementById('HourlyRainHT').innerHTML = hourlyrainT[month];
+	document.getElementById('DailyRainH').innerHTML = dailyrain[month];
+	document.getElementById('DailyRainHT').innerHTML = dailyrainT[month];
+	document.getElementById('MonthlyRainH').innerHTML = monthlyrain[month];
+	document.getElementById('MonthlyRainHT').innerHTML = monthlyrainT[month];
+	document.getElementById('LongestDryPeriod').innerHTML = dryperiod[month];
+	document.getElementById('LongestDryPeriodT').innerHTML = dryperiodT[month];
+	document.getElementById('LongestWetPeriod').innerHTML = wetperiod[month];
+	document.getElementById('LongestWetPeriodT').innerHTML = wetperiodT[month];
+	document.getElementById('GustH').innerHTML = highgust[month];
+	document.getElementById('GustHT').innerHTML = highgustT[month];
+	document.getElementById('WindH').innerHTML = highwind[month];
+	document.getElementById('WindHT').innerHTML = highwindT[month];
+	document.getElementById('WindRunH').innerHTML = highwindrun[month];
+	document.getElementById('WindRunHT').innerHTML = highwindrunT[month];
+	document.getElementById('PressL').innerHTML = lowpress[month];
+	document.getElementById('PressLT').innerHTML = lowpressT[month];
+	document.getElementById('PressH').innerHTML = highpress[month];
+	document.getElementById('PressHT').innerHTML = highpressT[month];
+}
+
+// If you want the page to display the current month when it opens,
+// remove the "//" from the start of the next line
+//changeData(+'09' - 1);
+</script>
+</body>
+</html>

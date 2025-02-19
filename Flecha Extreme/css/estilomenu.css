@@ -1,0 +1,176 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.menu{
+    font-family: "Karla" ;
+    background-color: rgb(62, 147, 221);
+    color: white;
+    height: 50px;
+
+}
+
+.menu_container{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 90%;
+    margin: 0 auto;
+    max-width: 2000px;
+    height: 100%;
+
+}
+@font-face {
+    font-family: Karla;
+    src: url(../assets/Karla.ttf);
+}
+
+.menu_links {
+    height: 100%;
+    transition: transform .5s;
+    display: flex;
+    
+    
+}
+
+.menu_item {
+    list-style: none;
+    position: relative;
+    height: 100%;
+    /*--clip: polygon(0 0, 100% 0, 100% 100%, 0% 100%);*/
+    --clip: polygon(0 0, 100% 0, 100% 0, 0 0);
+    --transform: rotate(-90deg);
+
+}
+
+.menu_item:hover {
+
+  --clip: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+  --transform: rotate(0);
+}
+
+.menu_link {
+    color: white;
+    text-decoration: none;
+    padding: 0 30px;
+    display: flex;
+    height: 100%;
+    align-items: center;
+}
+
+.menu_link:hover {
+    background-color: #cdd7e9;
+}
+
+.menu_arrow {
+    transform: var(--transform);
+    transition: transform .3s;
+    display: block;
+    margin-left: 3px;
+}
+
+.menu_nesting{
+    list-style: none;
+    transition: clip-path .3s;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: max-content;
+    transform: translateY(100%);
+    background-color: #000;
+    clip-path: var(--clip);
+}
+
+.menu_link-inside{
+    padding-left: 60px;
+    padding-top: 30px;
+    padding-bottom: 30px;
+    padding-right: 60px;
+   
+
+}
+.menu_link-inside:hover {
+    background-color: #cdd7e9;
+}
+
+.menu_hamburguer {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    padding: 0 15px;
+    cursor: pointer;
+    display: none;
+}  
+
+.menu_img{
+    display: block;
+    width: 36px;
+}
+
+@media (max-width:800px) {
+    .menu_hamburguer{
+        display: flex;
+    }
+
+    .menu_item {
+        --clip:0;
+        overflow: hidden;
+    }
+
+    .menu_item-active{
+        --transform: rotate(0);
+        --background: #cdd7e9;
+    }
+
+    .menu_item-show{
+        background-color: var(--background);
+    }
+
+    .menu_links {
+        position: fixed;
+        max-width: 400px;
+        width: 100%;
+        top: 70px;
+        right: 0;
+        bottom: 0;
+        background-color: #000;
+        overflow-y: auto;
+        display: grid;
+        grid-auto-rows: max-content;
+        transform: translateX(100%);
+    }
+
+    .menu_links--show{
+        transform: unset;
+        width: 100%;
+    }
+
+
+    .menu_link {
+        padding: 25px 0;
+        padding-left: 30px;
+    
+        height: auto;
+    }
+    .menu_arrow {
+        margin-left: auto;
+        margin-right: 20px;
+    }
+
+    .menu_nesting {
+        display: grid;
+        position: unset;
+        width: 100%;
+        transform: translateY(0);
+        height: 0;
+        transition: height .3s;
+    }
+    .menu_link-inside{
+        width: 90%;
+        margin-left: auto;
+        border-left: 1px solid #cdd7e9;
+
+    }
+}

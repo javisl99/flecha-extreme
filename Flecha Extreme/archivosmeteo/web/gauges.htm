@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+  <meta name="keywords" content=" weather data, weather, data, weather station, steelseries">
+  <title>Flecha Extreme-Meteo</title>
+  <link rel="stylesheet" href="weatherstyle.css">
+  <link rel="stylesheet" href="lib/steelseries/css/gauges-ss.css">
+</head>
+
+<body>
+  <div class="row">
+    <div id="tip_6" class="gauge">
+      <canvas id="canvas_wind" width="500" height="500"></canvas>
+    </div>
+    <div id="tip_7" class="gauge">
+      <canvas id="canvas_dir" width="500" height="500"></canvas>
+    </div>
+</div>
+<tr class="td_temperature_data">
+    <td>Temperature</td>
+    <td>26,0&nbsp;&#176;C</td>
+  </tr>
+
+
+  <div class="content">
+    <div class="unitsTable">
+      <div style="display:table-row">
+        <div id="temperature" class="cellRight">
+          <span id="lang_temperature">Temperature</span>:
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsTemp1" type="radio" name="rad_unitsTemp" value="C" checked onclick="gauges.setUnits(this);"><label id="lab_unitsTemp1" for="rad_unitsTemp1">&deg;C</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsTemp2" type="radio" name="rad_unitsTemp" value="F" onclick="gauges.setUnits(this);"><label id="lab_unitsTemp2" for="rad_unitsTemp2">&deg;F</label>
+        </div>
+      </div>
+      <div style="display:table-row">
+        <div id ="rainfall" class="cellRight">
+          <span id="lang_rainfall">Rainfall</span>:
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsRain1" type="radio" name="rad_unitsRain" value="mm" checked onclick="gauges.setUnits(this);"><label id="lab_unitsRain1" for="rad_unitsRain1">mm</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsRain2" type="radio" name="rad_unitsRain" value="in" onclick="gauges.setUnits(this);"><label id="lab_unitsRain2" for="rad_unitsRain2">Inch</label>
+        </div>
+      </div>
+      <div style="display:table-row">
+        <div id="pressure" class="cellRight">
+          <span id="lang_pressure">Pressure</span>:
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsPress1" type="radio" name="rad_unitsPress" value="hPa" checked onclick="gauges.setUnits(this);"><label id="lab_unitsPress1" for="rad_unitsPress1">hPa</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsPress2" type="radio" name="rad_unitsPress" value="inHg" onclick="gauges.setUnits(this);"><label id="lab_unitsPress2" for="rad_unitsPress2">inHg</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsPress3" type="radio" name="rad_unitsPress" value="mb" onclick="gauges.setUnits(this);"><label id="lab_unitsPress3" for="rad_unitsPress3">mb</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsPress4" type="radio" name="rad_unitsPress" value="kPa" onclick="gauges.setUnits(this);"><label id="lab_unitsPress4" for="rad_unitsPress4">kPa</label>
+        </div>
+      </div>
+      <div style="display:table-row">
+        <div id="wind" class="cellRight">
+          <span id="lang_windSpeed">Wind Speed</span>:
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsWind4" type="radio" name="rad_unitsWind" value="km/h" checked onclick="gauges.setUnits(this);"><label id="lab_unitsWind4" for="rad_unitsWind4">km/h</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsWind3" type="radio" name="rad_unitsWind" value="m/s" onclick="gauges.setUnits(this);"><label id="lab_unitsWind3" for="rad_unitsWind3">m/s</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsWind1" type="radio" name="rad_unitsWind" value="mph" onclick="gauges.setUnits(this);"><label id="lab_unitsWind1" for="rad_unitsWind1">mph</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsWind2" type="radio" name="rad_unitsWind" value="kts" onclick="gauges.setUnits(this);"><label id="lab_unitsWind2" for="rad_unitsWind2">knots</label>
+        </div>
+      </div>
+	  <div style="display:table-row">
+        <div id ="cloud" class="cellRight">
+          <span id="lang_cloudbase">CloudBase</span>:
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsCloudBase1" type="radio" name="rad_unitsCloud" value="m" checked onclick="gauges.setUnits(this);"><label id="lab_unitsCloudBase1" for="rad_unitsCloudBase1">m</label>
+        </div>
+        <div style="display:table-cell">
+          <input id="rad_unitsCloudBase2" type="radio" name="rad_unitsCloud" value="ft" onclick="gauges.setUnits(this);"><label id="lab_unitsCloudBase2" for="rad_unitsCloudBase2">ft</label>
+        </div>
+      </div>
+    </div>
+    <div class="credits" style="padding: 0px 10px 10px 10px; text-align: left">
+      <hr>
+      Scripts by Mark Crossley - version <span id="scriptVer"></span><br>
+      Gauges drawn using Gerrit Grunwald's <a href="http://harmoniccode.blogspot.com" target="_blank">SteelSeries</a> <a href="https://github.com/HanSolo/SteelSeries-Canvas">JavaScript library</a>
+      <span id="rgraph_attrib"><br>Wind Rose drawn using RGraph</span>
+    </div>
+
+    <!-- Start of navigation menus at the bottom -->
+    <table>
+      <tr>
+        <td class="td_navigation_bar">
+          :<a href="index.htm">now</a>: :<a href="gauges.htm">gauges</a>: :<a href="today.htm">today</a>: :<a href="yesterday.htm">yesterday</a>: :<a href="thismonth.htm">this&nbsp;month</a>: :<a href="thisyear.htm">this&nbsp;year</a>: :<a href="record.htm">records</a>: :<a href="trends.htm">trends</a>: :<a href="https://cumulus.hosiene.co.uk/">forum</a>: 
+        </td>
+      </tr>
+    </table><!-- End of navigation menus at the bottom -->
+
+    <!-- Credits -->
+    <p class="credits">
+      <br>
+      Page updated 11/09/2019 12:31:00
+      <br>
+      powered by <span id="programName"></span> v<span id="programVersion"></span> (b<span id="programBuild"></span>)
+    </p><!-- Credits -->
+  </div><!-- id content -->
+
+  <!-- Included Scripts -->
+
+  <!-- Google CDN hosted JQuery library -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+  <!-- or... -->
+  <!-- Local JQuery library, do not use if your containing page already pulls in a copy of JQuery -->
+  <!-- <script src="scripts/jquery-1.8.2.min.js"></script> -->
+
+  <!-- Combined steelseries.js & tween.js -->
+  <script src="lib/steelseries/scripts/steelseries_tween.min.js"></script>
+
+  <!-- Once you have customised this scripts to your requirements you should minimise
+       and concatenate them into a single file in the same order  as below -->
+  <script src="lib/steelseries/scripts/language.min.js"></script>
+  <script src="lib/steelseries/scripts/gauges.js"></script>
+
+  <!--Optional Wind Rose scripts -->
+
+  <script src="lib/steelseries/scripts/RGraph.common.core.min.js"></script>
+  <script src="lib/steelseries/scripts/RGraph.rose.min.js"></script>
+
+</body>
+</html>

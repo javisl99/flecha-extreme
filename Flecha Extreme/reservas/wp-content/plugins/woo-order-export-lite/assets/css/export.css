@@ -1,0 +1,924 @@
+#fields, #unselected_fields {
+    height: 800px;
+    /*overflow: scroll;*/
+    padding: 20px;
+    border-color: rgb(187, 180, 180);
+    border-style: solid;
+    border-width: 1px;
+    padding-top: 0px;
+
+}
+
+#order_fields {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    height: 630px;
+}
+
+#output_preview {
+    border-color: green;
+    border-style: dashed;
+    border-width: 1px;
+    display: none;
+    width: 90%
+}
+
+.spit-settings-cols {
+    width: 20px
+}
+
+.mapping_header {
+    display: table-row;
+    font-weight: bold;
+}
+
+.mapping_col_1 {
+    display: table-cell;
+    width: 50px;
+    padding: 3px;
+}
+
+.mapping_col_2 {
+    display: table-cell;
+    min-width: 150px;
+}
+
+.mapping_col_3 {
+    display: table-cell;
+    padding: 3px;
+}
+
+.mapping_fieldname {
+    width: 100%;
+    font-weight: normal;
+}
+
+.select2-search__field:focus {
+    border-color: rgba(30, 140, 190, 0) !important;
+    border: none;
+    -webkit-box-shadow: 0 0 2px rgba(30, 140, 190, 0) !important;
+    box-shadow: 0 0 2px rgba(30, 140, 190, 0) !important;
+}
+
+.select2-search__field {
+    border-color: rgba(30, 140, 190, 0) !important;
+    border: none;
+    -webkit-box-shadow: 0 0 2px rgba(30, 140, 190, 0) !important;
+    box-shadow: 0 0 2px rgba(30, 140, 190, 0) !important;
+}
+
+input.date {
+    width: 25%;
+}
+
+.mapping_row {
+    background-color: #E0E0E0;
+    /*padding: 7px;*/
+    border: 1px #969696 solid;
+}
+
+#sort_products, #sort_coupons {
+    list-style-type: none;
+}
+
+.btn-edit, .btn-trash {
+    padding: 0 3px !important;
+}
+
+.padding-10 {
+    padding: 10px;
+}
+
+.wc-oe-header {
+    font-size: 15px;
+    font-weight: bold;
+    padding-bottom: 5px;
+}
+
+.weo_clearfix:before,
+.weo_clearfix:after,
+.wc_oe-row:after {
+    content: "";
+    display: table;
+}
+
+.weo_clearfix:after,
+.wc_oe-row:after {
+    clear: both;
+}
+
+.weo_clearfix,
+.wc_oe-row:after {
+    zoom: 1; /* For IE 6/7 (trigger hasLayout) */
+}
+
+.tr-pad {
+    vertical-align: top;
+}
+
+.padding-bottom-10 {
+    padding-bottom: 10px;
+}
+
+.width-100 {
+    width: 100%;
+}
+
+.width-5 {
+    width: 5%;
+}
+
+.width-15 {
+    width: 15%;
+}
+
+.col-50pr {
+    float: left;
+    width: 50%;
+}
+
+.col-100pr {
+    float: left;
+    width: 100%;
+}
+.all-input-100pr input[type="text"] {
+    width: 100%;
+}
+
+.xml-title {
+    display: inline-block;
+    width: 125px;
+}
+
+.my-block {
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 3px;
+    border-color: #ccc;
+    padding: 10px 5px 10px 10px;
+}
+
+.my-icon-triangle {
+    vertical-align: middle;
+    display: inline-block !important;
+}
+
+.my-hide-next {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+#my-quick-export-btn {
+    display: inline-block !important;
+    margin-left: 10px !important;
+}
+
+#add_attributes,
+#add_taxonomies,
+#add_shipping_locations,
+#add_billing_locations,
+#add_custom_fields,
+#add_product_custom_fields,
+#add_item_names,
+#add_item_metadata {
+    font-size: large;
+}
+
+.select2-selection-single {
+    margin-bottom: 5px;
+}
+
+#select_attributes, #select_taxonomies, #text_shipping_locations, #text_billing_locations, #select_custom_fields, #select_product_custom_fields, #select_itemmeta, #text_item_names, #text_item_metadata {
+    width: 120px;
+}
+
+.dashicons {
+    margin-top: 3px;
+}
+
+#progress_div {
+    z-index: 10001;
+    position: absolute;
+    top: 50%;
+    left: 35%;
+    text-align: center;
+}
+
+#progress_div .title-download {
+    display: none;
+    background-color: white;
+    padding: 28px;
+    font-weight: 400;
+    font-size: 16px;
+    width: 300px;
+    border: 1px solid lightgrey;
+}
+
+#progress_div .title-gen-file {
+    display: none;
+    -webkit-animation: title-gen-file 3s linear infinite;
+    animation: title-gen-file 3s linear infinite;
+}
+
+@-webkit-keyframes title-gen-file {
+    0% { color: rgba(34, 34, 34, 1); }
+    50% { color: rgba(34, 34, 34, 0); }
+    100% { color: rgba(34, 34, 34, 1); }
+  }
+
+@keyframes title-gen-file {
+    0% { color: rgba(34, 34, 34, 1); }
+    50% { color: rgba(34, 34, 34, 0); }
+    100% { color: rgba(34, 34, 34, 1); }
+}
+
+#progressBar {
+
+    width: 400px;
+    background: #292929;
+    border: 1px solid #111;
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 0 5px #333;
+
+}
+
+#progressBar div {
+    height: 100%;
+    color: #fff;
+    text-align: right;
+    font-size: 12px;
+    line-height: 22px;
+    text-align: right;
+    background-color: #1a82f7;
+    background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#0099FF), to(#1a82f7));
+    background: -webkit-linear-gradient(top, #0099FF, #1a82f7);
+    background: -moz-linear-gradient(top, #0099FF, #1a82f7);
+    background: -ms-linear-gradient(top, #0099FF, #1a82f7);
+    background: -o-linear-gradient(top, #0099FF, #1a82f7);
+}
+
+#background.loading {
+    position: fixed;
+    z-index: 10000;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background-color: #F1F1F1;
+    filter: progid:DXImageTransform.Microsoft.Alpha(opacity=55);
+    -moz-opacity: 0.55;
+    -khtml-opacity: 0.55;
+    opacity: 0.55;
+}
+
+.email_body_textarea {
+    height: 451px;
+    width: 100%;
+}
+
+.select_compare {
+    width: 60px;
+    margin-top: 0px;
+    margin-right: 6px;
+}
+
+#custom_meta_products_mode input, #custom_meta_coupons_mode input {
+    width: auto;
+}
+
+#date_format_block, #time_format_block {
+    display: inline-block;
+    width: 48%;
+    vertical-align: top;
+}
+#custom_date_format_block {
+    margin-top: .3rem;
+}
+#custom_date_format_block input, #custom_time_format_block input {
+    width: 70.5%;
+    margin-left: 38px;
+}
+
+#date_format_block select, #time_format_block select {
+    width: 70%;
+}
+
+.woe-tab {
+    border: 1px solid #ccc;
+    border-top-width: 0;
+    background: #f1f1f1;
+    padding: 30px;
+}
+
+.woe-tab .form-group label input {
+    display: inline-block;
+    margin-top: -3px;
+}
+
+#woe-admin .woe-tab {
+    margin-right: 14.16667rem;
+    border: none;
+    border-top-width: 0;
+    background: transparent;
+    padding: 0 0 3.33333rem 0;
+}
+
+#woe-admin .woe-box-main {
+    background-color: #fff;
+    padding: 1.66667rem 1.66667rem 0 1.66667rem;
+}
+
+#woe-admin .woe-input-simple textarea {
+    width: 100%;
+    border-radius: 0;
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    border-color: #c7dff3;
+    background-color: #c7dff3;
+    padding: 0.41667rem 0.66667rem;
+    transition: border-color 100ms, background-color 250ms;
+}
+
+#woe-admin .woe-input-simple textarea:focus {
+    background-color: #003553;
+    color: #fff;
+}
+
+#woe-admin .tools-textarea {
+    width: 66.66667%;
+    margin-top: 1rem;
+}
+
+#woe-admin .woe-input-simple input, #woe-admin .woe-select input, #woe-admin .woe-input-simple textarea, #woe-admin .woe-select textarea, .woe-calendar-wrapper .woe-input-simple input, .woe-calendar-wrapper .woe-select input, .woe-calendar-wrapper .woe-input-simple textarea, .woe-calendar-wrapper .woe-select textarea, #woe-admin .woe-checkbox label, #woe-admin .woe-radiobox label, #woe-admin .woe-switch label, #woe-admin .woe-select.woe-select-info-label .woe-label-big label, .woe-calendar-wrapper .woe-select.woe-select-info-label #woe-admin .woe-label-big label, .woe-calendar-wrapper .woe-checkbox label, .woe-calendar-wrapper .woe-radiobox label, .woe-calendar-wrapper .woe-switch label, .woe-calendar-wrapper .woe-select.woe-select-info-label .woe-label-big label, #woe-admin .woe-checkbutton input + label, .woe-calendar-wrapper .woe-checkbutton input + label, #woe-admin .col-time, .woe-calendar-wrapper .col-time, #woe-admin .woe-box-title, .woe-calendar-wrapper .woe-box-title, .select2-container.select2-container-woe .select2-selection-single, .select2-container.select2-container-woe .select2-selection-multiple {
+    font-family: "Open sans", serif;
+    font-size: 0.83333rem;
+    line-height: 1.41667rem;
+    line-height: 1.41667rem;
+}
+
+@media only screen and (min-width: 768px) {
+    #woe-admin .woe-input-simple input, #woe-admin .woe-select input, #woe-admin .woe-input-simple textarea, #woe-admin .woe-select textarea, .woe-calendar-wrapper .woe-input-simple input, .woe-calendar-wrapper .woe-select input, .woe-calendar-wrapper .woe-input-simple textarea, .woe-calendar-wrapper .woe-select textarea, #woe-admin .woe-checkbox label, #woe-admin .woe-radiobox label, #woe-admin .woe-switch label, #woe-admin .woe-select.woe-select-info-label .woe-label-big label, .woe-calendar-wrapper .woe-select.woe-select-info-label #woe-admin .woe-label-big label, .woe-calendar-wrapper .woe-checkbox label, .woe-calendar-wrapper .woe-radiobox label, .woe-calendar-wrapper .woe-switch label, .woe-calendar-wrapper .woe-select.woe-select-info-label .woe-label-big label, #woe-admin .woe-checkbutton input + label, .woe-calendar-wrapper .woe-checkbutton input + label, #woe-admin .col-time, .woe-calendar-wrapper .col-time, #woe-admin .woe-box-title, .woe-calendar-wrapper .woe-box-title, .select2-container.select2-container-woe .select2-selection-single, .select2-container.select2-container-woe .select2-selection-multiple {
+        font-size: 1rem;
+    }
+}
+
+#woe-admin .woe-input-simple label, #woe-admin .woe-select label, .woe-calendar-wrapper .woe-input-simple label, .woe-calendar-wrapper .woe-select label, #woe-admin .woe-fake-label, .woe-calendar-wrapper .woe-fake-label, #woe-admin .woe-btn-big, #woe-admin p.submit, #woe-admin .woe-btn-big input, #woe-admin p.submit input, #woe-admin .woe-btn-big button, #woe-admin p.submit button, .woe-calendar-wrapper .woe-btn-big, .woe-calendar-wrapper p.submit, .woe-calendar-wrapper .woe-btn-big input, .woe-calendar-wrapper p.submit input, .woe-calendar-wrapper .woe-btn-big button, .woe-calendar-wrapper p.submit button, #woe-admin .woe-box-maininfo p, .woe-calendar-wrapper .woe-box-maininfo p, #woe-admin .woe-box-title span, .woe-calendar-wrapper .woe-box-title span, #woe-admin .woe-box-info .woe-box-info-content, .woe-calendar-wrapper .woe-box-info .woe-box-info-content, #woe-admin .woe-box-info .woe-box-info-content h5, .woe-calendar-wrapper .woe-box-info .woe-box-info-content h5, #woe-admin .woe-message, .woe-calendar-wrapper .woe-message, .select2-container.select2-container-woe .select2-dropdown, .select2-container.select2-container-woe .select2-search-dropdown .select2-search__field {
+    font-family: "Open sans", serif;
+    font-size: 0.75rem;
+    font-weight: normal;
+    line-height: 1.16667rem;
+}
+
+#woe-admin .woe-input-simple p, #woe-admin .woe-checkbox p, #woe-admin .woe-radiobox p, #woe-admin .woe-switch p, #woe-admin .woe-select p, .woe-calendar-wrapper .woe-input-simple p, .woe-calendar-wrapper .woe-checkbox p, .woe-calendar-wrapper .woe-radiobox p, .woe-calendar-wrapper .woe-switch p, .woe-calendar-wrapper .woe-select p, #woe-admin .woe-btn-medium, #woe-admin .nav-tab-wrapper .nav-tab,
+#woe-admin h2.nav-tab-wrapper .nav-tab, .woe-calendar-wrapper .nav-tab-wrapper #woe-admin .nav-tab, #woe-admin .woe-admin-nav a, .woe-calendar-wrapper .woe-admin-nav #woe-admin a, #woe-admin .woe-btn-medium input, #woe-admin .nav-tab-wrapper .nav-tab input, .woe-calendar-wrapper .nav-tab-wrapper #woe-admin .nav-tab input, #woe-admin .woe-admin-nav a input, .woe-calendar-wrapper .woe-admin-nav #woe-admin a input, #woe-admin .woe-btn-medium button, #woe-admin .nav-tab-wrapper .nav-tab button, .woe-calendar-wrapper .nav-tab-wrapper #woe-admin .nav-tab button, #woe-admin .woe-admin-nav a button, .woe-calendar-wrapper .woe-admin-nav #woe-admin a button, .woe-calendar-wrapper .woe-btn-medium, .woe-calendar-wrapper .nav-tab-wrapper .nav-tab,
+.woe-calendar-wrapper h2.nav-tab-wrapper .nav-tab, .woe-calendar-wrapper .woe-admin-nav a, .woe-calendar-wrapper .woe-btn-medium input, .woe-calendar-wrapper .nav-tab-wrapper .nav-tab input, .woe-calendar-wrapper .woe-admin-nav a input, .woe-calendar-wrapper .woe-btn-medium button, .woe-calendar-wrapper .nav-tab-wrapper .nav-tab button, .woe-calendar-wrapper .woe-admin-nav a button, #woe-admin .woe-btn-small, .woe-calendar-wrapper .woe-btn-small, #woe-admin .woe-btn-small-round, .woe-calendar-wrapper .woe-btn-small-round, #woe-admin .woe-box-maininfo, .woe-calendar-wrapper .woe-box-maininfo {
+    font-family: "Open sans", serif;
+    font-size: 0.66667rem;
+    line-height: 0.91667rem;
+}
+
+#woe-admin .woe-box-maininfo p, #woe-admin .woe-box-title span, #woe-admin .woe-box-info .woe-box-info-content, .woe-calendar-wrapper .woe-box-info .woe-box-info-content, #woe-admin .woe-box-info .woe-box-info-content h5, .woe-calendar-wrapper .woe-box-info .woe-box-info-content h5 {
+    color: #444;
+}
+
+#woe-admin .woe-input-simple p {
+    color: #888;
+    font-weight: 400;
+    padding: 0.41667rem 0.66667rem;
+    margin: 0;
+}
+
+#woe-admin .woe-input-simple {
+    padding-bottom: 15px;
+}
+
+#woe-admin .woe-input-simple input, #woe-admin .woe-select input, #woe-admin .woe-input-simple textarea, #woe-admin .woe-select textarea {
+    color: #003553;
+}
+
+#woe-admin .woe-input-simple input:focus, #woe-admin .woe-select input:focus, #woe-admin .woe-input-simple textarea:focus, #woe-admin .woe-select textarea:focus {
+    color: #0C6EB6;
+}
+
+.woe-btn-tools {
+    display: inline-block;
+    margin-bottom: 0;
+    font-weight: normal;
+    text-align: center;
+    vertical-align: middle;
+    touch-action: manipulation;
+    cursor: pointer;
+    background-image: none;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    padding: 6px 12px;
+    font-size: 14px;
+    line-height: 1.42857;
+    border-radius: 4px;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    opacity: 0.65;
+    background-color: #fff;
+    border-color: #ccc;
+    margin-bottom: 10px;
+}
+
+#my-sort select {
+    width: 30%;
+    font-weight: normal;
+}
+
+#my-sort,#my-change-status {
+    font-weight: bold;
+}
+
+#output_preview_total {
+    margin-left: 40px;
+    margin-right: 30px;
+}
+
+.hide {
+    display: none !important;
+}
+
+.without-dropdown.select2-dropdown,
+.without-dropdown .select2-search--inline {
+    display: none;
+}
+
+.profiles #bulk_action {
+    width: 70px;
+}
+
+.like-input {
+    width: 120px;
+}
+
+.wp-wrap .column-order {
+    width: 2.2em;
+}
+
+.wp-wrap .pipe {
+    font-size: x-large;
+    vertical-align: middle;
+}
+
+.section_choice {
+    cursor: pointer;
+}
+
+.section_choice.active {
+    font-weight: bold;
+    color: #000;
+}
+
+.section:not(.active) {
+    display: none;
+}
+
+.mapping_row.segment_products, .mapping_row.segment_product_items {
+    background-color: #c5ffbb;
+}
+
+.mapping_row.segment_coupons {
+    background-color: #c2bdff;
+}
+
+.segment_choice {
+    cursor: pointer;
+}
+
+.segment_choice.active {
+    font-weight: bold;
+    color: #000;
+}
+#woe_hints_block {
+    margin-top: 10px;
+}
+.woe_segment_tips {
+    display: none;
+}
+.woe_segment_tips.active {
+    color: #5b841b;
+    font-size: .85rem;
+    display: block;
+}
+.woe_common_tips {
+    margin: .25rem 0;
+}
+.woe_common_tips span {
+    color: #5b841b;
+    font-size: .85rem;
+    display: block;
+}
+
+.settings-segment:not(.active) {
+    display: none;
+}
+
+.segment_fields li {
+    /*padding: 3px;*/
+}
+
+.segment_field {
+    padding: 3px;
+    margin: 3px;
+    cursor: pointer;
+    /*display: inline-block;*/
+    vertical-align: top;
+    overflow: hidden;
+    /*flex-basis: 45%;*/
+}
+
+.segment_field.blink {
+    animation: blinker 3s linear infinite;
+}
+
+@keyframes blinker {
+    50% {
+        opacity: 0;
+    }
+}
+
+.section {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.ui-draggable.segment_field .mapping_col_1,
+.ui-draggable.segment_field .mapping_col_3:not(.custom-field-value),
+.mapping_row.segment_field .mapping_row-delete_field,
+.mapping_row.ui-draggabled .mapping_row-delete_custom_field {
+    display: none;
+}
+
+.ui-draggable.segment_field .mapping_col_3.custom-field-value {
+    padding: 0;
+}
+
+.ui-draggable.segment_field .mapping_col_3.custom-field-value .mapping_fieldname {
+    margin: 0 1px;
+    font-size: 12px;
+    padding: 0 3px;
+}
+
+.ui-draggable.segment_field .mapping_col_3.custom-field-value {
+    max-width: 50px;
+}
+
+#order_fields #sortable_products,
+#order_fields #sortable_coupons {
+    min-height: 40px;
+    margin-left: 30px;
+}
+
+#order_fields.non_flat_height {
+    height: 750px;
+}
+
+.tab-actions-buttons {
+    margin-top: 10px;
+    line-height: 30px;
+    vertical-align: middle;
+}
+
+.tab-actions-buttons__title {
+    margin-right: 7px;
+}
+
+.tab-actions-forms .segment-form {
+    border-color: rgb(187, 180, 180);
+    border-style: solid;
+    border-width: 1px;
+    /*display: inline-block;*/
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.tab-actions-forms label {
+    display: inline-block;
+    padding: 5px;
+    min-width: 100px;
+
+}
+
+.tab-actions-forms span {
+    display: block;
+    width: 100px;
+    height: 100%;
+    margin: 0 auto;
+    padding: 5px;
+}
+
+.tab-actions-forms .div_meta label {
+    display: inline-block;
+    padding: 0px;
+    min-width: 120px;
+}
+
+.tab-actions-forms .segment-form:not(.active) {
+    display: none;
+}
+
+.tab-actions-forms .segment-form select {
+    margin-left: 1px;
+    width: 80%;
+}
+
+#fields .fields-control-block .display_as {
+    display: none;
+}
+
+#fields .fields-control-block .display_as input[type="text"] {
+    max-width: 50px;
+}
+
+#fields .fields-control-block .display_as.active {
+    display: inline-block;
+}
+
+#fields .fields-control-block .display_as div {
+    display: inline-block;
+}
+
+#fields .fields-control-block .display_as.duplicate_columns_options > div {
+    margin: 0 5px 0 5px;
+}
+
+#fields .fields-control-block .display_as.duplicate_rows_options > div label,
+#fields .fields-control-block .display_as.duplicate_inside_one_cell_options > div label {
+    margin: 0 5px 0 5px;
+}
+
+.fields-control-block {
+    margin-top: 10px;
+}
+
+.fields-control-block .segment-header {
+    margin-bottom: 5px;
+    display: inline-block;
+}
+.fields-control-block .segment-header_flex-styles {
+    display: inline-flex;
+    justify-content: space-around;
+    align-items: center;
+    max-width: 185px;
+    width: 100%;
+}
+.fields-control-block .segment-header select {
+    width: auto;
+}
+
+.fields-control-block .display_as .input-delimiter {
+    max-width: 40px;
+}
+
+#manage_fields.summary-products-report .fields-control-block,
+#manage_fields.summary-products-report #order_fields .mapping_row:not(.segment_products),
+#manage_fields.summary-products-report .field-prefix,
+#manage_fields.summary-products-report #unselected_fields .subsubsub .block-segment-choice,
+#manage_fields.summary-products-report #unselected_fields label[for="select_custom_meta_order_items"],
+#manage_fields.summary-products-report #unselected_fields #select_custom_meta_order_items
+{
+    display: none;
+}
+
+#manage_fields.summary-products-report #unselected_fields .subsubsub .block-segment-choice[data-segment="products"] {
+    display: inline;
+}
+
+#manage_fields.summary-products-report #unselected_fields .tab-actions-buttons {
+    margin-top: 0;
+}
+
+.mapping_row-delete_field_block .mapping_row-delete_field {
+    color: #000;
+    text-decoration: none;
+}
+
+.mapping_row-delete_field_block .mapping_row-delete_field .dashicons {
+    margin-top: 0;
+}
+
+#order_fields .mapping_row:not(.flat-products-group):not(.flat-coupons-group) {
+    position: relative;
+    padding-right: 35px;
+}
+
+#order_fields .mapping_row .mapping_row-delete_field_block {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+}
+
+.pdf_two_col_block {
+    display: inline-block;
+    width: 48%;
+    vertical-align: top;
+}
+
+.pdf_two_col_block input[type=number] {
+    width: 40%;
+}
+
+#unselected_fields_list {
+    overflow-y: scroll;
+    height: 700px;
+}
+
+/*date time picker start*/
+.datetime-picker-control {
+    width: 100px;
+    display: inline-block;
+    vertical-align: middle;
+    text-align: center;
+    margin: 2px;
+}
+
+.datetime-picker-control input {
+    margin: 0 auto;
+}
+
+.datetime-picker-control .upper,
+.datetime-picker-control .footer
+{
+    width: 100%;
+    margin: 2px;
+}
+
+.datetime-picker-control .date {
+    width: 100%;
+}
+
+.datetime-picker-control .hours,
+.datetime-picker-control .minutes,
+.datetime-picker-control .seconds
+{
+    display: inline-block;
+    max-width: 45px;
+    padding: 0 .4rem;
+}
+
+.datetime-picker-control .delimiter {
+    display: inline-block;
+    width: 10px;
+}
+/*date time picker finish*/
+
+.summary-products-report .summary-products-mode-tip, .summary-customers-report .summary-products-mode-tip {
+    display: block;
+}
+
+.summary-products-mode-tip {
+    margin-top: 20px;
+    color: red;
+    display: none;
+}
+
+#custom_meta_products_mode {
+    margin-top: 10px;
+}
+
+.add_form_tip {
+    color: green;
+}
+
+.default-html-css-label {
+    display: block;
+}
+
+#manage_fields.summary-customers-report .fields-control-block,
+#manage_fields.summary-customers-report #order_fields .mapping_row,
+#manage_fields.summary-customers-report #unselected_fields .subsubsub .block-segment-choice,
+#manage_fields.summary-customers-report #unselected_fields .subsubsub .block-segment-choice[data-segment="shipping"] .divider {
+    display: none;
+}
+
+#manage_fields.summary-customers-report #order_fields .mapping_row.segment_user,
+#manage_fields.summary-customers-report #order_fields .mapping_row.segment_billing,
+#manage_fields.summary-customers-report #order_fields .mapping_row.segment_shipping {
+    display: block;
+}
+
+#manage_fields.summary-customers-report #unselected_fields .subsubsub .block-segment-choice[data-segment="user"],
+#manage_fields.summary-customers-report #unselected_fields .subsubsub .block-segment-choice[data-segment="billing"],
+#manage_fields.summary-customers-report #unselected_fields .subsubsub .block-segment-choice[data-segment="shipping"] {
+    display: inline;
+}
+.mb-0 {
+    margin-bottom: 0;
+}
+.mb-2 {
+    margin-bottom: 2rem;
+}
+.mt-sm {
+    margin-top: .5rem;
+}
+.line-height__3 {
+    line-height: 3;
+}
+.line-height__2 {
+    line-height: 2;
+}
+.output_destination__position {
+    margin: 0 .2rem .3rem 0 !important;
+}
+.custom-fields__condotion-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: 85%;
+}
+.custom-fields__condotion-wrapper_position {
+    margin-bottom: .5rem;
+}
+.custom-fields__condotion-wrapper > * {
+    height: 30px !important;
+    max-width: 170px !important;
+    margin: 0 !important;
+}
+input[type=number] {
+    min-height: 35px;
+}
+#d-schedule-1 {
+    margin: 15px 0;
+}
+.weekday {
+    margin-top: -5px;
+}
+
+.custom-fields__condotion-wrapper > .select2.select2-container {
+    height: 30px !important;
+}
+.select2-container .select2-selection--single {
+    height: 100%!important;
+}
+.select2-container .select2-selection--single .select2-selection__rendered {
+    height: 100%;
+    line-height: initial !important;
+}
+.select2-container,
+.select2-container .select2-selection--single .select2-selection__arrow {
+    height: 100%!important;
+}
+.custom-fields__condotion-wrapper .selection .select2-selection__rendered,
+.custom-fields__condotion-wrapper .selection .select2-selection__arrow {
+    display: flex !important ;
+    align-items: center;
+}
+.select2-container .select2-search__field {
+    min-width: initial !important;
+}
+@media( max-width: 1024px ) {
+    .custom-fields__condotion-wrapper {
+        justify-content: start;
+    }
+    .custom-fields__condotion-wrapper > * {
+        margin: 0 .3rem 0 0 !important;
+    }
+}
+.tab-actions-forms .segment-form .set-up__selects {
+    width: 54%;
+    max-width: 100%;
+}
+.tab-actions-forms .segment-form .set-up__selects_sm {
+    width: 221px;
+    max-width: 100%;
+}
+.div_custom.segment-form.all-segments > div,
+.div_custom.products-segment > div,
+.div_custom.product_items-segment > div,
+.div_custom.coupons-segment > div,
+.div_calculated.segment-form.all-segments > div,
+.div_calculated.products-segment > div,
+.div_calculated.product_items-segment > div {
+    margin-top: .2rem;
+}
+#my-export-date-field  input[type="radio"] {
+   margin-right: 0;
+}
+#my-export-date-field label {
+    padding-right: .5rem;
+}
+.wp-core-ui .button, .wp-core-ui .button-secondary {
+    margin-right: .2rem;
+    margin-bottom: .2rem;
+}
+@media( max-width: 1440px ) {
+    .widefat .column-from_date,
+    .widefat .column-to_date {
+        width: 4.5rem;
+    }
+    .widefat .column-actions .button-secondary {
+        padding: 0 3px !important;
+    }
+}
+

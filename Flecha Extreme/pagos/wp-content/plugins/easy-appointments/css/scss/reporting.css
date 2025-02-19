@@ -1,0 +1,164 @@
+.report-container button.go-back,
+.report-container .ea-export-form button,
+.report-container button#ea-export-save-custom-columns {
+  font-family: RobotoRegular;
+  height: 35px;
+  padding: 0 20px 1px; }
+
+.report-container .report-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13vw, 1fr));
+  grid-gap: 15px; }
+  .report-container .report-items .report-item {
+    background: #ffffff;
+    border: 1px solid #e2e2e2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: RobotoRegular;
+    padding: 1vw;
+    cursor: pointer;
+    transition: all .8s; }
+    .report-container .report-items .report-item .icon {
+      width: 5vw;
+      height: 5vw;
+      border-radius: 100%;
+      align-self: center;
+      display: flex;
+      font-size: 3.5vw;
+      color: #ffffff; }
+      .report-container .report-items .report-item .icon:before {
+        margin: auto; }
+    .report-container .report-items .report-item.time-table .icon {
+      background-color: #515e5f; }
+    .report-container .report-items .report-item.money .icon {
+      background-color: #fe9c2b; }
+    .report-container .report-items .report-item.export .icon {
+      background-color: #00a99c; }
+    .report-container .report-items .report-item span {
+      margin: 1vw 0;
+      text-align: center; }
+      .report-container .report-items .report-item span.rep-title {
+        font-size: 1.1vw; }
+      .report-container .report-items .report-item span.rep-description {
+        font-size: 0.8vw;
+        margin-top: 0; }
+    .report-container .report-items .report-item:hover {
+      border: 1px solid #0073aa; }
+
+.report-container .report-content .form-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  margin-right: 1vw;
+  font-family: 'RobotoRegular'; }
+  .report-container .report-content .form-item label {
+    font-size: 15px;
+    line-height: 20px; }
+  .report-container .report-content .form-item .field {
+    flex: 1;
+    height: 32px;
+    padding: 4px 11px;
+    color: rgba(0, 0, 0, 0.65);
+    font-size: 14px;
+    line-height: 1.5;
+    background-color: #fff;
+    background-image: none;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    -webkit-transition: all .3s;
+    transition: all .3s; }
+
+.report-container .report-content .filter-select {
+  margin-right: 20px; }
+  .report-container .report-content .filter-select > div {
+    width: 75vw;
+    box-sizing: border-box;
+    min-width: 70em;
+    font-family: 'RobotoRegular';
+    font-size: 16px;
+    margin: 0 auto;
+    margin-bottom: 2vh;
+    padding: 0 5vw 1.5vh;
+    border-bottom: 1px solid #dadada;
+    display: flex;
+    justify-content: space-between;
+    align-items: center; }
+    .report-container .report-content .filter-select > div button {
+      height: 32px;
+      padding: 0 20px 1px; }
+
+.report-container .report-content .overview-month {
+  margin-right: 20px; }
+  .report-container .report-content .overview-month .ui-datepicker {
+    width: 75vw;
+    box-sizing: border-box;
+    min-width: 70em;
+    font-family: 'RobotoRegular';
+    font-size: 16px;
+    margin: 0 auto; }
+    .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-header {
+      background: #2d85ba;
+      color: #ffffff; }
+      .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-header .ui-datepicker-title {
+        text-transform: uppercase; }
+      .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-header a.ui-datepicker-next,
+      .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-header a.ui-datepicker-prev {
+        background: rgba(230, 230, 230, 0.6); }
+      .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-header a.ui-datepicker-next.ui-state-hover,
+      .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-header a.ui-datepicker-prev.ui-state-hover {
+        background: #e6e6e6;
+        top: 2px;
+        border: 0; }
+      .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-header a.ui-datepicker-prev.ui-state-hover {
+        left: 2px; }
+      .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-header a.ui-datepicker-next.ui-state-hover {
+        right: 2px; }
+      .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-header .ui-state-hover .ui-icon, .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-header .ui-state-focus .ui-icon {
+        background-image: url("../images/ui-icons_222222_256x240.png"); }
+    .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-calendar {
+      margin: 0 0 .2em; }
+      .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-calendar .ui-datepicker-unselectable .single-item {
+        padding: 5px 0;
+        background-color: #ffffff; }
+      .report-container .report-content .overview-month .ui-datepicker .ui-datepicker-calendar .ui-datepicker-unselectable span.ui-state-default {
+        position: absolute;
+        top: 0px;
+        right: 0;
+        font-size: 1.3em;
+        color: black;
+        border: 0 solid black;
+        padding: 0;
+        margin: 0;
+        height: 25px;
+        width: 95%;
+        background: #cfe4ff;
+        padding-right: 5%;
+        padding-top: 5px; }
+
+.report-container .report-content .ea-export-form .form-item, .report-container .report-content .custom-cols-block .form-item {
+  width: 600px;
+  margin-bottom: 15px; }
+  .report-container .report-content .ea-export-form .form-item label, .report-container .report-content .custom-cols-block .form-item label {
+    width: 70px; }
+
+.report-container .report-content .custom-cols-block {
+  margin-top: 40px; }
+  .report-container .report-content .custom-cols-block .form-item {
+    align-items: flex-start; }
+    .report-container .report-content .custom-cols-block .form-item label {
+      padding-top: 5px; }
+  .report-container .report-content .custom-cols-block div.field {
+    padding: 0 11px;
+    min-height: 32px;
+    height: auto; }
+    .report-container .report-content .custom-cols-block div.field a {
+      line-height: 32px; }
+      .report-container .report-content .custom-cols-block div.field a:active, .report-container .report-content .custom-cols-block div.field a:focus {
+        outline: none;
+        box-shadow: none; }
+    .report-container .report-content .custom-cols-block div.field #ea-export-customize-columns {
+      padding-bottom: 11px; }
+      .report-container .report-content .custom-cols-block div.field #ea-export-customize-columns input#ea-export-custom-columns {
+        width: 100%;
+        height: 32px; }

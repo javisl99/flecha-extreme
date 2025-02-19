@@ -1,0 +1,110 @@
+@font-face {
+    font-family: 'RobotoRegular';
+    src: url('../fonts/roboto/Roboto-Regular-webfont.eot');
+    src: url('../fonts/roboto/Roboto-Regular-webfont.eot?#iefix') format('embedded-opentype'),
+         url('../fonts/roboto/Roboto-Regular-webfont.woff2') format('woff2'),
+         url('../fonts/roboto/Roboto-Regular-webfont.woff') format('woff'),
+         url('../fonts/roboto/Roboto-Regular-webfont.ttf') format('truetype'),
+         url('../fonts/roboto/Roboto-Regular-webfont.svg#robotoregular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+  font-family: 'eaIcons';
+  src:  url('../fonts/ea-icons/icomoon.eot?jlmrgz');
+  src:  url('../fonts/ea-icons/icomoon.eot?jlmrgz#iefix') format('embedded-opentype'),
+    url('../fonts/ea-icons/icomoon.ttf?jlmrgz') format('truetype'),
+    url('../fonts/ea-icons/icomoon.woff?jlmrgz') format('woff'),
+    url('../fonts/ea-icons/icomoon.svg?jlmrgz#icomoon') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+
+[class^="icon-"], [class*=" icon-"] {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'eaIcons' !important;
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-export:before {
+  content: "\e913";
+}
+.icon-money-2:before {
+  content: "\e914";
+}
+.icon-timetable:before {
+  content: "\e915";
+}
+.icon-commerce:before {
+  content: "\e90f";
+}
+.icon-googlecalendar:before {
+  content: "\e910";
+}
+.icon-icalendar:before {
+  content: "\e911";
+}
+.icon-sms:before {
+  content: "\e912";
+}
+.icon-date:before {
+  content: "\e906";
+}
+.icon-fields:before {
+  content: "\e907";
+}
+.icon-gdpr:before {
+  content: "\e908";
+}
+.icon-general:before {
+  content: "\e909";
+}
+.icon-label:before {
+  content: "\e90a";
+}
+.icon-mail:before {
+  content: "\e90b";
+}
+.icon-money:before {
+  content: "\e90c";
+}
+.icon-recaptcha:before {
+  content: "\e90d";
+}
+.icon-redirect:before {
+  content: "\e90e";
+}
+.icon-connections:before {
+  content: "\e900";
+}
+.icon-customize:before {
+  content: "\e901";
+}
+.icon-location:before {
+  content: "\e902";
+}
+.icon-services:before {
+  content: "\e903";
+}
+.icon-tools:before {
+  content: "\e904";
+}
+.icon-workers:before {
+  content: "\e905";
+}
+.icon-datetime:before {
+  content: "\e916";
+}
+.icon-fullcalendar:before {
+  content: "\e917";
+}

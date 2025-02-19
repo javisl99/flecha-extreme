@@ -1,0 +1,1468 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Easy Appointments\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2020-12-27 21:47+0100\n"
+"PO-Revision-Date: 2020-12-27 21:55+0100\n"
+"Last-Translator: \n"
+"Language-Team: Svenska\n"
+"Language: sv_SE\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Poedit 2.4.1\n"
+"X-Loco-Version: 2.4.0; wp-5.4.2\n"
+
+#: js-react/src/pages/Locations/components/LocationsForm/fields/AddressField.js:9
+#, fuzzy
+#| msgid "Address"
+msgid "Address *"
+msgstr "Adress"
+
+#: js-react/src/pages/Locations/components/LocationsForm/fields/LocationField.js:9
+#, fuzzy
+#| msgid "Location"
+msgid "Location *"
+msgstr "Plats"
+
+#: js-react/src/pages/Locations/components/LocationsTable/index.js:17
+#: js-react/src/pages/Locations/components/LocationsTable/index.js:37
+msgid "Address"
+msgstr "Adress"
+
+#: js-react/src/pages/Locations/components/LocationsTable/index.js:23
+#: js-react/src/pages/Locations/components/LocationsTable/index.js:38
+#: src/templates/admin.tpl.php:52 src/templates/admin.tpl.php:144
+#: src/templates/admin.tpl.php:669 src/templates/appointments.tpl.php:11
+#: src/templates/appointments.tpl.php:95 src/templates/appointments.tpl.php:154
+#: src/templates/mail.notification.tpl.php:18 src/templates/report.tpl.php:35
+msgid "Location"
+msgstr "Plats"
+
+#: js-react/src/pages/Locations/components/LocationsTable/index.js:29
+#: js-react/src/pages/Services/components/ServicesTable/index.js:47
+#: js-react/src/pages/Vacation/components/VacationTable/index.js:32
+#: js-react/src/pages/Workers/components/WorkersTable/index.js:35
+#: src/templates/admin.tpl.php:62
+msgid "Actions"
+msgstr "Åtgärder"
+
+#: js-react/src/pages/Locations/components/LocationsTable/index.js:52
+#: js-react/src/pages/Services/components/ServicesTable/index.js:73
+#: js-react/src/pages/Vacation/components/VacationTable/index.js:44
+#: src/templates/admin.tpl.php:134 src/templates/appointments.tpl.php:141
+msgid "Edit"
+msgstr "Redigera"
+
+#: js-react/src/pages/Locations/components/LocationsTable/index.js:58
+#: js-react/src/pages/Services/components/ServicesTable/index.js:79
+#: js-react/src/pages/Vacation/components/VacationTable/index.js:50
+#: src/templates/admin.tpl.php:135 src/templates/appointments.tpl.php:142
+msgid "Delete"
+msgstr "Radera"
+
+#: js-react/src/pages/Locations/index.js:89
+#: js-react/src/pages/Locations/index.js:94
+#, fuzzy
+#| msgid "Add New Location"
+msgid "Add location"
+msgstr "Lägg till ny plats"
+
+#: js-react/src/pages/Locations/index.js:93
+#, fuzzy
+#| msgid "Location"
+msgid "Edit location"
+msgstr "Plats"
+
+#: js-react/src/pages/Locations/index.js:101
+#, fuzzy
+#| msgid "Locations"
+msgid "Loading locations"
+msgstr "Platser"
+
+#: js-react/src/pages/Locations/index.js:106
+#, fuzzy
+#| msgid "To get all available options use"
+msgid "There are no available locations yet."
+msgstr "För att få alla tillgängliga alternativ använd"
+
+#: js-react/src/pages/Locations/index.js:110
+msgid "Use the 'Add location' button to add new location."
+msgstr ""
+
+#: js-react/src/pages/Services/components/ServicesForm/fields/MinutesField.js:21
+msgid "minutes"
+msgstr ""
+
+#: js-react/src/pages/Services/components/ServicesForm/fields/PriceField.js:13
+#, fuzzy
+#| msgid "Price"
+msgid "Price *"
+msgstr "Pris"
+
+#: js-react/src/pages/Services/components/ServicesForm/index.js:15
+#: js-react/src/pages/Services/components/ServicesTable/index.js:17
+msgid "Duration *"
+msgstr ""
+
+#: js-react/src/pages/Services/components/ServicesForm/index.js:19
+#: js-react/src/pages/Services/components/ServicesTable/index.js:23
+#, fuzzy
+#| msgid "Slot is taken"
+msgid "Slot step *"
+msgstr "Platsen är tagen"
+
+#: js-react/src/pages/Services/components/ServicesForm/index.js:23
+#: js-react/src/pages/Services/components/ServicesTable/index.js:29
+#, fuzzy
+#| msgid "Block before (in minutes)"
+msgid "Block before *"
+msgstr "Blockera före (i minuter)"
+
+#: js-react/src/pages/Services/components/ServicesForm/index.js:27
+#: js-react/src/pages/Services/components/ServicesTable/index.js:35
+#, fuzzy
+#| msgid "Block time"
+msgid "Block after *"
+msgstr "Blockera tid"
+
+#: js-react/src/pages/Services/components/ServicesTable/index.js:41
+#: js-react/src/pages/Services/components/ServicesTable/index.js:59
+#: src/frontend.php:231 src/frontend.php:520
+#: src/templates/appointments.tpl.php:99 src/templates/appointments.tpl.php:229
+#: src/templates/mail.notification.tpl.php:46
+msgid "Price"
+msgstr "Pris"
+
+#: js-react/src/pages/Services/components/ServicesTable/index.js:55
+#, fuzzy
+#| msgid "reservation"
+msgid "Duration"
+msgstr "reservaition"
+
+#: js-react/src/pages/Services/components/ServicesTable/index.js:56
+#, fuzzy
+#| msgid "Slot is taken"
+msgid "Slot step"
+msgstr "Platsen är tagen"
+
+#: js-react/src/pages/Services/components/ServicesTable/index.js:57
+#, fuzzy
+#| msgid "Block before (in minutes)"
+msgid "Block before"
+msgstr "Blockera före (i minuter)"
+
+#: js-react/src/pages/Services/components/ServicesTable/index.js:58
+#, fuzzy
+#| msgid "Block time"
+msgid "Block after"
+msgstr "Blockera tid"
+
+#: js-react/src/pages/Services/components/ServicesTable/index.js:94
+#, fuzzy
+#| msgid "Block after (in minutes)"
+msgid "* value in minutes"
+msgstr "Blockera efter (i minuter)"
+
+#: js-react/src/pages/Services/index.js:89
+#, fuzzy
+#| msgid "Add New Service"
+msgid "Add service"
+msgstr "Lägg till ny tjänst"
+
+#: js-react/src/pages/Services/index.js:93
+#, fuzzy
+#| msgid "Services"
+msgid "Edit services"
+msgstr "Tjänster"
+
+#: js-react/src/pages/Services/index.js:94
+#, fuzzy
+#| msgid "Add New Service"
+msgid "Add services"
+msgstr "Lägg till ny tjänst"
+
+#: js-react/src/pages/Services/index.js:99 src/admin.php:357 src/admin.php:358
+#: src/templates/admin.tpl.php:244
+msgid "Services"
+msgstr "Tjänster"
+
+#: js-react/src/pages/Services/index.js:104
+#, fuzzy
+#| msgid "Booking overview"
+msgid "Loading services"
+msgstr "Bokningsöversikt"
+
+#: js-react/src/pages/Services/index.js:109
+msgid "There are no available services yet."
+msgstr ""
+
+#: js-react/src/pages/Services/index.js:113
+msgid "Use the 'Add service' button to add new service."
+msgstr ""
+
+#: js-react/src/pages/Vacation/components/VacationForm/fields/TooltipField.js:9
+msgid "Tooltip *"
+msgstr ""
+
+#: js-react/src/pages/Vacation/components/VacationForm/fields/WorkersField.js:39
+#, fuzzy
+#| msgid "Workers"
+msgid "Workers *"
+msgstr "Arbetare"
+
+#: js-react/src/pages/Vacation/components/VacationForm/fields/WorkersField.js:40
+#, fuzzy
+#| msgid "Worker"
+msgid "Worker..."
+msgstr "Arbetare"
+
+#: js-react/src/pages/Vacation/components/VacationTable/index.js:16
+#, fuzzy
+#| msgid "Tools"
+msgid "Tooltip"
+msgstr "Verktyg"
+
+#: js-react/src/pages/Vacation/components/VacationTable/index.js:22
+#: src/templates/admin.tpl.php:252
+msgid "Workers"
+msgstr "Arbetare"
+
+#: js-react/src/pages/Vacation/components/VacationTable/index.js:27
+#, fuzzy
+#| msgid "Date"
+msgid "Dates"
+msgstr "Datum"
+
+#: js-react/src/pages/Vacation/index.js:85
+#: js-react/src/pages/Vacation/index.js:90
+#, fuzzy
+#| msgid "Add New Location"
+msgid "Add vacation"
+msgstr "Lägg till ny plats"
+
+#: js-react/src/pages/Vacation/index.js:89
+#, fuzzy
+#| msgid "Location"
+msgid "Edit vacation"
+msgstr "Plats"
+
+#: js-react/src/pages/Vacation/index.js:95
+#, fuzzy
+#| msgid "Location"
+msgid "Vacations"
+msgstr "Plats"
+
+#: js-react/src/pages/Vacation/index.js:100
+#, fuzzy
+#| msgid "Locations"
+msgid "Loading vacations"
+msgstr "Platser"
+
+#: js-react/src/pages/Vacation/index.js:105
+msgid "There are no scheduled vacation days yet."
+msgstr ""
+
+#: js-react/src/pages/Vacation/index.js:109
+msgid "Use the 'Add vacation' button to add new vacation days."
+msgstr ""
+
+#: js-react/src/pages/Workers/components/WorkersForm/fields/DescriptionField.js:9
+#, fuzzy
+#| msgid "Description"
+msgid "Description *"
+msgstr "Beskrivning"
+
+#: js-react/src/pages/Workers/components/WorkersForm/fields/EmailField.js:9
+#, fuzzy
+#| msgid "Email"
+msgid "Email *"
+msgstr "E-post"
+
+#: js-react/src/pages/Workers/components/WorkersForm/fields/PhoneField.js:9
+#, fuzzy
+#| msgid "Phone"
+msgid "Phone *"
+msgstr "Telefon"
+
+#: js-react/src/pages/Workers/components/WorkersTable/index.js:17
+#: js-react/src/pages/Workers/components/WorkersTable/index.js:43
+#: src/install.php:807 src/templates/appointments.tpl.php:97
+msgid "Description"
+msgstr "Beskrivning"
+
+#: js-react/src/pages/Workers/components/WorkersTable/index.js:23
+#: js-react/src/pages/Workers/components/WorkersTable/index.js:44
+#: src/frontend.php:511 src/metafields.php:30 src/templates/admin.tpl.php:757
+msgid "Email"
+msgstr "E-post"
+
+#: js-react/src/pages/Workers/components/WorkersTable/index.js:29
+#: js-react/src/pages/Workers/components/WorkersTable/index.js:45
+#: src/frontend.php:513 src/install.php:806 src/metafields.php:29
+#: src/templates/admin.tpl.php:756
+msgid "Phone"
+msgstr "Telefon"
+
+#: js-react/src/pages/Workers/index.js:89
+#: js-react/src/pages/Workers/index.js:94
+msgid "Add employee"
+msgstr ""
+
+#: js-react/src/pages/Workers/index.js:93
+msgid "Edit employee"
+msgstr ""
+
+#: js-react/src/pages/Workers/index.js:99 src/admin.php:367 src/admin.php:368
+msgid "Employees"
+msgstr ""
+
+#: js-react/src/pages/Workers/index.js:104
+msgid "Loading employees"
+msgstr ""
+
+#: js-react/src/pages/Workers/index.js:108
+msgid "There are no employees yet."
+msgstr ""
+
+#: js-react/src/pages/Workers/index.js:110
+msgid "Use the 'Add employee' button to add new employee."
+msgstr ""
+
+#: src/admin.php:337 src/admin.php:338 src/templates/appointments.tpl.php:6
+msgid "Appointments"
+msgstr "Bokningar"
+
+#: src/admin.php:347 src/admin.php:348 src/templates/admin.tpl.php:236
+msgid "Locations"
+msgstr "Platser"
+
+#: src/admin.php:377 src/admin.php:378
+msgid "Settings"
+msgstr "Inställningar"
+
+#: src/admin.php:387 src/admin.php:388
+#, fuzzy
+#| msgid "Location"
+msgid "Vacation"
+msgstr "Plats"
+
+#: src/admin.php:397
+msgid "Overview"
+msgstr "Översikt"
+
+#: src/admin.php:398
+msgid "Reports"
+msgstr "Rapporter"
+
+#: src/ajax.php:253
+msgid "Slot is taken"
+msgstr "Platsen är tagen"
+
+#: src/ajax.php:284
+msgid "Something went wrong! Please try again."
+msgstr "Oj, något gick fel! Försök igen."
+
+#: src/ajax.php:752
+msgid "Invalid email address!"
+msgstr "Felaktig e-postadress."
+
+#: src/ajax.php:756
+msgid "Only admin user can test mail!"
+msgstr "Endast administratörer kan testa e-post."
+
+#: src/ajax.php:779
+msgid "Request completed, please check email."
+msgstr "Förfrågan slutförd, vänligen titta i din inkorg."
+
+#: src/ajax.php:1186
+msgid "Invalid captcha!"
+msgstr "Felaktig captcha!"
+
+#: src/api/gdpr.php:46
+#, fuzzy
+#| msgid "Delete"
+msgid "Data deleted"
+msgstr "Radera"
+
+#: src/api/logactions.php:56
+msgid "Log records deleted"
+msgstr ""
+
+#: src/api/logactions.php:62
+msgid "Log file removed"
+msgstr ""
+
+#: src/frontend.php:229 src/frontend.php:504
+msgid "Please select another day"
+msgstr "Välj en annan dag"
+
+#: src/frontend.php:230 src/frontend.php:517
+#: src/templates/appointments.tpl.php:80 src/templates/appointments.tpl.php:98
+msgid "Date & time"
+msgstr "Datum & tid"
+
+#: src/frontend.php:238 src/frontend.php:525
+msgid "Form validation code expired. Please refresh page in order to continue."
+msgstr ""
+"Kod för validering av formulär har löpt ut. Vänligen uppdatera sidan för att "
+"kunna fortsätta."
+
+#: src/frontend.php:239 src/frontend.php:526
+msgid "Internal error. Please try again later."
+msgstr "Internt fel. Försök igen om en stund."
+
+#: src/frontend.php:240 src/frontend.php:527
+msgid "Unable to make ajax request. Please try again later."
+msgstr "Kunde inte fråga servern. Vänligen försök senare."
+
+#: src/frontend.php:325 src/frontend.php:505
+msgid "Personal information"
+msgstr "Personlig information"
+
+#: src/frontend.php:326 src/frontend.php:510
+msgid "Fields with * are required"
+msgstr "Fält med * är obligatoriska"
+
+#: src/frontend.php:330 src/frontend.php:516
+msgid "Booking overview"
+msgstr "Bokningsöversikt"
+
+#: src/frontend.php:335 src/frontend.php:521
+msgid "I agree with terms and conditions"
+msgstr "Jag godkänner rådande villkor"
+
+#: src/frontend.php:338 src/frontend.php:522
+msgid "You must agree with terms and conditions"
+msgstr "Du måste godkänna villkoren"
+
+#: src/frontend.php:358 src/frontend.php:518
+msgid "Submit"
+msgstr "Skicka"
+
+#: src/frontend.php:359 src/frontend.php:519 src/templates/admin.tpl.php:226
+#: src/templates/appointments.tpl.php:241
+msgid "Cancel"
+msgstr "Avbryt"
+
+#: src/frontend.php:404 src/frontend.php:411 src/frontend.php:416
+#: src/frontend.php:432 src/frontend.php:506
+msgid "This field is required."
+msgstr "Detta fält är obligatoriskt."
+
+#: src/frontend.php:405 src/frontend.php:412 src/frontend.php:507
+msgid "Please enter a valid email address"
+msgstr "Ange en giltig e-postadress"
+
+#: src/frontend.php:508
+msgid "Please enter at least 3 characters."
+msgstr "Ange minst 3 tecken"
+
+#: src/frontend.php:509
+msgid "Please enter at least 3 digits."
+msgstr "Ange minst tre siffror."
+
+#: src/frontend.php:512 src/install.php:805
+msgid "Name"
+msgstr "Namn"
+
+#: src/frontend.php:514
+msgid "Comment"
+msgstr "Kommentar"
+
+#: src/frontend.php:515
+msgid "Please check your appointment details below and confirm:"
+msgstr "Vänligen kontrollera dina bokningsuppgifter nedan och bekräfta:"
+
+#: src/frontend.php:523
+msgid "You can't select this time slot!'"
+msgstr "Du kan inte välja denna plats."
+
+#: src/install.php:804
+msgid "EMail"
+msgstr "E-post"
+
+#: src/logic.php:256
+msgid ""
+"Daily limit of booking request has been reached. Please contact us by email!"
+msgstr ""
+"Daglig begränsning av bokningsförfrågningar har nåtts. Vänligen kontakta oss "
+"per e-post."
+
+#: src/logic.php:374
+msgid "pending"
+msgstr "väntar"
+
+#: src/logic.php:375
+msgid "reservation"
+msgstr "reservaition"
+
+#: src/logic.php:376
+msgid "abandoned"
+msgstr "övergiven"
+
+#: src/logic.php:377
+msgid "cancelled"
+msgstr "avbruten"
+
+#: src/logic.php:378
+msgid "confirmed"
+msgstr "bekräftad"
+
+#: src/mail.php:174
+msgid "No appointment."
+msgstr "Ingen bokning."
+
+#: src/mail.php:180
+msgid "Invalid token."
+msgstr "Felaktig nyckel."
+
+#: src/mail.php:199
+msgid "Appointment is already confirmed!"
+msgstr "Bokningen är redan bekräftad."
+
+#: src/mail.php:204
+msgid "Appointment can't be confirmed!"
+msgstr "Bokningen kan inte bekräftas!"
+
+#: src/mail.php:222
+msgid "Appointment has been confirmed."
+msgstr "Bokningen har bekräftats."
+
+#: src/mail.php:230
+msgid "Appointment is already cancelled!"
+msgstr "Bokningen är redan avbruten!"
+
+#: src/mail.php:235
+msgid "Appointment can't be cancelled!"
+msgstr "Bokningen kan inte avbrytas!"
+
+#: src/mail.php:253
+msgid "Appointment can't be cancelled"
+msgstr "Bokningen kan inte avbrytas"
+
+#: src/mail.php:259
+msgid "Appointment has been cancelled"
+msgstr "Bokningen har avbrutits"
+
+#: src/mail.php:274
+msgid "Appointment link action"
+msgstr "Åtgärd för bokningslänk"
+
+#: src/mail.php:456
+msgid "Cancel appointment"
+msgstr "Avbryt bokning"
+
+#: src/mail.php:457
+msgid "Confirm appointment"
+msgstr "Bekräfta bokning"
+
+#: src/metafields.php:26 src/templates/admin.tpl.php:752
+msgid "Input"
+msgstr "Inmatning"
+
+#: src/metafields.php:27 src/templates/admin.tpl.php:754
+msgid "Select"
+msgstr "Välj"
+
+#: src/metafields.php:28
+#, fuzzy
+#| msgid "Textarea"
+msgid "Text"
+msgstr "Textarea"
+
+#: src/shortcodes/fullcalendar.php:267 src/templates/appointments.tpl.php:42
+#: src/templates/appointments.tpl.php:99
+#: src/templates/mail.notification.tpl.php:14
+msgid "Status"
+msgstr "Status"
+
+#: src/templates/admin.tpl.php:10
+msgid "Connections"
+msgstr "Kopplingar"
+
+#: src/templates/admin.tpl.php:16
+msgid "Customize"
+msgstr "Anpassa"
+
+#: src/templates/admin.tpl.php:22
+msgid "Tools"
+msgstr "Verktyg"
+
+#: src/templates/admin.tpl.php:37
+msgid "Add New Connection"
+msgstr "Lägg till ny koppling"
+
+#: src/templates/admin.tpl.php:41
+msgid "Bulk Add New Connections"
+msgstr "Bulktillägg av nya kopplingar"
+
+#: src/templates/admin.tpl.php:45 src/templates/appointments.tpl.php:74
+#: src/templates/report.tpl.php:62
+msgid "Refresh"
+msgstr "Uppdatera"
+
+#: src/templates/admin.tpl.php:53 src/templates/admin.tpl.php:155
+#: src/templates/admin.tpl.php:664 src/templates/admin.tpl.php:878
+#: src/templates/appointments.tpl.php:20 src/templates/appointments.tpl.php:95
+#: src/templates/appointments.tpl.php:164
+#: src/templates/mail.notification.tpl.php:22 src/templates/report.tpl.php:44
+msgid "Service"
+msgstr "Tjänst"
+
+#: src/templates/admin.tpl.php:53 src/templates/admin.tpl.php:167
+#: src/templates/admin.tpl.php:674 src/templates/appointments.tpl.php:29
+#: src/templates/appointments.tpl.php:95 src/templates/appointments.tpl.php:174
+#: src/templates/mail.notification.tpl.php:26 src/templates/report.tpl.php:53
+msgid "Worker"
+msgstr "Arbetare"
+
+#: src/templates/admin.tpl.php:54 src/templates/admin.tpl.php:264
+msgid "Days of week"
+msgstr "Veckodagar"
+
+#: src/templates/admin.tpl.php:56 src/templates/appointments.tpl.php:215
+msgid "Time"
+msgstr "Tid"
+
+#: src/templates/admin.tpl.php:59 src/templates/appointments.tpl.php:213
+#: src/templates/mail.notification.tpl.php:30
+msgid "Date"
+msgstr "Datum"
+
+#: src/templates/admin.tpl.php:61
+msgid "Is working"
+msgstr "Arbetar"
+
+#: src/templates/admin.tpl.php:95 src/templates/admin.tpl.php:178
+msgid "Number of slots"
+msgstr "Antal platser"
+
+#: src/templates/admin.tpl.php:113
+msgid "Starts at"
+msgstr "Startar vid"
+
+#: src/templates/admin.tpl.php:115
+msgid "ends at"
+msgstr "slutar vid"
+
+#: src/templates/admin.tpl.php:119
+msgid "Active from"
+msgstr "Aktiv från"
+
+#: src/templates/admin.tpl.php:121 src/templates/admin.tpl.php:287
+msgid "to"
+msgstr "till"
+
+#: src/templates/admin.tpl.php:127 src/templates/admin.tpl.php:216
+#: src/templates/admin.tpl.php:219 src/templates/admin.tpl.php:305
+#: src/templates/admin.tpl.php:308
+msgid "No"
+msgstr "Nej"
+
+#: src/templates/admin.tpl.php:129 src/templates/admin.tpl.php:217
+#: src/templates/admin.tpl.php:220 src/templates/admin.tpl.php:306
+#: src/templates/admin.tpl.php:309
+msgid "Yes"
+msgstr "Ja"
+
+#: src/templates/admin.tpl.php:136 src/templates/appointments.tpl.php:143
+msgid "Clone"
+msgstr "Duplicera"
+
+#: src/templates/admin.tpl.php:202 src/templates/mail.notification.tpl.php:34
+msgid "Start"
+msgstr "Start"
+
+#: src/templates/admin.tpl.php:204 src/templates/mail.notification.tpl.php:38
+msgid "End"
+msgstr "Slut"
+
+#: src/templates/admin.tpl.php:225 src/templates/admin.tpl.php:374
+#: src/templates/appointments.tpl.php:240
+msgid "Save"
+msgstr "Spara"
+
+#: src/templates/admin.tpl.php:233
+msgid "Split groups"
+msgstr "Dela upp grupper"
+
+#: src/templates/admin.tpl.php:233
+msgid "each combination will be one connection"
+msgstr "varje kombination kommer bli en koppling"
+
+#: src/templates/admin.tpl.php:261
+msgid "Shared values"
+msgstr "Gemensamma värden"
+
+#: src/templates/admin.tpl.php:261
+msgid "same for each combination"
+msgstr "samma för varje kombination"
+
+#: src/templates/admin.tpl.php:282
+msgid "Time from"
+msgstr "Tid från"
+
+#: src/templates/admin.tpl.php:294
+msgid "Active from date"
+msgstr "Aktiv från datum"
+
+#: src/templates/admin.tpl.php:298
+msgid "to date"
+msgstr "till datum"
+
+#: src/templates/admin.tpl.php:302
+msgid "Is Working"
+msgstr "Arbetar"
+
+#: src/templates/admin.tpl.php:343
+msgid "General"
+msgstr "Allmänt"
+
+#: src/templates/admin.tpl.php:346
+msgid "Mail Notifications"
+msgstr "E-postmeddelanden"
+
+#: src/templates/admin.tpl.php:349
+msgid "FullCalendar Shortcode"
+msgstr "FullCalendar-kortkod"
+
+#: src/templates/admin.tpl.php:352
+msgid "Labels"
+msgstr "Etiketter"
+
+#: src/templates/admin.tpl.php:355
+msgid "Date & Time"
+msgstr "Datum & tid"
+
+#: src/templates/admin.tpl.php:358
+msgid "Custom Form Fields"
+msgstr "Anpassade formulärfält"
+
+#: src/templates/admin.tpl.php:361
+msgid "Google reCAPTCHA v2"
+msgstr "Google reCAPTCHA v2"
+
+#: src/templates/admin.tpl.php:364
+msgid "Form Style & Redirect"
+msgstr "Formulärstil och dirigering"
+
+#: src/templates/admin.tpl.php:367
+msgid "GDPR"
+msgstr "GDPR"
+
+#: src/templates/admin.tpl.php:370
+msgid "Money Format"
+msgstr "Valutaformat"
+
+#: src/templates/admin.tpl.php:383
+msgid "Multiple work"
+msgstr "Flera arbeten"
+
+#: src/templates/admin.tpl.php:385
+msgid ""
+"Mark this option if you want to calculate free worker slots only by current "
+"service and location. If it's not marked system will check if worker is "
+"working on any location and service at current time."
+msgstr ""
+"Markera endast detta alternativ om du vill beräkna lediga arbetartider per "
+"tjänst och plats. Om det inte är markerat kommer systemet kontrollera om "
+"arbetaren arbetar på annan plats eller tjänst vid det givna tillfället."
+
+#: src/templates/admin.tpl.php:395
+msgid "Compatibility mode"
+msgstr "Kompatibilitetsläge"
+
+#: src/templates/admin.tpl.php:397
+msgid ""
+"If you can't EDIT or DELETE conecntion or any other settings, you should "
+"mark this option. NOTE: After saving this options you must refresh page!"
+msgstr ""
+"Om du inte kan redigera eller radera kopplingar eller andra inställningar, "
+"kan du markera detta alternativ. OBS: Efter att du sparat måste du ladda om "
+"sidan."
+
+#: src/templates/admin.tpl.php:408
+msgid "Max number of appointments"
+msgstr "Maximalt antal bokningar"
+
+#: src/templates/admin.tpl.php:410
+msgid ""
+"Number of appointments that one visitor can make reservation before limit "
+"alert is shown. Appointments are counted during one day."
+msgstr ""
+"Antal bokningar som en besökare kan göra innan begränsningsmeddelandet "
+"visas. Bokningar räknas per dag."
+
+#: src/templates/admin.tpl.php:418
+msgid "Auto reservation"
+msgstr "Autoreservering"
+
+#: src/templates/admin.tpl.php:420
+msgid "Make reservation at moment user select date and time!"
+msgstr "Reservera direkt när besökaren väljer datum och tid."
+
+#: src/templates/admin.tpl.php:430
+msgid "Turn nonce off"
+msgstr "Stäng av nonce"
+
+#: src/templates/admin.tpl.php:432
+msgid ""
+"if you have issues with validation code that is expired in form you can turn "
+"off nonce but you are doing that on your own risk."
+msgstr ""
+"Om du har problem med validering som löpt ut i formuläret kan du stänga av "
+"nonce, men du gör det på egen risk."
+
+#: src/templates/admin.tpl.php:442
+msgid "Default status"
+msgstr "Standardstatus"
+
+#: src/templates/admin.tpl.php:444
+msgid "Default status of Appointment made by visitor."
+msgstr "Standardstatus för bokningar utförda av besökare."
+
+#: src/templates/admin.tpl.php:460
+msgid ""
+"Reservation status is short term, if you don't change it within 5 minutes it "
+"will be set to cancelled"
+msgstr ""
+
+#: src/templates/admin.tpl.php:464
+msgid "Compress shortcode output (removes new lines from templates)."
+msgstr "Komprimera kortkodens resultat (tar bort nya rader från mallen)."
+
+#: src/templates/admin.tpl.php:466
+msgid ""
+"WordPress can add auto paragraph html element for each line break. This "
+"option prevents WP from doing that on EA shortcode."
+msgstr ""
+"Wordpress kan lägga till paragraftaggar automatiskt för varje radbrytning. "
+"Detta alternativ förhindrar Wordpress från att göra detta på kortkoden."
+
+#: src/templates/admin.tpl.php:483
+msgid "Notifications"
+msgstr "Notifikationer"
+
+#: src/templates/admin.tpl.php:485
+msgid ""
+"You can use this tags inside email content. Just place for example #id# "
+"inside mail template and that value will be replaced with value."
+msgstr ""
+"Du kan använda denna tagg i e-postinnehåll. Placera bara t.ex. #id# i e-"
+"postmallen och den koden ersätts med rätt värde."
+
+#: src/templates/admin.tpl.php:493
+msgid "Pending"
+msgstr "Väntar"
+
+#: src/templates/admin.tpl.php:495
+msgid "Reservation"
+msgstr "Reservation"
+
+#: src/templates/admin.tpl.php:497
+msgid "Cancelled"
+msgstr "Avbruten"
+
+#: src/templates/admin.tpl.php:499
+msgid "Confirmed"
+msgstr "Bekräftad"
+
+#: src/templates/admin.tpl.php:501
+msgid "Admin"
+msgstr "Admin"
+
+#: src/templates/admin.tpl.php:534
+msgid "Available tags"
+msgstr "Tillgängliga taggar"
+
+#: src/templates/admin.tpl.php:538
+msgid "Two step action links in email"
+msgstr "Åtgärd i två steg på länkar i e-post"
+
+#: src/templates/admin.tpl.php:540
+msgid ""
+"Sometimes Mail servers can open links from email for inspection. That will "
+"trigger actions such as #link_confirm#, #link_cancel#. Mark this option if "
+"you want to have additional prompt for user action via links."
+msgstr ""
+"Ibland öppnar mailservrar länkar för inspektion. Det kan trigga händelser "
+"som #link_confirm# och #link_cancel#. Markera detta alternativ om vill ha "
+"ytterligare en kontroll till användaren vid besök av länkarna."
+
+#: src/templates/admin.tpl.php:550
+msgid "Pending notification emails"
+msgstr "Väntande e-postmeddelanden"
+
+#: src/templates/admin.tpl.php:552
+msgid ""
+"Enter email adress that will receive new reservation notification. Separate "
+"multiple emails with , (comma)"
+msgstr ""
+"Ange en e-postadress som ska få notifikationer vid nya bokningar. Separera "
+"flera adresser med , (kommatecken)"
+
+#: src/templates/admin.tpl.php:560
+msgid "Admin notification subject"
+msgstr "Ämnesrad till administratör"
+
+#: src/templates/admin.tpl.php:562 src/templates/admin.tpl.php:572
+msgid "You can use any tag that is available as in custom email notifications."
+msgstr "Du kan använda alla tillgängliga taggar i anpassade e-postmeddelanden."
+
+#: src/templates/admin.tpl.php:570
+msgid "Visitor notification subject"
+msgstr "Ämnesrad i meddelande till besökare"
+
+#: src/templates/admin.tpl.php:580
+msgid "Send email to worker"
+msgstr "Skicka e-post till arbetare"
+
+#: src/templates/admin.tpl.php:582
+msgid ""
+"Mark this option if you want to employee receive admin email after filing "
+"the form."
+msgstr ""
+"Markera detta alternativ om du vill att arbetare ska få ett "
+"admininstrationsmail efter att ett formulär fyllts i."
+
+#: src/templates/admin.tpl.php:593
+msgid "Send email to user"
+msgstr "Skicka e-post till användare"
+
+#: src/templates/admin.tpl.php:595
+msgid ""
+"Mark this option if you want to user receive email after filing the form."
+msgstr ""
+"Markera detta alternativ om du vill att besökaren ska få ett e-"
+"postmeddelande efter formuläret fyllts i."
+
+#: src/templates/admin.tpl.php:605
+msgid "Send from"
+msgstr "Skicka från"
+
+#: src/templates/admin.tpl.php:607
+msgid ""
+"Send from email adress (Example: Name &lt;name@domain.com&gt;). Leave blank "
+"to use default address."
+msgstr ""
+"Skicka från e-postadress (T.ex. Namn &lt;namn@doman.se&gt;). Lämna tomt för "
+"att använda standardadressen."
+
+#: src/templates/admin.tpl.php:621
+msgid "Allow public access to FullCalendar shortcode"
+msgstr "Tillåt allmän tillgång till FullCalendar-kortkoden"
+
+#: src/templates/admin.tpl.php:623
+msgid ""
+"By default only logged in users can see data in FullCalendar. Mark this "
+"option if you want to allow public access for all."
+msgstr ""
+"Som standard kan endast inloggade användare se data i FullCalendar. Markera "
+"detta alternativ om du vill tillåta allmän tillgång till detta."
+
+#: src/templates/admin.tpl.php:634
+msgid "Show event content in popup"
+msgstr "Visa bokningsinnehåll i popup"
+
+#: src/templates/admin.tpl.php:636
+msgid "Popup dialog for event content."
+msgstr "Popup-ruta för bokningsinnehåll."
+
+#: src/templates/admin.tpl.php:647
+msgid "Event content in popup"
+msgstr "Bokningsinnehåll i popup"
+
+#: src/templates/admin.tpl.php:649
+msgid "Event content when clicked on event"
+msgstr "Bokningsinnehåll efter klick på bokning"
+
+#: src/templates/admin.tpl.php:652 src/templates/admin.tpl.php:1050
+msgid "Example"
+msgstr "Exempel"
+
+#: src/templates/admin.tpl.php:652
+msgid "Full documentation"
+msgstr "Full dokumentation"
+
+#: src/templates/admin.tpl.php:654
+msgid "To get all available options use"
+msgstr "För att få alla tillgängliga alternativ använd"
+
+#: src/templates/admin.tpl.php:680
+msgid "Done message"
+msgstr "Färdigt-meddelande"
+
+#: src/templates/admin.tpl.php:682
+msgid "Message that user receive after completing appointment"
+msgstr "Meddelandet besökaren får efter den slutfört bokningen"
+
+#: src/templates/admin.tpl.php:696
+msgid "Time format"
+msgstr "Tidformat"
+
+#: src/templates/admin.tpl.php:698
+msgid ""
+"Notice : date/time formating for email notification are done by Settings > "
+"General."
+msgstr ""
+"Notera: datum/tid-formattering för e-postmeddelande görs i Inställningar > "
+"Allmänt."
+
+#: src/templates/admin.tpl.php:712
+msgid "Calendar localization"
+msgstr "Kalenderöversättning"
+
+#: src/templates/admin.tpl.php:728
+msgid "Block time"
+msgstr "Blockera tid"
+
+#: src/templates/admin.tpl.php:730
+msgid ""
+"(in minutes). Prevent visitor from making an appointment if there are less "
+"minutes than this."
+msgstr ""
+"Förhindra besökaren från att boka om det återstår färre minuter än detta."
+
+#: src/templates/admin.tpl.php:753
+msgid "Masked Input"
+msgstr ""
+
+#: src/templates/admin.tpl.php:755
+msgid "Textarea"
+msgstr "Textarea"
+
+#: src/templates/admin.tpl.php:760
+msgid "Add"
+msgstr "Lägg till"
+
+#: src/templates/admin.tpl.php:766
+msgid ""
+"* To use using the email notification for user there must be field named "
+"\"email\" or \"e-mail\" or field with type \"email\""
+msgstr ""
+"* För att använda e-postnotifikationer för användare måste det finnas ett "
+"fält namngivet \"email\" eller \"e-mail\" eller ett fält av typen \"email\""
+
+#: src/templates/admin.tpl.php:775
+msgid "Site key"
+msgstr "Site-nyckel"
+
+#: src/templates/admin.tpl.php:781
+msgid "* Google reCAPTCHA key can be generated via"
+msgstr "* Google reCAPTCHA-nyckeln kan genereras via"
+
+#: src/templates/admin.tpl.php:785
+msgid "Secret key"
+msgstr "Hemlig nyckel"
+
+#: src/templates/admin.tpl.php:791
+msgid ""
+"* If you want to use Captcha you must have auto reservation option turned "
+"off. If you don't want to use Captcha just leave fields empty."
+msgstr ""
+"* Om du vill använda Captcha måste du ha autoreservation avstängt. Om du "
+"inte vill använda Captcha kan du lämna fältet tomt."
+
+#: src/templates/admin.tpl.php:801
+msgid "Custom style"
+msgstr "Anpassa stil"
+
+#: src/templates/admin.tpl.php:803
+msgid ""
+"Place here custom css styles. This will be included in both standard and "
+"bootstrap widget."
+msgstr ""
+"Lägg in anpassade CSS-instruktioner här. Detta inkluderas i både "
+"standardformuläret och i widgeten."
+
+#: src/templates/admin.tpl.php:808
+msgid "Turn off css files"
+msgstr "Stäng av css-filer"
+
+#: src/templates/admin.tpl.php:817
+msgid "Form label style"
+msgstr ""
+
+#: src/templates/admin.tpl.php:819
+msgid ""
+"Show labels above or inline with fields option on [ea_bootstrap] shortcode."
+msgstr ""
+
+#: src/templates/admin.tpl.php:831
+msgid "I agree field"
+msgstr "\"Jag godkänner\"-fält"
+
+#: src/templates/admin.tpl.php:833
+msgid ""
+"I agree option at the end of form. If this is marked user must confirm \"I "
+"agree\" checkbox."
+msgstr ""
+"Ett \"Jag godkänner\"-alternativ i botten av formuläret. Om markerad måste "
+"användaren bekräfta \"Jag godkänner\"-kryssrutan."
+
+#: src/templates/admin.tpl.php:843
+msgid "After cancel go to"
+msgstr "Efter avbryt, gå till"
+
+#: src/templates/admin.tpl.php:861
+msgid "Go to page"
+msgstr "Gå till sida"
+
+#: src/templates/admin.tpl.php:863
+msgid ""
+"After a visitor creates an appointment on the front-end form. Leave blank to "
+"turn off redirect."
+msgstr ""
+"Efter att en besökare skapar en bokning på hemsidans formulär. Lämna tomt "
+"för att inaktivera dirigering."
+
+#: src/templates/admin.tpl.php:872
+msgid "Advance Go to"
+msgstr "Gå till"
+
+#: src/templates/admin.tpl.php:874
+msgid "Add custom redirect based on service."
+msgstr "Lägg till anpassad dirigering beroende på tjänst."
+
+#: src/templates/admin.tpl.php:887
+msgid "Redirect to"
+msgstr "Dirigera till"
+
+#: src/templates/admin.tpl.php:890
+msgid "Add advance redirect"
+msgstr "Lägg till dirigering"
+
+#: src/templates/admin.tpl.php:904
+msgid "Turn on checkbox"
+msgstr "Aktivera kryssruta"
+
+#: src/templates/admin.tpl.php:906
+msgid "GDPR section checkbox."
+msgstr "GDPR checkbox."
+
+#: src/templates/admin.tpl.php:917
+msgid "Label"
+msgstr "Etikett"
+
+#: src/templates/admin.tpl.php:919
+msgid "Label next to checkbox."
+msgstr "Etikett vid kryssruta"
+
+#: src/templates/admin.tpl.php:926
+msgid "Page with GDPR content"
+msgstr "Sida med GDPR-innehåll"
+
+#: src/templates/admin.tpl.php:928
+msgid "Link to page with GDPR content."
+msgstr "Länk till sida med GDPR-innehåll."
+
+#: src/templates/admin.tpl.php:935
+msgid "Error message"
+msgstr "Felmeddelande"
+
+#: src/templates/admin.tpl.php:937
+msgid "Message if user don't mark the GDPR checkbox."
+msgstr "Meddelande om besökaren inte markerat GDPR-kryssrutan."
+
+#: src/templates/admin.tpl.php:944
+msgid "Clear customer data older then 6 months"
+msgstr ""
+
+#: src/templates/admin.tpl.php:946
+msgid ""
+"This action will remove custom form field values older then 6 months. After "
+"that appointments older then 6 months will not hold any customer related "
+"data."
+msgstr ""
+
+#: src/templates/admin.tpl.php:952
+msgid "Auto remove data via Cron that runs once a day"
+msgstr ""
+
+#: src/templates/admin.tpl.php:952
+msgid "Remove data now"
+msgstr ""
+
+#: src/templates/admin.tpl.php:962
+msgid "Currency"
+msgstr "Valuta"
+
+#: src/templates/admin.tpl.php:967
+msgid "Currency before price"
+msgstr "Valutasymbol innan pris"
+
+#: src/templates/admin.tpl.php:975
+msgid "Hide price in service select"
+msgstr "Göm pris i tjänstelistan"
+
+#: src/templates/admin.tpl.php:984
+msgid "Hide price"
+msgstr "Göm pris"
+
+#: src/templates/admin.tpl.php:986
+msgid "Hide price in whole customers form."
+msgstr "Göm pris i hela kundformuläret."
+
+#: src/templates/admin.tpl.php:1048
+#, fuzzy
+#| msgid "Mail Notifications"
+msgid "Mask options"
+msgstr "E-postmeddelanden"
+
+#: src/templates/admin.tpl.php:1085
+msgid "Test Email"
+msgstr "Testmeddelande"
+
+#: src/templates/admin.tpl.php:1086
+msgid ""
+"Test if the mail service is working fine on this site by generating a test "
+"email that will be send to provided address."
+msgstr ""
+"Testa om mailtjänsten fungerar som den ska på denna sida genom att generera "
+"ett testmeddelande som skickas till den angivna adressen."
+
+#: src/templates/admin.tpl.php:1090 src/templates/appointments.tpl.php:53
+#: src/templates/report.tpl.php:95
+msgid "To"
+msgstr "Till"
+
+#: src/templates/admin.tpl.php:1091
+msgid "Email address"
+msgstr "E-postadress"
+
+#: src/templates/admin.tpl.php:1100
+msgid "Send a Test Email"
+msgstr "Skicka ett testmeddelande"
+
+#: src/templates/admin.tpl.php:1101
+msgid "Send a Test Email (native)"
+msgstr "Skicka ett testmeddelande (standard)"
+
+#: src/templates/admin.tpl.php:1107
+msgid "Error log"
+msgstr "Fellogg"
+
+#: src/templates/admin.tpl.php:1109
+msgid "Loading..."
+msgstr "Läser in..."
+
+#: src/templates/admin.tpl.php:1111
+msgid "Clear log"
+msgstr ""
+
+#: src/templates/appointments.tpl.php:51 src/templates/report.tpl.php:91
+msgid "From"
+msgstr "Från"
+
+#: src/templates/appointments.tpl.php:55
+msgid "Quick time filter"
+msgstr "Snabbfilter för tid"
+
+#: src/templates/appointments.tpl.php:57
+msgid "Select period"
+msgstr "Välj period"
+
+#: src/templates/appointments.tpl.php:58
+msgid "This week"
+msgstr "Denna vecka"
+
+#: src/templates/appointments.tpl.php:59
+msgid "This month"
+msgstr "Denna månad"
+
+#: src/templates/appointments.tpl.php:60
+msgid "Today"
+msgstr "Iag"
+
+#: src/templates/appointments.tpl.php:70
+msgid "Add New Appointment"
+msgstr "Lägg till ny bokning"
+
+#: src/templates/appointments.tpl.php:77
+msgid "Sort By"
+msgstr ""
+
+#: src/templates/appointments.tpl.php:79
+#: src/templates/mail.notification.tpl.php:10
+msgid "Id"
+msgstr "Id"
+
+#: src/templates/appointments.tpl.php:81 src/templates/appointments.tpl.php:99
+#: src/templates/mail.notification.tpl.php:42
+msgid "Created"
+msgstr "Skapad"
+
+#: src/templates/appointments.tpl.php:83
+msgid "Order by"
+msgstr ""
+
+#: src/templates/appointments.tpl.php:96
+msgid "Customer"
+msgstr "Kund"
+
+#: src/templates/appointments.tpl.php:100
+msgid "Action"
+msgstr "Åtgärd"
+
+#: src/templates/appointments.tpl.php:236
+msgid "Send email notification :"
+msgstr "Skicka e-postmeddelande:"
+
+#: src/templates/mail.cancel.tpl.php:2
+msgid "Do you want to Cancel appointment?"
+msgstr "Vill du avbryta bokningen?"
+
+#: src/templates/mail.cancel.tpl.php:5
+msgid "Yes, I want to Cancel appointment."
+msgstr "Ja, jag vill avbryta min bokning."
+
+#: src/templates/mail.confirm.tpl.php:2
+msgid "Do you want to Confirm appointment?"
+msgstr "Vill du bekräfta bokningen?"
+
+#: src/templates/mail.confirm.tpl.php:5
+msgid "Yes, I want to Confirm appointment."
+msgstr "Ja, jag vill bekräfta min bokning."
+
+#: src/templates/report.tpl.php:7
+msgid "Time table"
+msgstr "Tidtabell"
+
+#: src/templates/report.tpl.php:8
+msgid "Have Calendar overview of all bookings and free slots. "
+msgstr "Få en kalenderöversikt av alla bokningar och lediga platser."
+
+#: src/templates/report.tpl.php:12
+msgid "Money"
+msgstr "Ekonomi"
+
+#: src/templates/report.tpl.php:17
+msgid "Export"
+msgstr "Exportera"
+
+#: src/templates/report.tpl.php:18
+msgid "Export data in Excel CSV format for selected time period."
+msgstr "Exportera data i Excel CSV-format för vald tidsperiod."
+
+#: src/templates/report.tpl.php:22
+msgid "Back to Reports"
+msgstr "Tillbaka till rapporter"
+
+#: src/templates/report.tpl.php:76
+msgid "Fields"
+msgstr "Fält"
+
+#: src/templates/report.tpl.php:78
+msgid "Click to customize columns for export"
+msgstr "Klicka för att anpassa kolumner i export"
+
+#: src/templates/report.tpl.php:81
+msgid "Place fields separate by , for example: id,name,email"
+msgstr "Placera fält separerade med , (komma). T.ex. id,name,email"
+
+#: src/templates/report.tpl.php:83
+msgid "Save settings"
+msgstr "Spara inställningar"
+
+#: src/templates/report.tpl.php:98
+msgid "Export data to CSV, can be imported to MS Excel, OpenOffice Calc... "
+msgstr ""
+"Exportera data till CSV, kan importeras i Excel, OpenOffice och Google Docs "
+"m.fl."
+
+#: src/templates/report.tpl.php:99
+msgid "Export data"
+msgstr "Exportera data"
+
+#, fuzzy
+#~| msgid "Locations"
+#~ msgid "Sort Locations By"
+#~ msgstr "Platser"
+
+#, fuzzy
+#~| msgid "Services"
+#~ msgid "Sort Services By"
+#~ msgstr "Tjänster"
+
+#~ msgid "Duration (in minutes)"
+#~ msgstr "Varaktighet (i minuter)"
+
+#~ msgid "Slot step (in minutes)"
+#~ msgstr "Plats-steg (i minuter)"
+
+#~ msgid "Add New Worker"
+#~ msgstr "Lägg till ny arbetare"
+
+#, fuzzy
+#~| msgid "Workers"
+#~ msgid "Sort Workers By"
+#~ msgstr "Arbetare"
+
+#~ msgid "Appointments hash"
+#~ msgstr "Bokningshash"
+
+#~ msgid "Appointments id"
+#~ msgstr "Boknings-id"
+
+#~ msgid "Descrtiption"
+#~ msgstr "Beskrivning"
+
+#~ msgid "Easy Appointments"
+#~ msgstr "Enkel bokning"
+
+#~ msgid "End filter from"
+#~ msgstr "Filtrera slut från"
+
+#~ msgid "Field that will be used as title"
+#~ msgstr "Fält att använda som titel"
+
+#~ msgid "Friday"
+#~ msgstr "Fredag"
+
+#~ msgid "http://nikolaloncar.com"
+#~ msgstr "http://nikolaloncar.com"
+
+#~ msgid "https://easy-appointments.net/"
+#~ msgstr "https://easy-appointments.net/"
+
+#~ msgid "Location id that will be used for getting free / taken slots"
+#~ msgstr "Plats-ID som används för att hitta lediga / upptagna platser"
+
+#~ msgid "Monday"
+#~ msgstr "Måndag"
+
+#~ msgid "Nikola Loncar"
+#~ msgstr "Nikola Locar"
+
+#~ msgid "Nonce"
+#~ msgstr "Nonce"
+
+#~ msgid "Saturday"
+#~ msgstr "Lördag"
+
+#~ msgid "Service id that will be used for getting free / taken slots"
+#~ msgstr "Tjänst-id som används för att hämta lediga / upptagna platser"
+
+#~ msgid ""
+#~ "Simple and easy to use management system for Appointments and Bookings"
+#~ msgstr "Smidig och enkelt system för hantering av möten och bokningar."
+
+#~ msgid "Start filter from"
+#~ msgstr "Filtrera start från"
+
+#~ msgid "Sunday"
+#~ msgstr "Söndag"
+
+#~ msgid "Thursday"
+#~ msgstr "Torsdag"
+
+#~ msgid "Tuesday"
+#~ msgstr "Tisdag"
+
+#~ msgid "Wednesday"
+#~ msgstr "Onsdag"
+
+#~ msgid "Worker id that will be used for getting free / taken slots"
+#~ msgstr "Arbetar-id som används för att hämta lediga / upptagna platser"
