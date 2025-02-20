@@ -21,7 +21,6 @@ local_settings.py
 filestore/
 .odoo.db
 .odoo-db*
-odoo.conf
 .odoorc
 sessions/
 data_dir/
