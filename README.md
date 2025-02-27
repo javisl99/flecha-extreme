@@ -113,23 +113,3 @@ This file ensures data persistence and the correct database environment configur
   ```
 - Access Odoo's web interface at `http://localhost:8071`.
 
-## ✅ Implemented Features
-
-(List and describe the features that have already been developed.)
-
-## 🚀 Features in Development
-
-(List and describe the features currently in progress.)
-
-## 🔀 Version Control and Planning
-
-- Use of Git branches: `Main`, `Release`, `Feature`
-
-## 📝 Notes and Learnings
-
-(Add any relevant information regarding the development process, future improvements, fixed issues, etc.)
-
-## 📚 References
-
-(List any reference materials or external documentation used.)
-
