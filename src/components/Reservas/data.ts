@@ -1,0 +1,170 @@
+import { Reserva } from '@/shared/types';
+import { clientesMock } from '@/components/Clientes/data';
+
+export const reservasMock: Reserva[] = [
+  {
+    id: 'r1',
+    clienteId: 'c1',
+    cliente: clientesMock.find(c => c.id === 'c1'),
+    actividad: 'Clase de Kitesurf',
+    fecha: '2024-04-25',
+    horaInicio: '10:00',
+    horaFin: '12:00',
+    estado: 'confirmada',
+    pagado: true,
+    precio: 80,
+    notas: 'Nivel intermedio'
+  },
+  {
+    id: 'r2',
+    clienteId: 'c2',
+    cliente: clientesMock.find(c => c.id === 'c2'),
+    actividad: 'Alquiler de Kayak',
+    fecha: '2024-04-26',
+    horaInicio: '14:00',
+    horaFin: '16:00',
+    estado: 'pendiente',
+    pagado: false,
+    precio: 40
+  },
+  {
+    id: 'r3',
+    clienteId: 'c3',
+    cliente: clientesMock.find(c => c.id === 'c3'),
+    actividad: 'Tour de Paddleboard',
+    fecha: '2024-04-27',
+    horaInicio: '09:00',
+    horaFin: '11:00',
+    estado: 'confirmada',
+    pagado: true,
+    precio: 60
+  },
+  {
+    id: 'r4',
+    clienteId: 'c4',
+    cliente: clientesMock.find(c => c.id === 'c4'),
+    actividad: 'Mantenimiento de Equipo',
+    fecha: '2024-04-28',
+    horaInicio: '16:00',
+    horaFin: '17:00',
+    estado: 'completada',
+    pagado: true,
+    precio: 50
+  },
+  {
+    id: 'r5',
+    clienteId: 'c5',
+    cliente: clientesMock.find(c => c.id === 'c5'),
+    actividad: 'Clase de Kitesurf',
+    fecha: '2024-04-29',
+    horaInicio: '11:00',
+    horaFin: '13:00',
+    estado: 'confirmada',
+    pagado: false,
+    precio: 80,
+    notas: 'Nivel principiante'
+  },
+  {
+    id: 'r6',
+    clienteId: 'c6',
+    cliente: clientesMock.find(c => c.id === 'c6'),
+    actividad: 'Campus de Verano',
+    fecha: '2024-07-01',
+    horaInicio: '09:00',
+    horaFin: '17:00',
+    estado: 'confirmada',
+    pagado: true,
+    precio: 250,
+    notas: 'Semana completa'
+  },
+  {
+    id: 'r7',
+    clienteId: 'c7',
+    cliente: clientesMock.find(c => c.id === 'c7'),
+    actividad: 'Alquiler de Equipo',
+    fecha: '2024-04-30',
+    horaInicio: '12:00',
+    horaFin: '16:00',
+    estado: 'pendiente',
+    pagado: false,
+    precio: 70
+  },
+  {
+    id: 'r8',
+    clienteId: 'c8',
+    cliente: clientesMock.find(c => c.id === 'c8'),
+    actividad: 'Clase Privada de Kitesurf',
+    fecha: '2024-05-02',
+    horaInicio: '10:00',
+    horaFin: '13:00',
+    estado: 'confirmada',
+    pagado: true,
+    precio: 150,
+    notas: 'Clase VIP'
+  },
+  {
+    id: 'r9',
+    clienteId: 'c1',
+    cliente: clientesMock.find(c => c.id === 'c1'),
+    actividad: 'Clase de Kitesurf',
+    fecha: '2024-05-05',
+    horaInicio: '10:00',
+    horaFin: '12:00',
+    estado: 'pendiente',
+    pagado: false,
+    precio: 80
+  },
+  // Nuevas reservas para el 25 de abril
+  {
+    id: 'r10',
+    clienteId: 'c2',
+    cliente: clientesMock.find(c => c.id === 'c2'),
+    actividad: 'Alquiler de Paddleboard',
+    fecha: '2024-04-25',
+    horaInicio: '11:30',
+    horaFin: '13:30',
+    estado: 'confirmada',
+    pagado: true,
+    precio: 35,
+    notas: 'Cliente habitual'
+  },
+  {
+    id: 'r11',
+    clienteId: 'c4',
+    cliente: clientesMock.find(c => c.id === 'c4'),
+    actividad: 'Excursión Grupal',
+    fecha: '2024-04-25',
+    horaInicio: '09:00',
+    horaFin: '14:00',
+    estado: 'confirmada',
+    pagado: true,
+    precio: 45,
+    notas: 'Grupo de 8 personas'
+  },
+  {
+    id: 'r12',
+    clienteId: 'c7',
+    cliente: clientesMock.find(c => c.id === 'c7'),
+    actividad: 'Clase de Windsurf',
+    fecha: '2024-04-25',
+    horaInicio: '16:00',
+    horaFin: '18:00',
+    estado: 'pendiente',
+    pagado: false,
+    precio: 70,
+    notas: 'Primera clase'
+  },
+  {
+    id: 'r13',
+    clienteId: 'c3',
+    cliente: clientesMock.find(c => c.id === 'c3'),
+    actividad: 'Reparación de Material',
+    fecha: '2024-04-25',
+    horaInicio: '15:00',
+    horaFin: '16:00',
+    estado: 'completada',
+    pagado: true,
+    precio: 25,
+    notas: 'Pequeña reparación de tabla'
+  }
+]; 
