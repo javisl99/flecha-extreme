@@ -19,7 +19,7 @@ export interface Reserva {
   fecha: string;
   horaInicio: string;
   horaFin: string;
-  estado: 'pendiente' | 'confirmada' | 'cancelada' | 'completada';
+  estado: 'Pendiente' | 'Confirmada' | 'Cancelada' | 'Completada';
   pagado: boolean;
   precio: number;
   notas?: string;

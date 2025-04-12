@@ -20,21 +20,16 @@ export default function ReservasHoy({ reservas }: ReservasHoyProps) {
   
   const getStatusColor = (estado: Reserva['estado']) => {
     switch (estado) {
-      case 'confirmada': return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
-      case 'pendiente': return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300';
-      case 'cancelada': return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300';
-      case 'completada': return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300';
+      case 'Confirmada': return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
+      case 'Pendiente': return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300';
+      case 'Cancelada': return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300';
+      case 'Completada': return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300';
       default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300';
     }
   };
 
   const formatHora = (hora: string) => {
     return hora;
-  };
-  
-  // Función para capitalizar la primera letra
-  const capitalizeFirstLetter = (text: string) => {
-    return text.charAt(0).toUpperCase() + text.slice(1);
   };
 
   // Mostrar solo las primeras 3 reservas o todas si se ha activado el botón
@@ -63,7 +58,7 @@ export default function ReservasHoy({ reservas }: ReservasHoyProps) {
                   </div>
                   <div className="flex flex-col items-end">
                     <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(reserva.estado)}`}>
-                      {capitalizeFirstLetter(reserva.estado)}
+                      {reserva.estado}
                     </span>
                     <span className={`text-xs mt-2 ${reserva.pagado ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
                       {reserva.pagado ? 'Pagado' : 'Pendiente de pago'}

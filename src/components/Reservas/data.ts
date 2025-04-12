@@ -10,7 +10,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-04-25',
     horaInicio: '10:00',
     horaFin: '12:00',
-    estado: 'confirmada',
+    estado: 'Confirmada',
     pagado: true,
     precio: 80,
     notas: 'Nivel intermedio'
@@ -23,7 +23,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-04-26',
     horaInicio: '14:00',
     horaFin: '16:00',
-    estado: 'pendiente',
+    estado: 'Pendiente',
     pagado: false,
     precio: 40
   },
@@ -35,7 +35,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-04-27',
     horaInicio: '09:00',
     horaFin: '11:00',
-    estado: 'confirmada',
+    estado: 'Confirmada',
     pagado: true,
     precio: 60
   },
@@ -47,7 +47,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-04-28',
     horaInicio: '16:00',
     horaFin: '17:00',
-    estado: 'completada',
+    estado: 'Completada',
     pagado: true,
     precio: 50
   },
@@ -59,7 +59,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-04-29',
     horaInicio: '11:00',
     horaFin: '13:00',
-    estado: 'confirmada',
+    estado: 'Confirmada',
     pagado: false,
     precio: 80,
     notas: 'Nivel principiante'
@@ -72,7 +72,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-07-01',
     horaInicio: '09:00',
     horaFin: '17:00',
-    estado: 'confirmada',
+    estado: 'Confirmada',
     pagado: true,
     precio: 250,
     notas: 'Semana completa'
@@ -85,7 +85,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-04-30',
     horaInicio: '12:00',
     horaFin: '16:00',
-    estado: 'pendiente',
+    estado: 'Pendiente',
     pagado: false,
     precio: 70
   },
@@ -97,7 +97,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-05-02',
     horaInicio: '10:00',
     horaFin: '13:00',
-    estado: 'confirmada',
+    estado: 'Confirmada',
     pagado: true,
     precio: 150,
     notas: 'Clase VIP'
@@ -110,7 +110,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-05-05',
     horaInicio: '10:00',
     horaFin: '12:00',
-    estado: 'pendiente',
+    estado: 'Pendiente',
     pagado: false,
     precio: 80
   },
@@ -123,7 +123,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-04-25',
     horaInicio: '11:30',
     horaFin: '13:30',
-    estado: 'confirmada',
+    estado: 'Confirmada',
     pagado: true,
     precio: 35,
     notas: 'Cliente habitual'
@@ -136,7 +136,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-04-25',
     horaInicio: '09:00',
     horaFin: '14:00',
-    estado: 'confirmada',
+    estado: 'Confirmada',
     pagado: true,
     precio: 45,
     notas: 'Grupo de 8 personas'
@@ -149,7 +149,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-04-25',
     horaInicio: '16:00',
     horaFin: '18:00',
-    estado: 'pendiente',
+    estado: 'Pendiente',
     pagado: false,
     precio: 70,
     notas: 'Primera clase'
@@ -162,7 +162,7 @@ export const reservasMock: Reserva[] = [
     fecha: '2024-04-25',
     horaInicio: '15:00',
     horaFin: '16:00',
-    estado: 'completada',
+    estado: 'Completada',
     pagado: true,
     precio: 25,
     notas: 'Pequeña reparación de tabla'
