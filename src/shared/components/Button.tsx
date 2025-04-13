@@ -16,7 +16,7 @@ export default function Button({
   icon,
   ...props
 }: ButtonProps) {
-  const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
+  const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer';
   
   const variantClasses = {
     primary: 'bg-primary text-white hover:bg-primary-dark focus:ring-primary',
