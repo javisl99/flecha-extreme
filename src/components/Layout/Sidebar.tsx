@@ -72,8 +72,13 @@ export default function Sidebar() {
     <div className="w-64 bg-primary-dark text-white flex flex-col h-screen">
       <div className="p-4 flex items-center justify-center border-b border-primary-light">
         <div className="text-xl font-bold flex flex-col items-center">
-          <span className="text-accent text-2xl">FLECHA</span>
-          <span className="text-accent-light">EXTREME</span>
+          <Image
+            src="/cropped-lgo.png"
+            alt="Flecha Extreme Logo"
+            width={150}
+            height={50}
+            priority
+          />
         </div>
       </div>
       
