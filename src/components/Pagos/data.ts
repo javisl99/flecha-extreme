@@ -12,8 +12,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Clase de Kitesurf',
     monto: 80,
     fechaPago: '2024-04-20',
-    metodoPago: 'tarjeta',
-    estado: 'completado'
+    metodoPago: 'Tarjeta',
+    estado: 'Completado'
   },
   {
     id: 'p2',
@@ -24,8 +24,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Tour de Paddleboard',
     monto: 60,
     fechaPago: '2024-04-25',
-    metodoPago: 'efectivo',
-    estado: 'completado'
+    metodoPago: 'Efectivo',
+    estado: 'Pendiente'
   },
   {
     id: 'p3',
@@ -36,8 +36,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Mantenimiento de Equipo',
     monto: 50,
     fechaPago: '2024-04-28',
-    metodoPago: 'tarjeta',
-    estado: 'completado'
+    metodoPago: 'Tarjeta',
+    estado: 'Completado'
   },
   {
     id: 'p4',
@@ -48,8 +48,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Campus de Verano',
     monto: 250,
     fechaPago: '2024-06-15',
-    metodoPago: 'transferencia',
-    estado: 'completado',
+    metodoPago: 'Transferencia',
+    estado: 'Completado',
     notas: 'Pago anticipado'
   },
   {
@@ -61,8 +61,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Clase Privada de Kitesurf',
     monto: 150,
     fechaPago: '2024-05-01',
-    metodoPago: 'tarjeta',
-    estado: 'completado'
+    metodoPago: 'Tarjeta',
+    estado: 'Completado'
   },
   {
     id: 'p6',
@@ -73,8 +73,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Alquiler de Kayak',
     monto: 40,
     fechaPago: '2024-04-26',
-    metodoPago: 'efectivo',
-    estado: 'pendiente'
+    metodoPago: 'Efectivo',
+    estado: 'Pendiente'
   },
   {
     id: 'p7',
@@ -85,8 +85,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Clase de Kitesurf',
     monto: 80,
     fechaPago: '2024-04-29',
-    metodoPago: 'efectivo',
-    estado: 'pendiente'
+    metodoPago: 'Efectivo',
+    estado: 'Pendiente'
   },
   {
     id: 'p8',
@@ -97,8 +97,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Alquiler de Equipo',
     monto: 70,
     fechaPago: '2024-04-30',
-    metodoPago: 'tarjeta',
-    estado: 'pendiente'
+    metodoPago: 'Tarjeta',
+    estado: 'Pendiente'
   },
   {
     id: 'p9',
@@ -107,8 +107,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Venta de Material',
     monto: 120,
     fechaPago: '2024-04-15',
-    metodoPago: 'tarjeta',
-    estado: 'completado'
+    metodoPago: 'Tarjeta',
+    estado: 'Completado'
   },
   // Nuevos pagos para el 25 de abril
   {
@@ -120,8 +120,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Alquiler de Paddleboard',
     monto: 35,
     fechaPago: '2024-04-25',
-    metodoPago: 'tarjeta',
-    estado: 'completado'
+    metodoPago: 'Tarjeta',
+    estado: 'Completado'
   },
   {
     id: 'p11',
@@ -132,8 +132,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Excursión Grupal',
     monto: 45,
     fechaPago: '2024-04-25',
-    metodoPago: 'efectivo',
-    estado: 'completado',
+    metodoPago: 'Efectivo',
+    estado: 'Cancelado',
     notas: 'Pago en el momento'
   },
   {
@@ -145,8 +145,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Reparación de Material',
     monto: 25,
     fechaPago: '2024-04-25',
-    metodoPago: 'efectivo',
-    estado: 'completado'
+    metodoPago: 'Efectivo',
+    estado: 'Completado'
   },
   {
     id: 'p13',
@@ -155,8 +155,8 @@ export const pagosMock: Pago[] = [
     concepto: 'Venta de Accesorios',
     monto: 65,
     fechaPago: '2024-04-25',
-    metodoPago: 'tarjeta',
-    estado: 'completado',
+    metodoPago: 'Tarjeta',
+    estado: 'Completado',
     notas: 'Leash y funda tabla'
   }
 ]; 
