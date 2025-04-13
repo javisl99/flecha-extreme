@@ -37,9 +37,9 @@ export default function DashboardPage() {
   const pagosRecientes = pagosMock.filter(p => p.fechaPago === fecha);
   
   // Calcular KPIs
-  const reservasPendientes = reservasMock.filter(r => r.estado === 'pendiente').length;
+  const reservasPendientes = reservasMock.filter(r => r.estado === 'Pendiente').length;
   const reservasNoPagadas = reservasMock.filter(r => !r.pagado).length;
-  const pagosPendientes = pagosMock.filter(p => p.estado === 'pendiente').length;
+  const pagosPendientes = pagosMock.filter(p => p.estado === 'Pendiente').length;
   
   const ingresosDiarios = movimientosCajaMock
     .filter(m => m.fecha === fecha && m.tipo === 'ingreso')
