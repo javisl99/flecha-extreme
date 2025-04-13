@@ -6,6 +6,13 @@ import { reservasMock } from '@/components/Reservas/data';
 import { Reserva } from '@/shared/types';
 import { FiltrosReserva } from '@/components/Reservas/types';
 
+// Icono para nueva reserva
+const NewReservationIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+  </svg>
+);
+
 export default function ReservasPage() {
   const [filtros, setFiltros] = useState<FiltrosReserva>({
     fecha: '',
@@ -67,7 +74,7 @@ export default function ReservasPage() {
           >
             Calendario
           </Button>
-          <Button variant="primary" icon="➕">
+          <Button variant="primary" icon={<NewReservationIcon />}>
             Nueva Reserva
           </Button>
         </div>
