@@ -28,6 +28,12 @@ export default function ReservasHoy({ reservas }: ReservasHoyProps) {
     }
   };
 
+  const getPaymentStatusStyle = (pagado: boolean) => {
+    return pagado 
+      ? 'bg-green-800 dark:bg-green-300 text-green-100 dark:text-green-900' 
+      : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300';
+  };
+
   const formatHora = (hora: string) => {
     return hora;
   };
@@ -56,11 +62,11 @@ export default function ReservasHoy({ reservas }: ReservasHoyProps) {
                       {reserva.cliente?.nombre} {reserva.cliente?.apellidos}
                     </p>
                   </div>
-                  <div className="flex flex-col items-end">
+                  <div className="flex flex-col items-end space-y-2">
                     <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(reserva.estado)}`}>
                       {reserva.estado}
                     </span>
-                    <span className={`text-xs mt-2 ${reserva.pagado ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                    <span className={`text-xs px-2 py-1 rounded-full ${getPaymentStatusStyle(reserva.pagado)}`}>
                       {reserva.pagado ? 'Pagado' : 'Pendiente de pago'}
                     </span>
                   </div>
