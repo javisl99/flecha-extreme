@@ -4,6 +4,31 @@ import { useState } from 'react';
 import { Card, Button } from '@/shared/components';
 import { pagosMock } from '@/components/Pagos/data';
 
+// Iconos para métodos de pago
+const CashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+  </svg>
+);
+
+const CardIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+  </svg>
+);
+
+const BankIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+  </svg>
+);
+
+const OtherPaymentIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
 export default function PagosPage() {
   const [filtro, setFiltro] = useState('');
   
@@ -12,6 +37,16 @@ export default function PagosPage() {
     pago.cliente?.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
     pago.cliente?.apellidos.toLowerCase().includes(filtro.toLowerCase())
   );
+  
+  const getMetodoPagoIcon = (metodo: string) => {
+    switch (metodo) {
+      case 'Efectivo': return <CashIcon />;
+      case 'Tarjeta': return <CardIcon />;
+      case 'Transferencia': return <BankIcon />;
+      case 'Otro': return <OtherPaymentIcon />;
+      default: return <OtherPaymentIcon />;
+    }
+  };
   
   return (
     <div className="space-y-6">
@@ -76,16 +111,14 @@ export default function PagosPage() {
                     {pago.monto.toFixed(2)} €
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                    <span title={pago.metodoPago}>
-                      {pago.metodoPago === 'efectivo' ? '💵' : 
-                       pago.metodoPago === 'tarjeta' ? '💳' : 
-                       pago.metodoPago === 'transferencia' ? '🏦' : '💰'}
+                    <span title={pago.metodoPago} className="flex justify-center text-gray-600 dark:text-gray-400">
+                      {getMetodoPagoIcon(pago.metodoPago)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                     <span className={
-                      pago.estado === 'completado' ? 'text-green-600 dark:text-green-500' :
-                      pago.estado === 'pendiente' ? 'text-yellow-600 dark:text-yellow-500' :
+                      pago.estado === 'Completado' ? 'text-green-600 dark:text-green-500' :
+                      pago.estado === 'Pendiente' ? 'text-yellow-600 dark:text-yellow-500' :
                       'text-red-600 dark:text-red-500'
                     }>
                       {pago.estado}
