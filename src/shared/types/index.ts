@@ -34,8 +34,8 @@ export interface Pago {
   concepto: string;
   monto: number;
   fechaPago: string;
-  metodoPago: 'efectivo' | 'tarjeta' | 'transferencia' | 'otro';
-  estado: 'pendiente' | 'completado' | 'cancelado';
+  metodoPago: 'Efectivo' | 'Tarjeta' | 'Transferencia' | 'Otro';
+  estado: 'Pendiente' | 'Completado' | 'Cancelado';
   notas?: string;
 }
 

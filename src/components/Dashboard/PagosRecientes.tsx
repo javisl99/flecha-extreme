@@ -42,20 +42,20 @@ interface PagosRecientesProps {
 export default function PagosRecientes({ pagos }: PagosRecientesProps) {
   const getMetodoPagoIcon = (metodo: Pago['metodoPago']) => {
     switch (metodo) {
-      case 'efectivo': return <CashIcon />;
-      case 'tarjeta': return <CardIcon />;
-      case 'transferencia': return <BankIcon />;
-      case 'otro': return <OtherPaymentIcon />;
+      case 'Efectivo': return <CashIcon />;
+      case 'Tarjeta': return <CardIcon />;
+      case 'Transferencia': return <BankIcon />;
+      case 'Otro': return <OtherPaymentIcon />;
       default: return <OtherPaymentIcon />;
     }
   };
 
   const getEstadoColor = (estado: Pago['estado']) => {
     switch (estado) {
-      case 'completado': return 'text-green-600 dark:text-green-500';
-      case 'pendiente': return 'text-yellow-600 dark:text-yellow-500';
-      case 'cancelado': return 'text-red-600 dark:text-red-500';
-      default: return 'text-gray-600 dark:text-gray-400';
+      case 'Completado': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'Pendiente': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      case 'Cancelado': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
     }
   };
 
@@ -102,7 +102,7 @@ export default function PagosRecientes({ pagos }: PagosRecientesProps) {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                      <span className={getEstadoColor(pago.estado)}>
+                      <span className={`${getEstadoColor(pago.estado)} px-2 py-1 rounded-md text-xs font-medium`}>
                         {pago.estado}
                       </span>
                     </td>
