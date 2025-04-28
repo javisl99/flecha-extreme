@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Card, Button } from '@/shared/components';
 import { actividadesMock } from '@/components/Actividades/data';
 import { Actividad } from '@/shared/types';
+import Image from 'next/image';
 
 export default function ActividadesPage() {
   const [selectedTab, setSelectedTab] = useState<'list' | 'grid'>('grid');
@@ -70,10 +71,12 @@ export default function ActividadesPage() {
               >
                 <div className="aspect-video bg-gradient-to-r from-blue-500 to-cyan-500 relative">
                   {actividad.imagen && (
-                    <img 
+                    <Image 
                       src={actividad.imagen} 
                       alt={actividad.nombre} 
                       className="w-full h-full object-cover"
+                      width={500}
+                      height={300}
                     />
                   )}
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
@@ -167,10 +170,12 @@ export default function ActividadesPage() {
           <div className="bg-card-bg dark:bg-card-bg border border-card-border dark:border-card-border rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="aspect-video bg-gradient-to-r from-blue-500 to-cyan-500 relative">
               {selectedActividad.imagen && (
-                <img 
+                <Image 
                   src={selectedActividad.imagen} 
                   alt={selectedActividad.nombre} 
                   className="w-full h-full object-cover"
+                  width={800}
+                  height={450}
                 />
               )}
             </div>
