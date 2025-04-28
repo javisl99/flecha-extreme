@@ -5,11 +5,41 @@ import { Card, Button } from '@/shared/components';
 
 // Datos de ejemplo para documentos
 const documentosMock = [
-  { id: 1, nombre: 'Contrato de Servicios.pdf', tipo: 'Contrato', fecha: '2023-06-15', tamaño: '245 KB', propietario: 'Administración' },
-  { id: 2, nombre: 'Factura-2023-0045.pdf', tipo: 'Factura', fecha: '2023-06-10', tamaño: '120 KB', propietario: 'Contabilidad' },
-  { id: 3, nombre: 'Seguro Responsabilidad Civil.pdf', tipo: 'Seguro', fecha: '2023-05-20', tamaño: '1.2 MB', propietario: 'Administración' },
-  { id: 4, nombre: 'Presentación Servicios.pptx', tipo: 'Presentación', fecha: '2023-04-12', tamaño: '3.5 MB', propietario: 'Marketing' },
-  { id: 5, nombre: 'Inventario Material 2023.xlsx', tipo: 'Hoja de cálculo', fecha: '2023-06-01', tamaño: '450 KB', propietario: 'Almacén' },
+  { 
+    id: '1', 
+    nombre: 'Contrato de Servicios.pdf', 
+    tipo: 'contrato', 
+    fechaCreacion: '2023-06-15',
+    url: '/documentos/contratos/contrato_servicios.pdf'
+  },
+  { 
+    id: '2', 
+    nombre: 'Factura-2023-0045.pdf', 
+    tipo: 'factura', 
+    fechaCreacion: '2023-06-10',
+    url: '/documentos/facturas/factura_2023_0045.pdf'
+  },
+  { 
+    id: '3', 
+    nombre: 'Seguro Responsabilidad Civil.pdf', 
+    tipo: 'otro', 
+    fechaCreacion: '2023-05-20',
+    url: '/documentos/seguros/seguro_responsabilidad_civil.pdf'
+  },
+  { 
+    id: '4', 
+    nombre: 'Recibo Pago 2023-06.pdf', 
+    tipo: 'recibo', 
+    fechaCreacion: '2023-06-12',
+    url: '/documentos/recibos/recibo_pago_2023_06.pdf'
+  },
+  { 
+    id: '5', 
+    nombre: 'Manual de Procedimientos.pdf', 
+    tipo: 'otro', 
+    fechaCreacion: '2023-06-01',
+    url: '/documentos/manuales/manual_procedimientos.pdf'
+  }
 ];
 
 export default function DocumentosPage() {
@@ -17,8 +47,7 @@ export default function DocumentosPage() {
   
   const documentosFiltrados = documentosMock.filter(doc => 
     doc.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-    doc.tipo.toLowerCase().includes(filtro.toLowerCase()) ||
-    doc.propietario.toLowerCase().includes(filtro.toLowerCase())
+    doc.tipo.toLowerCase().includes(filtro.toLowerCase())
   );
   
   return (
@@ -48,26 +77,12 @@ export default function DocumentosPage() {
         
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-table-head-bg dark:bg-gray-800">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Nombre
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Tipo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Fecha
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Tamaño
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Propietario
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Acciones
-                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nombre</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tipo</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody className="bg-card-bg divide-y divide-gray-200 dark:divide-gray-700">
@@ -78,17 +93,11 @@ export default function DocumentosPage() {
                       <span className="font-medium text-gray-900 dark:text-gray-100">{documento.nombre}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {documento.tipo}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(documento.fecha).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {documento.tamaño}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {documento.propietario}
+                    {new Date(documento.fechaCreacion).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                     <div className="flex justify-end space-x-2">
