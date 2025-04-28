@@ -5,8 +5,8 @@ import { useState } from 'react';
 import supabaseClient from '@/lib/supabaseClient';
 
 export function useSupabase() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [loading] = useState(false);
+  const [error] = useState<Error | null>(null);
 
   // Funciones mockeadas que serán reemplazadas por las reales
   

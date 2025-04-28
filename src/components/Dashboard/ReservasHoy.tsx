@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Button } from '@/shared/components';
+import { Card } from '@/shared/components';
 import { Reserva } from '@/shared/types';
 
 // Icono para las reservas de hoy
