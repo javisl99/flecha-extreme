@@ -21,9 +21,6 @@ export default function ResumenDiario({ fecha }: ResumenDiarioProps) {
   const balance = calcularBalanceDiario(fecha);
   
   const movimientosDia = movimientosCajaMock.filter(m => m.fecha === fecha);
-  const ingresos = movimientosDia.filter(m => m.tipo === 'ingreso');
-  const gastos = movimientosDia.filter(m => m.tipo === 'gasto');
-  
   // Mostrar solo los primeros 3 movimientos o todos si se ha activado el botón
   const movimientosAMostrar = mostrarTodos ? movimientosDia : movimientosDia.slice(0, 3);
   const hayMasMovimientos = movimientosDia.length > 3;
