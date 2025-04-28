@@ -75,8 +75,11 @@ export interface Actividad {
   id: string;
   nombre: string;
   descripcion?: string;
+  categoria: string;
   precio: number;
   duracion: number;
   capacidadMaxima: number;
+  requisitos?: string;
   activo: boolean;
+  imagen?: string;
 } 

@@ -14,7 +14,7 @@ export default function ActividadesPage() {
     actividad => 
       actividad.nombre.toLowerCase().includes(filterText.toLowerCase()) ||
       actividad.categoria.toLowerCase().includes(filterText.toLowerCase()) ||
-      actividad.descripcion.toLowerCase().includes(filterText.toLowerCase())
+      (actividad.descripcion?.toLowerCase() || '').includes(filterText.toLowerCase())
   );
   
   return (
@@ -134,7 +134,7 @@ export default function ActividadesPage() {
                       <div className="text-sm text-gray-500 dark:text-gray-400">{actividad.duracion} min</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{actividad.capacidad} personas</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{actividad.capacidadMaxima} personas</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{actividad.precio} €</div>
@@ -198,7 +198,7 @@ export default function ActividadesPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Capacidad</label>
-                  <p className="text-gray-900 dark:text-gray-100">{selectedActividad.capacidad} personas</p>
+                  <p className="text-gray-900 dark:text-gray-100">{selectedActividad.capacidadMaxima} personas</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Precio</label>
