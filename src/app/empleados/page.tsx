@@ -13,7 +13,7 @@ const EmpleadosIcon = () => (
 // Datos de ejemplo para empleados
 const empleadosMock = [
   { 
-    id: 1, 
+    id: '1', 
     nombre: 'Ana', 
     apellidos: 'García López', 
     puesto: 'Gerente', 
@@ -24,7 +24,7 @@ const empleadosMock = [
     activo: true
   },
   { 
-    id: 2, 
+    id: '2', 
     nombre: 'Carlos', 
     apellidos: 'Martínez Ruiz', 
     puesto: 'Instructor', 
@@ -35,7 +35,7 @@ const empleadosMock = [
     activo: true
   },
   { 
-    id: 3, 
+    id: '3', 
     nombre: 'Laura', 
     apellidos: 'Sánchez Pérez', 
     puesto: 'Recepcionista', 
@@ -46,7 +46,7 @@ const empleadosMock = [
     activo: true
   },
   { 
-    id: 4, 
+    id: '4', 
     nombre: 'Miguel', 
     apellidos: 'Hernández Gil', 
     puesto: 'Instructor', 
@@ -57,7 +57,7 @@ const empleadosMock = [
     activo: false
   },
   { 
-    id: 5, 
+    id: '5', 
     nombre: 'Sofía', 
     apellidos: 'Díaz Marín', 
     puesto: 'Contable', 
