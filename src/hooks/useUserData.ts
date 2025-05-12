@@ -70,9 +70,30 @@ export function useUserData() {
     fetchUsuario();
   }, [user?.email]);
 
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabaseClient.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      return { success: true };
+    } catch (err) {
+      console.error('Error al actualizar la contraseña:', err);
+      return { 
+        success: false, 
+        error: 'Error al actualizar la contraseña. Por favor, inténtalo de nuevo.' 
+      };
+    }
+  };
+
   return {
     usuario,
     loading,
-    error
+    error,
+    updatePassword
   };
 } 
