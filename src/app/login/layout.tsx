@@ -14,6 +14,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Iniciar Sesión - Flecha Extreme",
   description: "Página de inicio de sesión para el sistema de gestión Flecha Extreme",
+  icons: {
+    icon: '/src/app/favicon.ico',
+  },
 };
 
 export default function LoginLayout({

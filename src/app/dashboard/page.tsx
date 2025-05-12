@@ -29,10 +29,15 @@ const ChartIcon = () => (
 );
 
 export default function DashboardPage() {
-  // Usando una fecha fija para los datos de demostración
-  const [fecha] = useState('2024-04-25');
+  // Usando la fecha actual
+  const getCurrentDate = () => {
+    const now = new Date();
+    return now.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+  };
   
-  // Filtrar datos para la fecha de demostración
+  const [fecha] = useState(getCurrentDate());
+  
+  // Filtrar datos para la fecha actual
   const reservasHoy = reservasMock.filter(r => r.fecha === fecha);
   const pagosRecientes = pagosMock.filter(p => p.fechaPago === fecha);
   

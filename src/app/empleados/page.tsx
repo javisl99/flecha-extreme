@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Card, Button } from '@/shared/components';
+import { empleadosMock } from '@/components/Empleados/data';
 
 // Componente del icono SVG de Empleados
 const EmpleadosIcon = () => (
@@ -10,65 +11,6 @@ const EmpleadosIcon = () => (
   </svg>
 );
 
-// Datos de ejemplo para empleados
-const empleadosMock = [
-  { 
-    id: '1', 
-    nombre: 'Ana', 
-    apellidos: 'García López', 
-    puesto: 'Gerente', 
-    departamento: 'Administración', 
-    email: 'ana.garcia@flechaextreme.com',
-    telefono: '666111222',
-    fechaContratacion: '2020-04-15',
-    activo: true
-  },
-  { 
-    id: '2', 
-    nombre: 'Carlos', 
-    apellidos: 'Martínez Ruiz', 
-    puesto: 'Instructor', 
-    departamento: 'Actividades', 
-    email: 'carlos.martinez@flechaextreme.com',
-    telefono: '666333444',
-    fechaContratacion: '2020-06-10',
-    activo: true
-  },
-  { 
-    id: '3', 
-    nombre: 'Laura', 
-    apellidos: 'Sánchez Pérez', 
-    puesto: 'Recepcionista', 
-    departamento: 'Atención al Cliente', 
-    email: 'laura.sanchez@flechaextreme.com',
-    telefono: '666555666',
-    fechaContratacion: '2021-02-22',
-    activo: true
-  },
-  { 
-    id: '4', 
-    nombre: 'Miguel', 
-    apellidos: 'Hernández Gil', 
-    puesto: 'Instructor', 
-    departamento: 'Actividades', 
-    email: 'miguel.hernandez@flechaextreme.com',
-    telefono: '666777888',
-    fechaContratacion: '2021-07-05',
-    activo: false
-  },
-  { 
-    id: '5', 
-    nombre: 'Sofía', 
-    apellidos: 'Díaz Marín', 
-    puesto: 'Contable', 
-    departamento: 'Administración', 
-    email: 'sofia.diaz@flechaextreme.com',
-    telefono: '666999000',
-    fechaContratacion: '2022-01-10',
-    activo: true
-  },
-];
-
 export default function EmpleadosPage() {
   const [filtro, setFiltro] = useState('');
   const [filtroActivo, setFiltroActivo] = useState<boolean | null>(null);
@@ -76,11 +18,11 @@ export default function EmpleadosPage() {
   
   const empleadosFiltrados = empleadosMock.filter(empleado => {
     const coincideBusqueda = 
-      empleado.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-      empleado.apellidos.toLowerCase().includes(filtro.toLowerCase()) ||
-      empleado.puesto.toLowerCase().includes(filtro.toLowerCase()) ||
-      empleado.departamento.toLowerCase().includes(filtro.toLowerCase()) ||
-      empleado.email.toLowerCase().includes(filtro.toLowerCase());
+      empleado.nombre?.toLowerCase().includes(filtro.toLowerCase()) ||
+      empleado.apellidos?.toLowerCase().includes(filtro.toLowerCase()) ||
+      empleado.puesto?.toLowerCase().includes(filtro.toLowerCase()) ||
+      empleado.departamento?.toLowerCase().includes(filtro.toLowerCase()) ||
+      empleado.email?.toLowerCase().includes(filtro.toLowerCase());
       
     const coincideActivo = filtroActivo === null || empleado.activo === filtroActivo;
     
@@ -156,7 +98,7 @@ export default function EmpleadosPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary-light text-white flex items-center justify-center">
-                            {empleado.nombre.charAt(0)}{empleado.apellidos.charAt(0)}
+                            {empleado.nombre?.charAt(0)}{empleado.apellidos?.charAt(0)}
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -205,7 +147,7 @@ export default function EmpleadosPage() {
               <div className="space-y-4">
                 <div className="text-center mb-4">
                   <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-primary-light text-white text-xl font-bold">
-                    {empleadoSeleccionado.nombre.charAt(0)}{empleadoSeleccionado.apellidos.charAt(0)}
+                    {empleadoSeleccionado.nombre?.charAt(0)}{empleadoSeleccionado.apellidos?.charAt(0)}
                   </div>
                   <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-gray-100">
                     {empleadoSeleccionado.nombre} {empleadoSeleccionado.apellidos}
