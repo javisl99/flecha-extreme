@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
+import { useState } from 'react';
+import { useUserContext } from '@/context/UserContext';
 
 // Componentes de iconos SVG
 const DashboardIcon = () => (
@@ -54,6 +56,12 @@ const ConfiguracionIcon = () => (
   </svg>
 );
 
+const LogoutIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+  </svg>
+);
+
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: DashboardIcon },
   { name: 'Reservas', href: '/reservas', icon: ReservasIcon },
@@ -67,6 +75,19 @@ const navigation = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user, logout } = useUserContext();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await logout();
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
   
   return (
     <div className="w-64 bg-primary-dark text-white flex flex-col h-screen">
@@ -108,12 +129,33 @@ export default function Sidebar() {
       </nav>
       
       <div className="p-4 border-t border-primary-light">
+        {user && (
+          <div className="mb-4">
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="w-full flex items-center px-4 py-2 rounded-lg transition-colors hover:bg-red-700 text-white"
+            >
+              <span className="mr-3">
+                <LogoutIcon />
+              </span>
+              {isLoggingOut ? 'Cerrando sesión...' : 'Cerrar Sesión'}
+            </button>
+          </div>
+        )}
+        
         <div className="flex items-center text-sm">
           <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center mr-2">
-            <span className="text-primary-dark font-bold">FE</span>
+            {user?.email ? (
+              <span className="text-primary-dark font-bold">
+                {user.email.substring(0, 2).toUpperCase()}
+              </span>
+            ) : (
+              <span className="text-primary-dark font-bold">FE</span>
+            )}
           </div>
           <div>
-            <p className="font-medium">Flecha Extreme</p>
+            <p className="font-medium">{user?.email || 'Flecha Extreme'}</p>
             <p className="text-xs text-gray-300">ERP Admin</p>
           </div>
         </div>
