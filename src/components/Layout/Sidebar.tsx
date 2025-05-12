@@ -69,8 +69,8 @@ const navigation = [
   { name: 'Clientes', href: '/clientes', icon: ClientesIcon },
   { name: 'Pagos', href: '/pagos', icon: PagosIcon },
   { name: 'Documentos', href: '/documentos', icon: DocumentosIcon },
-  { name: 'Contabilidad', href: '/contabilidad', icon: ContabilidadIcon },
-  { name: 'Empleados', href: '/empleados', icon: EmpleadosIcon },
+  { name: 'Contabilidad', href: '/contabilidad', icon: ContabilidadIcon, roles: ['admin', 'fl-admin'] },
+  { name: 'Empleados', href: '/empleados', icon: EmpleadosIcon, roles: ['admin', 'fl-admin'] },
   { name: 'Configuración', href: '/configuracion', icon: ConfiguracionIcon },
 ];
 
@@ -91,6 +91,14 @@ export default function Sidebar() {
     }
   };
   
+  // Filtrar las opciones de navegación según el rol del usuario
+  const filteredNavigation = navigation.filter(item => {
+    // Si no hay restricción de roles, la opción está disponible para todos
+    if (!item.roles) return true;
+    // Si hay restricción de roles, verificar si el usuario tiene el rol permitido
+    return item.roles.includes(usuario?.rol || '');
+  });
+  
   return (
     <div className="w-64 bg-primary-dark text-white flex flex-col h-screen">
       <div className="p-4 flex items-center justify-center border-b border-primary-light">
@@ -107,7 +115,7 @@ export default function Sidebar() {
       
       <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-2">
-          {navigation.map((item) => {
+          {filteredNavigation.map((item) => {
             const isActive = pathname === item.href;
             return (
               <li key={item.name}>
