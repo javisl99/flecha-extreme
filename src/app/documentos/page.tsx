@@ -2,52 +2,14 @@
 
 import { useState } from 'react';
 import { Card, Button } from '@/shared/components';
-
-// Datos de ejemplo para documentos
-const documentosMock = [
-  { 
-    id: '1', 
-    nombre: 'Contrato de Servicios.pdf', 
-    tipo: 'contrato', 
-    fechaCreacion: '2023-06-15',
-    url: '/documentos/contratos/contrato_servicios.pdf'
-  },
-  { 
-    id: '2', 
-    nombre: 'Factura-2023-0045.pdf', 
-    tipo: 'factura', 
-    fechaCreacion: '2023-06-10',
-    url: '/documentos/facturas/factura_2023_0045.pdf'
-  },
-  { 
-    id: '3', 
-    nombre: 'Seguro Responsabilidad Civil.pdf', 
-    tipo: 'otro', 
-    fechaCreacion: '2023-05-20',
-    url: '/documentos/seguros/seguro_responsabilidad_civil.pdf'
-  },
-  { 
-    id: '4', 
-    nombre: 'Recibo Pago 2023-06.pdf', 
-    tipo: 'recibo', 
-    fechaCreacion: '2023-06-12',
-    url: '/documentos/recibos/recibo_pago_2023_06.pdf'
-  },
-  { 
-    id: '5', 
-    nombre: 'Manual de Procedimientos.pdf', 
-    tipo: 'otro', 
-    fechaCreacion: '2023-06-01',
-    url: '/documentos/manuales/manual_procedimientos.pdf'
-  }
-];
+import { documentosMock } from '@/components/Documentos/data';
 
 export default function DocumentosPage() {
   const [filtro, setFiltro] = useState('');
   
   const documentosFiltrados = documentosMock.filter(doc => 
-    doc.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-    doc.tipo.toLowerCase().includes(filtro.toLowerCase())
+    doc.nombre?.toLowerCase().includes(filtro.toLowerCase()) ||
+    doc.tipo?.toLowerCase().includes(filtro.toLowerCase())
   );
   
   return (
