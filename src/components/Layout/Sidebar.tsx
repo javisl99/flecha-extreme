@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useState } from 'react';
 import { useUserContext } from '@/context/UserContext';
+import { useUserData } from '@/hooks/useUserData';
 
 // Componentes de iconos SVG
 const DashboardIcon = () => (
@@ -76,6 +77,7 @@ const navigation = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useUserContext();
+  const { usuario } = useUserData();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const handleLogout = async () => {
@@ -129,36 +131,36 @@ export default function Sidebar() {
       </nav>
       
       <div className="p-4 border-t border-primary-light">
-        {user && (
-          <div className="mb-4">
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="w-full flex items-center px-4 py-2 rounded-lg transition-colors hover:bg-red-700 text-white"
-            >
-              <span className="mr-3">
-                <LogoutIcon />
-              </span>
-              {isLoggingOut ? 'Cerrando sesión...' : 'Cerrar Sesión'}
-            </button>
-          </div>
-        )}
-        
-        <div className="flex items-center text-sm">
+        <div className="flex items-center text-sm mb-4">
           <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center mr-2">
-            {user?.email ? (
+            {usuario?.nombre ? (
               <span className="text-primary-dark font-bold">
-                {user.email.substring(0, 2).toUpperCase()}
+                {usuario.nombre.substring(0, 1).toUpperCase()}
               </span>
             ) : (
               <span className="text-primary-dark font-bold">FE</span>
             )}
           </div>
           <div>
-            <p className="font-medium">{user?.email || 'Flecha Extreme'}</p>
-            <p className="text-xs text-gray-300">ERP Admin</p>
+            <p className="font-medium">
+              {usuario ? `${usuario.nombre} ${usuario.apellidos}` : 'Flecha Extreme'}
+            </p>
+            <p className="text-xs text-gray-300">{usuario?.displayRol || 'ERP Admin'}</p>
           </div>
         </div>
+
+        {user && (
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="w-full flex items-center px-4 py-2 rounded-lg transition-colors hover:bg-red-700 text-white"
+          >
+            <span className="mr-3">
+              <LogoutIcon />
+            </span>
+            {isLoggingOut ? 'Cerrando sesión...' : 'Cerrar Sesión'}
+          </button>
+        )}
       </div>
     </div>
   );
