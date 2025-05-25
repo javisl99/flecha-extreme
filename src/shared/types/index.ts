@@ -56,6 +56,7 @@ export interface Empleado {
   email: string;
   telefono: string;
   puesto: string;
+  departamento: string;
   fechaContratacion: string;
   activo: boolean;
 }
@@ -82,4 +83,15 @@ export interface Actividad {
   requisitos?: string;
   activo: boolean;
   imagen?: string;
+}
+
+export interface MovimientoCaja {
+  id: string;
+  fecha: string;
+  concepto: string;
+  tipo: 'ingreso' | 'gasto';
+  importe: number;
+  metodoPago: 'efectivo' | 'tarjeta' | 'transferencia' | 'otro';
+  referencia?: string;
+  notas?: string;
 } 
