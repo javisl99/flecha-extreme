@@ -1,16 +1,5 @@
 import { MovimientoCaja } from '@/shared/types';
 
-interface MovimientoCaja {
-  id: string;
-  fecha: string;
-  concepto: string;
-  tipo: 'ingreso' | 'gasto';
-  importe: number;
-  metodoPago: 'efectivo' | 'tarjeta' | 'transferencia' | 'otro';
-  referencia?: string;
-  notas?: string;
-}
-
 export const movimientosCajaMock: MovimientoCaja[] = [];
 
 // Función para calcular el balance diario
