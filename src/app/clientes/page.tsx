@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { Card, Button } from '@/shared/components';
-import { clientesMock } from '@/components/Clientes/data';
 import { Cliente } from '@/shared/types';
 import { FiltrosCliente } from '@/components/Clientes/types';
+import { useClientes } from '@/hooks/useClientes';
+import ModalNuevoCliente from '@/components/Clientes/ModalNuevoCliente';
 
 const UserIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -20,36 +21,9 @@ export default function ClientesPage() {
   });
   
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { clientes, loading, error } = useClientes(filtros);
   
-  // Filtrar y ordenar clientes
-  const clientesFiltrados = clientesMock
-    .filter((cliente) => {
-      if (!filtros.busqueda) return true;
-      
-      const termino = filtros.busqueda.toLowerCase();
-      return (
-        cliente.nombre.toLowerCase().includes(termino) ||
-        cliente.apellidos.toLowerCase().includes(termino) ||
-        cliente.email.toLowerCase().includes(termino) ||
-        cliente.telefono.toLowerCase().includes(termino) ||
-        (cliente.dni && cliente.dni.toLowerCase().includes(termino))
-      );
-    })
-    .sort((a, b) => {
-      const orden = filtros.direccion === 'asc' ? 1 : -1;
-      
-      switch (filtros.ordenarPor) {
-        case 'nombre':
-          return a.nombre.localeCompare(b.nombre) * orden;
-        case 'apellidos':
-          return a.apellidos.localeCompare(b.apellidos) * orden;
-        case 'fechaRegistro':
-          return (new Date(a.fechaRegistro).getTime() - new Date(b.fechaRegistro).getTime()) * orden;
-        default:
-          return 0;
-      }
-    });
-    
   const handleBusqueda = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFiltros({ ...filtros, busqueda: e.target.value });
   };
@@ -61,6 +35,27 @@ export default function ClientesPage() {
       setFiltros({ ...filtros, ordenarPor: campo, direccion: 'asc' });
     }
   };
+
+  const handleNuevoClienteSuccess = () => {
+    // Recargar la lista de clientes
+    setFiltros(prev => ({ ...prev }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg">Cargando clientes...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg text-red-500">{error}</div>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">
@@ -70,6 +65,7 @@ export default function ClientesPage() {
           variant="primary"
           icon={<UserIcon />}
           className="cursor-pointer"
+          onClick={() => setIsModalOpen(true)}
         >
           Nuevo Cliente
         </Button>
@@ -104,11 +100,17 @@ export default function ClientesPage() {
                     >
                       Apellidos {filtros.ordenarPor === 'apellidos' && (filtros.direccion === 'asc' ? '▲' : '▼')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Email
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
+                      onClick={() => handleOrdenar('email')}
+                    >
+                      Email {filtros.ordenarPor === 'email' && (filtros.direccion === 'asc' ? '▲' : '▼')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Teléfono
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
+                      onClick={() => handleOrdenar('telefono')}
+                    >
+                      Teléfono {filtros.ordenarPor === 'telefono' && (filtros.direccion === 'asc' ? '▲' : '▼')}
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
@@ -119,7 +121,7 @@ export default function ClientesPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-card-bg divide-y divide-gray-200 dark:divide-gray-700">
-                  {clientesFiltrados.map((cliente) => (
+                  {clientes.map((cliente) => (
                     <tr 
                       key={cliente.id} 
                       className="hover:bg-table-row-hover dark:hover:bg-gray-700 cursor-pointer transition-colors"
@@ -143,7 +145,7 @@ export default function ClientesPage() {
                     </tr>
                   ))}
                   
-                  {clientesFiltrados.length === 0 && (
+                  {clientes.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                         No se encontraron clientes con esos criterios
@@ -221,6 +223,12 @@ export default function ClientesPage() {
           </Card>
         </div>
       </div>
+
+      <ModalNuevoCliente
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleNuevoClienteSuccess}
+      />
     </div>
   );
 } 
