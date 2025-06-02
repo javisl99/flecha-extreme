@@ -9,6 +9,9 @@ export interface Cliente {
   fechaRegistro: string;
   dni?: string;
   notas?: string;
+  movil?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Reserva {
