@@ -57,6 +57,16 @@ const ConfiguracionIcon = () => (
   </svg>
 );
 
+const ParkingIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 4c0 1.5 1.5 3 3 3s3-1.5 3-3" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20c4.418 0 8-7.163 8-16" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20c-4.418 0-8-7.163-8-16" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8.5l4-1" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5l4-1" />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -68,6 +78,7 @@ const navigation = [
   { name: 'Reservas', href: '/reservas', icon: ReservasIcon },
   { name: 'Clientes', href: '/clientes', icon: ClientesIcon },
   { name: 'Pagos', href: '/pagos', icon: PagosIcon },
+  { name: 'Parking', href: '/parking', icon: ParkingIcon },
   { name: 'Documentos', href: '/documentos', icon: DocumentosIcon },
   { name: 'Contabilidad', href: '/contabilidad', icon: ContabilidadIcon, roles: ['admin', 'fl-admin'] },
   { name: 'Empleados', href: '/empleados', icon: EmpleadosIcon, roles: ['admin', 'fl-admin'] },
