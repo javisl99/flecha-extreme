@@ -1,0 +1,316 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useUserContext } from '@/context/UserContext';
+import { useUserData } from '@/hooks/useUserData';
+import supabaseClient from '@/lib/supabaseClient';
+import { Cliente } from '@/shared/types';
+import { FiltrosCliente } from '@/components/Clientes/types';
+
+export function useClientes(filtros: FiltrosCliente) {
+  const { user } = useUserContext();
+  const { usuario } = useUserData();
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Función para filtrar y ordenar los clientes
+  const filtrarYOrdenarClientes = useCallback((clientes: Cliente[], filtros: FiltrosCliente) => {
+    let resultado = [...clientes];
+
+    // Aplicar filtros de búsqueda si existen
+    if (filtros.busqueda) {
+      const termino = filtros.busqueda.toLowerCase().trim();
+      resultado = resultado.filter(cliente => {
+        // Convertir todos los campos a string y asegurar que no sean undefined
+        const nombre = String(cliente.nombre || '');
+        const apellidos = String(cliente.apellidos || '');
+        const email = String(cliente.email || '');
+        const telefono = String(cliente.telefono || '');
+        const dni = String(cliente.dni || '');
+
+        // Buscar en cada campo
+        return nombre.toLowerCase().includes(termino) ||
+               apellidos.toLowerCase().includes(termino) ||
+               email.toLowerCase().includes(termino) ||
+               telefono.toLowerCase().includes(termino) ||
+               dni.toLowerCase().includes(termino);
+      });
+    }
+
+    // Aplicar ordenamiento
+    if (filtros.ordenarPor) {
+      resultado.sort((a, b) => {
+        const valorA = a[filtros.ordenarPor as keyof Cliente] || '';
+        const valorB = b[filtros.ordenarPor as keyof Cliente] || '';
+        
+        if (typeof valorA === 'string' && typeof valorB === 'string') {
+          return filtros.direccion === 'asc' 
+            ? valorA.localeCompare(valorB)
+            : valorB.localeCompare(valorA);
+        }
+        
+        return 0;
+      });
+    }
+
+    return resultado;
+  }, []);
+
+  // Función para refrescar los clientes
+  const refreshClientes = useCallback(async () => {
+    if (!user || !usuario) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabaseClient
+        .from('cliente')
+        .select('*')
+        .throwOnError();
+
+      if (error) throw error;
+
+      // Transformar los datos para que coincidan con la interfaz Cliente
+      const clientesTransformados = (data || []).map(cliente => ({
+        id: cliente.id,
+        nombre: cliente.nombre,
+        apellidos: cliente.apellidos,
+        email: cliente.email,
+        telefono: cliente.movil,
+        dni: cliente.dni,
+        fechaRegistro: cliente.created_at,
+        notas: cliente.notas || undefined
+      }));
+
+      setClientes(clientesTransformados);
+    } catch (err) {
+      console.error('Error al refrescar clientes:', err);
+      setError('Error al cargar los clientes');
+    } finally {
+      setLoading(false);
+    }
+  }, [user, usuario]);
+
+  // Cargar clientes inicialmente
+  useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout;
+
+    const fetchClientes = async () => {
+      if (!user || !usuario) {
+        if (isMounted) {
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        if (isMounted) {
+          setLoading(true);
+          setError(null);
+        }
+
+        // Añadir un pequeño retraso para evitar problemas de conexión
+        await new Promise(resolve => {
+          timeoutId = setTimeout(resolve, 100);
+        });
+
+        const { data, error } = await supabaseClient
+          .from('cliente')
+          .select('*')
+          .throwOnError();
+
+        if (error) throw error;
+
+        if (isMounted) {
+          // Transformar los datos para que coincidan con la interfaz Cliente
+          const clientesTransformados = (data || []).map(cliente => ({
+            id: cliente.id,
+            nombre: cliente.nombre,
+            apellidos: cliente.apellidos,
+            email: cliente.email,
+            telefono: cliente.movil,
+            dni: cliente.dni,
+            fechaRegistro: cliente.created_at,
+            notas: cliente.notas || undefined
+          }));
+
+          setClientes(clientesTransformados);
+        }
+      } catch (err) {
+        console.error('Error al obtener clientes:', err);
+        if (isMounted) {
+          setError('Error al cargar los clientes');
+          setClientes([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchClientes();
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [user, usuario]);
+
+  // Usar useMemo para calcular los clientes filtrados
+  const clientesFiltrados = useMemo(() => {
+    return filtrarYOrdenarClientes(clientes, filtros);
+  }, [clientes, filtros, filtrarYOrdenarClientes]);
+
+  const crearCliente = async (nuevoCliente: Omit<Cliente, 'id'>) => {
+    if (!usuario) {
+      throw new Error('No hay usuario autenticado');
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabaseClient
+        .from('cliente')
+        .insert([{
+          nombre: nuevoCliente.nombre,
+          apellidos: nuevoCliente.apellidos,
+          email: nuevoCliente.email,
+          movil: nuevoCliente.telefono,
+          dni: nuevoCliente.dni,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
+        .throwOnError();
+
+      if (error) throw error;
+
+      // Transformar el cliente creado
+      const clienteTransformado = {
+        id: data.id,
+        nombre: data.nombre,
+        apellidos: data.apellidos,
+        email: data.email,
+        telefono: data.movil,
+        dni: data.dni,
+        fechaRegistro: data.created_at,
+        notas: data.notas || undefined
+      };
+
+      // Actualizar la lista de clientes localmente
+      setClientes(prevClientes => [...prevClientes, clienteTransformado]);
+      
+      // Refrescar la lista completa para asegurar consistencia
+      await refreshClientes();
+      
+      return { data: clienteTransformado, error: null };
+    } catch (err) {
+      console.error('Error al crear el cliente:', err);
+      setError('Error al crear el cliente');
+      return { data: null, error: err };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const actualizarCliente = async (id: string, datosActualizados: Partial<Cliente>) => {
+    if (!usuario) {
+      throw new Error('No hay usuario autenticado');
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabaseClient
+        .from('cliente')
+        .update({
+          ...(datosActualizados.nombre && { nombre: datosActualizados.nombre }),
+          ...(datosActualizados.apellidos && { apellidos: datosActualizados.apellidos }),
+          ...(datosActualizados.email && { email: datosActualizados.email }),
+          ...(datosActualizados.telefono && { movil: datosActualizados.telefono }),
+          ...(datosActualizados.dni && { dni: datosActualizados.dni }),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
+        .throwOnError();
+
+      if (error) throw error;
+
+      // Transformar el cliente actualizado
+      const clienteTransformado = {
+        id: data.id,
+        nombre: data.nombre,
+        apellidos: data.apellidos,
+        email: data.email,
+        telefono: data.movil,
+        dni: data.dni,
+        fechaRegistro: data.created_at,
+        notas: data.notas || undefined
+      };
+
+      // Actualizar la lista de clientes localmente
+      setClientes(prevClientes => 
+        prevClientes.map(cliente => 
+          cliente.id === id ? clienteTransformado : cliente
+        )
+      );
+      
+      return { data: clienteTransformado, error: null };
+    } catch (err) {
+      console.error('Error al actualizar el cliente:', err);
+      setError('Error al actualizar el cliente');
+      return { data: null, error: err };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eliminarCliente = async (id: string) => {
+    if (!usuario) {
+      throw new Error('No hay usuario autenticado');
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { error } = await supabaseClient
+        .from('cliente')
+        .delete()
+        .eq('id', id)
+        .throwOnError();
+
+      if (error) throw error;
+
+      // Actualizar la lista de clientes localmente
+      setClientes(prevClientes => prevClientes.filter(cliente => cliente.id !== id));
+      
+      return { error: null };
+    } catch (err) {
+      console.error('Error al eliminar el cliente:', err);
+      setError('Error al eliminar el cliente');
+      return { error: err };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    clientes: clientesFiltrados,
+    loading,
+    error,
+    crearCliente,
+    actualizarCliente,
+    eliminarCliente,
+    refreshClientes
+  };
+} 
