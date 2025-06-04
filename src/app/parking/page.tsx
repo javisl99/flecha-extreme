@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '@/shared/components';
 import { useParking } from '@/hooks/useParking';
+import PlazaInfoModal from '@/components/Parking/PlazaInfoModal';
 
 const tiposParking = [
   { 
@@ -46,7 +47,19 @@ const tiposParking = [
 ];
 
 export default function ParkingPage() {
-  const { plazas, loading, error, fetchPlazasParking } = useParking();
+  const { 
+    plazas, 
+    loading, 
+    error, 
+    fetchPlazasParking, 
+    getReservaActual,
+    crearReserva,
+    eliminarReserva,
+    fetchTarifas,
+    tarifas
+  } = useParking();
+  const [plazaSeleccionada, setPlazaSeleccionada] = useState<any>(null);
+  const [modalAbierto, setModalAbierto] = useState(false);
 
   useEffect(() => {
     fetchPlazasParking();
@@ -54,6 +67,36 @@ export default function ParkingPage() {
 
   const getPlazasPorTipo = (tipo: string) => {
     return plazas.filter(plaza => plaza.tipo === tipo);
+  };
+
+  const handleClickPlaza = async (plaza: any) => {
+    await fetchTarifas(plaza.tipo);
+    setPlazaSeleccionada(plaza);
+    setModalAbierto(true);
+  };
+
+  const handleCrearReserva = async (data: {
+    fecha_inicio: string;
+    fecha_fin: string;
+    id_tarifa: string;
+  }) => {
+    if (!plazaSeleccionada) return;
+    
+    const success = await crearReserva(plazaSeleccionada.id, data);
+    if (success) {
+      setModalAbierto(false);
+      setPlazaSeleccionada(null);
+    }
+  };
+
+  const handleEliminarReserva = async () => {
+    if (!plazaSeleccionada) return;
+    
+    const success = await eliminarReserva(plazaSeleccionada.id);
+    if (success) {
+      setModalAbierto(false);
+      setPlazaSeleccionada(null);
+    }
   };
 
   if (loading) {
@@ -81,7 +124,7 @@ export default function ParkingPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {tiposParking.map((tipoParking) => {
           const plazasTipo = getPlazasPorTipo(tipoParking.tipo);
-          const plazasDisponibles = plazasTipo.filter(plaza => plaza.disponible !== false);
+          const plazasDisponibles = plazasTipo.filter(plaza => plaza.disponible !== false && !plaza.reservada);
           
           return (
             <Card key={tipoParking.tipo} className="overflow-hidden">
@@ -104,7 +147,23 @@ export default function ParkingPage() {
               <div className="p-4">
                 <div className="grid grid-cols-4 gap-3">
                   {plazasTipo.map((plaza) => {
-                    const estaDisponible = plaza.disponible !== false;
+                    const estaDisponible = plaza.disponible !== false && !plaza.reservada;
+                    const estaReservada = plaza.reservada;
+                    
+                    let estilos = '';
+                    let titulo = '';
+                    
+                    if (estaDisponible) {
+                      estilos = 'border-green-500 bg-green-50 cursor-pointer hover:bg-green-100';
+                      titulo = 'Disponible';
+                    } else if (estaReservada) {
+                      estilos = 'border-red-500 bg-red-50 cursor-pointer';
+                      titulo = 'Reservada';
+                    } else {
+                      estilos = 'border-red-500 bg-red-50 cursor-pointer';
+                      titulo = 'Ocupada';
+                    }
+
                     return (
                       <div
                         key={plaza.id}
@@ -112,14 +171,16 @@ export default function ParkingPage() {
                           relative aspect-square rounded-lg border-2 p-2
                           flex flex-col items-center justify-center
                           transition-colors duration-200
-                          ${estaDisponible 
-                            ? 'border-green-500 bg-green-50 cursor-pointer hover:bg-green-100'
-                            : 'border-red-500 bg-red-50'
-                          }
+                          ${estilos}
                         `}
-                        title={estaDisponible ? 'Disponible' : 'Ocupado'}
+                        title={titulo}
+                        onClick={() => handleClickPlaza(plaza)}
                       >
-                        <span className={`text-lg font-medium ${estaDisponible ? 'text-green-700' : 'text-red-700'}`}>
+                        <span className={`text-lg font-medium ${
+                          estaDisponible ? 'text-green-700' : 
+                          estaReservada ? 'text-red-700' : 
+                          'text-red-700'
+                        }`}>
                           {plaza.codigo}
                         </span>
                       </div>
@@ -131,6 +192,21 @@ export default function ParkingPage() {
           );
         })}
       </div>
+
+      {plazaSeleccionada && (
+        <PlazaInfoModal
+          isOpen={modalAbierto}
+          onClose={() => {
+            setModalAbierto(false);
+            setPlazaSeleccionada(null);
+          }}
+          plaza={plazaSeleccionada}
+          reservaInfo={getReservaActual(plazaSeleccionada.id)}
+          onCrearReserva={handleCrearReserva}
+          onEliminarReserva={handleEliminarReserva}
+          tarifas={tarifas}
+        />
+      )}
     </div>
   );
 } 

@@ -12,6 +12,22 @@ interface PlazaParking {
   disponible?: boolean;
   cliente_id?: string | null;
   updated_at?: string;
+  reservada?: boolean;
+}
+
+interface ReservaParking {
+  id_cliente: string;
+  id_plaza: string;
+  id_tarifa: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+}
+
+interface TarifaParking {
+  id: string;
+  tipo: 'embarcacion' | 'tabla' | 'kayak';
+  periodo: 'mes' | 'quincena';
+  precio: number;
 }
 
 export function useParking() {
@@ -20,6 +36,8 @@ export function useParking() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plazas, setPlazas] = useState<PlazaParking[]>([]);
+  const [reservas, setReservas] = useState<ReservaParking[]>([]);
+  const [tarifas, setTarifas] = useState<TarifaParking[]>([]);
 
   const ordenarPlazas = (plazas: PlazaParking[]) => {
     return plazas.sort((a, b) => {
@@ -37,27 +55,59 @@ export function useParking() {
     });
   };
 
+  const fetchReservasParking = async () => {
+    try {
+      const { data: reservasData, error: reservasError } = await supabaseClient
+        .from('reserva_parking')
+        .select('*');
+
+      if (reservasError) {
+        throw reservasError;
+      }
+
+      setReservas(reservasData || []);
+      return reservasData;
+    } catch (err) {
+      console.error('Error al obtener las reservas de parking:', err);
+      setError('Error al cargar las reservas de parking');
+      return [];
+    }
+  };
+
   const fetchPlazasParking = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const { data, error: supabaseError } = await supabaseClient
-        .from('plaza_parking')
-        .select('*');
+      // Obtener las plazas y las reservas
+      const [plazasData, reservasData] = await Promise.all([
+        supabaseClient.from('plaza_parking').select('*'),
+        fetchReservasParking()
+      ]);
 
-      if (supabaseError) {
-        throw supabaseError;
+      if (plazasData.error) {
+        throw plazasData.error;
       }
 
-      // Asegurarnos de que todas las plazas tengan la propiedad disponible
-      const plazasConDisponibilidad = (data || []).map(plaza => ({
-        ...plaza,
-        disponible: plaza.disponible === undefined ? true : plaza.disponible
-      }));
+      // Verificar qué plazas están reservadas actualmente
+      const plazasConReservas = (plazasData.data || []).map(plaza => {
+        const reservaActual = reservasData.find(reserva => {
+          const ahora = new Date().toISOString();
+          const estaReservada = reserva.id_plaza === plaza.id && 
+                               reserva.fecha_fin >= ahora;
+          
+          return estaReservada;
+        });
+
+        return {
+          ...plaza,
+          disponible: plaza.disponible === undefined ? true : plaza.disponible,
+          reservada: !!reservaActual
+        };
+      });
 
       // Ordenar las plazas antes de guardarlas en el estado
-      const plazasOrdenadas = ordenarPlazas(plazasConDisponibilidad);
+      const plazasOrdenadas = ordenarPlazas(plazasConReservas);
       setPlazas(plazasOrdenadas);
     } catch (err) {
       console.error('Error al obtener las plazas de parking:', err);
@@ -158,14 +208,124 @@ export function useParking() {
     }
   };
 
+  const getReservaActual = (plazaId: string): ReservaParking | undefined => {
+    const ahora = new Date().toISOString();
+    const reserva = reservas.find(reserva => 
+      reserva.id_plaza === plazaId &&
+      reserva.fecha_fin >= ahora
+    );
+    
+    if (reserva) {
+      return {
+        id_cliente: reserva.id_cliente,
+        id_plaza: reserva.id_plaza,
+        id_tarifa: reserva.id_tarifa,
+        fecha_inicio: reserva.fecha_inicio,
+        fecha_fin: reserva.fecha_fin
+      };
+    }
+    return undefined;
+  };
+
+  const fetchTarifas = async (tipo: string) => {
+    try {
+      const { data, error: supabaseError } = await supabaseClient
+        .from('tarifa_parking')
+        .select('*')
+        .eq('tipo', tipo);
+
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      setTarifas(data || []);
+      return data;
+    } catch (err) {
+      console.error('Error al obtener las tarifas:', err);
+      return [];
+    }
+  };
+
+  const crearReserva = async (plazaId: string, data: {
+    fecha_inicio: string;
+    fecha_fin: string;
+    id_tarifa: string;
+  }) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { error: supabaseError } = await supabaseClient
+        .from('reserva_parking')
+        .insert([{
+          id_plaza: plazaId,
+          id_cliente: null, // Por ahora siempre será null
+          id_tarifa: data.id_tarifa,
+          fecha_inicio: data.fecha_inicio,
+          fecha_fin: data.fecha_fin
+        }]);
+
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      // Actualizar la lista de plazas y reservas
+      await fetchPlazasParking();
+      return true;
+    } catch (err) {
+      console.error('Error al crear la reserva:', err);
+      setError('Error al crear la reserva');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eliminarReserva = async (plazaId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const reservaActual = getReservaActual(plazaId);
+      if (!reservaActual) {
+        throw new Error('No se encontró la reserva actual');
+      }
+
+      const { error: supabaseError } = await supabaseClient
+        .from('reserva_parking')
+        .delete()
+        .eq('id_plaza', plazaId);
+
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      // Actualizar la lista de plazas y reservas
+      await fetchPlazasParking();
+      return true;
+    } catch (err) {
+      console.error('Error al eliminar la reserva:', err);
+      setError('Error al eliminar la reserva');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     plazas,
+    reservas,
+    tarifas,
     loading,
     error,
     fetchPlazasParking,
+    fetchTarifas,
     getPlazasByTipo,
     getPlazasDisponibles,
     asignarPlaza,
-    liberarPlaza
+    liberarPlaza,
+    getReservaActual,
+    crearReserva,
+    eliminarReserva
   };
 } 
