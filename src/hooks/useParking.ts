@@ -4,6 +4,8 @@ import { useUserData } from '@/hooks/useUserData';
 import supabaseClient from '@/lib/supabaseClient';
 
 type TipoParking = 'embarcacion' | 'tabla' | 'kayak';
+type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
+type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 
 interface PlazaParking {
   id: string;
@@ -16,6 +18,7 @@ interface PlazaParking {
 }
 
 interface ReservaParking {
+  id: string;
   id_cliente: string;
   id_plaza: string;
   id_tarifa: string;
@@ -28,6 +31,16 @@ interface TarifaParking {
   tipo: 'embarcacion' | 'tabla' | 'kayak';
   periodo: 'mes' | 'quincena';
   precio: number;
+}
+
+interface PagoParking {
+  id_cliente: string | null;
+  origen_tipo: 'parking';
+  origen_id: string;
+  concepto: string;
+  importe: number;
+  metodo: MetodoPago;
+  estado: EstadoPago;
 }
 
 export function useParking() {
@@ -217,6 +230,7 @@ export function useParking() {
     
     if (reserva) {
       return {
+        id: reserva.id,
         id_cliente: reserva.id_cliente,
         id_plaza: reserva.id_plaza,
         id_tarifa: reserva.id_tarifa,
@@ -250,12 +264,18 @@ export function useParking() {
     fecha_inicio: string;
     fecha_fin: string;
     id_tarifa: string;
+    pago?: {
+      concepto: string;
+      metodo: MetodoPago;
+      estado: EstadoPago;
+    };
   }) => {
     try {
       setLoading(true);
       setError(null);
 
-      const { error: supabaseError } = await supabaseClient
+      // Insertar la reserva
+      const { data: reservaData, error: reservaError } = await supabaseClient
         .from('reserva_parking')
         .insert([{
           id_plaza: plazaId,
@@ -263,10 +283,36 @@ export function useParking() {
           id_tarifa: data.id_tarifa,
           fecha_inicio: data.fecha_inicio,
           fecha_fin: data.fecha_fin
-        }]);
+        }])
+        .select()
+        .single();
 
-      if (supabaseError) {
-        throw supabaseError;
+      if (reservaError) {
+        throw reservaError;
+      }
+
+      // Si hay datos de pago, crear el pago asociado
+      if (data.pago) {
+        const tarifa = tarifas.find(t => t.id === data.id_tarifa);
+        if (!tarifa) {
+          throw new Error('No se encontró la tarifa seleccionada');
+        }
+
+        const { error: pagoError } = await supabaseClient
+          .from('pago')
+          .insert([{
+            id_cliente: null,
+            origen_tipo: 'parking',
+            origen_id: reservaData.id,
+            concepto: data.pago.concepto,
+            importe: tarifa.precio,
+            metodo: data.pago.metodo,
+            estado: data.pago.estado
+          }]);
+
+        if (pagoError) {
+          throw pagoError;
+        }
       }
 
       // Actualizar la lista de plazas y reservas
@@ -312,6 +358,26 @@ export function useParking() {
     }
   };
 
+  const getPagoReserva = async (reservaId: string) => {
+    try {
+      const { data, error: supabaseError } = await supabaseClient
+        .from('pago')
+        .select('*')
+        .eq('origen_tipo', 'parking')
+        .eq('origen_id', reservaId)
+        .single();
+
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Error al obtener el pago de la reserva:', err);
+      return null;
+    }
+  };
+
   return {
     plazas,
     reservas,
@@ -326,6 +392,7 @@ export function useParking() {
     liberarPlaza,
     getReservaActual,
     crearReserva,
-    eliminarReserva
+    eliminarReserva,
+    getPagoReserva
   };
 } 

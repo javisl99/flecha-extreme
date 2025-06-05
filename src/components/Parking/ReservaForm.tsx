@@ -2,6 +2,9 @@ import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
+type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
+type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
+
 interface TarifaParking {
   id: string;
   tipo: 'embarcacion' | 'tabla' | 'kayak';
@@ -16,6 +19,11 @@ interface ReservaFormProps {
     fecha_inicio: string;
     fecha_fin: string;
     id_tarifa: string;
+    pago?: {
+      concepto: string;
+      metodo: MetodoPago;
+      estado: EstadoPago;
+    };
   }) => void;
   plazaCodigo: string;
   tipoPlaza: string;
@@ -33,7 +41,12 @@ export default function ReservaForm({
   const [formData, setFormData] = useState({
     fecha_inicio: '',
     fecha_fin: '',
-    id_tarifa: ''
+    id_tarifa: '',
+    pago: {
+      concepto: '',
+      metodo: 'efectivo' as MetodoPago,
+      estado: 'pendiente' as EstadoPago
+    }
   });
 
   const formatPrecio = (precio: number) => {
@@ -48,6 +61,22 @@ export default function ReservaForm({
     onSubmit(formData);
     onClose();
   };
+
+  const metodosPago: { value: MetodoPago; label: string }[] = [
+    { value: 'efectivo', label: 'Efectivo' },
+    { value: 'tpv', label: 'Tarjeta (TPV)' },
+    { value: 'bizum_alfonso', label: 'Bizum Alfonso' },
+    { value: 'bizum_robe', label: 'Bizum Robe' },
+    { value: 'bizum_alba', label: 'Bizum Alba' },
+    { value: 'bizum_maria', label: 'Bizum María' },
+    { value: 'bizum_jm', label: 'Bizum JM' },
+    { value: 'angeles', label: 'Ángeles' }
+  ];
+
+  const estadosPago: { value: EstadoPago; label: string }[] = [
+    { value: 'completado', label: 'Completado' },
+    { value: 'pendiente', label: 'Pendiente' }
+  ];
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -143,6 +172,75 @@ export default function ReservaForm({
                           onChange={(e) => setFormData({ ...formData, fecha_fin: e.target.value })}
                           required
                         />
+                      </div>
+
+                      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                          Información del Pago
+                        </h4>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <label htmlFor="concepto" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Concepto (opcional)
+                            </label>
+                            <input
+                              type="text"
+                              id="concepto"
+                              className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                              value={formData.pago.concepto}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                pago: { ...formData.pago, concepto: e.target.value }
+                              })}
+                              placeholder="Introduce un concepto para el pago"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="metodo" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Método de pago
+                            </label>
+                            <select
+                              id="metodo"
+                              className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                              value={formData.pago.metodo}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                pago: { ...formData.pago, metodo: e.target.value as MetodoPago }
+                              })}
+                              required
+                            >
+                              {metodosPago.map((metodo) => (
+                                <option key={metodo.value} value={metodo.value}>
+                                  {metodo.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label htmlFor="estado" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Estado del pago
+                            </label>
+                            <select
+                              id="estado"
+                              className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                              value={formData.pago.estado}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                pago: { ...formData.pago, estado: e.target.value as EstadoPago }
+                              })}
+                              required
+                            >
+                              {estadosPago.map((estado) => (
+                                <option key={estado.value} value={estado.value}>
+                                  {estado.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
