@@ -168,7 +168,7 @@ export default function Sidebar() {
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="w-full flex items-center px-4 py-2 rounded-lg transition-colors hover:bg-red-700 text-white cursor-pointer"
+            className="w-full flex items-center px-4 py-2 rounded-lg transition-colors bg-red-600 hover:bg-red-700 text-white cursor-pointer"
           >
             <span className="mr-3">
               <LogoutIcon />

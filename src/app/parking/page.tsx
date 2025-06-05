@@ -5,6 +5,20 @@ import { Card } from '@/shared/components';
 import { useParking } from '@/hooks/useParking';
 import PlazaInfoModal from '@/components/Parking/PlazaInfoModal';
 
+type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
+type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
+
+interface PagoParking {
+  id: string;
+  id_cliente: string | null;
+  origen_tipo: 'parking';
+  origen_id: string;
+  concepto: string;
+  importe: number;
+  metodo: MetodoPago;
+  estado: EstadoPago;
+}
+
 const tiposParking = [
   { 
     tipo: 'embarcacion', 
@@ -56,14 +70,32 @@ export default function ParkingPage() {
     crearReserva,
     eliminarReserva,
     fetchTarifas,
+    getPagoReserva,
     tarifas
   } = useParking();
   const [plazaSeleccionada, setPlazaSeleccionada] = useState<any>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [pagoInfo, setPagoInfo] = useState<PagoParking | undefined>(undefined);
 
   useEffect(() => {
     fetchPlazasParking();
   }, []);
+
+  useEffect(() => {
+    const fetchPagoInfo = async () => {
+      if (plazaSeleccionada) {
+        const reservaActual = getReservaActual(plazaSeleccionada.id);
+        if (reservaActual?.id) {
+          const pago = await getPagoReserva(reservaActual.id);
+          setPagoInfo(pago || undefined);
+        } else {
+          setPagoInfo(undefined);
+        }
+      }
+    };
+
+    fetchPagoInfo();
+  }, [plazaSeleccionada]);
 
   const getPlazasPorTipo = (tipo: string) => {
     return plazas.filter(plaza => plaza.tipo === tipo);
@@ -79,6 +111,11 @@ export default function ParkingPage() {
     fecha_inicio: string;
     fecha_fin: string;
     id_tarifa: string;
+    pago?: {
+      concepto: string;
+      metodo: MetodoPago;
+      estado: EstadoPago;
+    };
   }) => {
     if (!plazaSeleccionada) return;
     
@@ -86,6 +123,7 @@ export default function ParkingPage() {
     if (success) {
       setModalAbierto(false);
       setPlazaSeleccionada(null);
+      setPagoInfo(undefined);
     }
   };
 
@@ -96,6 +134,7 @@ export default function ParkingPage() {
     if (success) {
       setModalAbierto(false);
       setPlazaSeleccionada(null);
+      setPagoInfo(undefined);
     }
   };
 
@@ -199,9 +238,11 @@ export default function ParkingPage() {
           onClose={() => {
             setModalAbierto(false);
             setPlazaSeleccionada(null);
+            setPagoInfo(undefined);
           }}
           plaza={plazaSeleccionada}
           reservaInfo={getReservaActual(plazaSeleccionada.id)}
+          pagoInfo={pagoInfo}
           onCrearReserva={handleCrearReserva}
           onEliminarReserva={handleEliminarReserva}
           tarifas={tarifas}
