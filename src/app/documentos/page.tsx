@@ -7,9 +7,16 @@ import { useDocumentos, Documento } from '@/hooks/useDocumentos';
 import { toast } from 'react-hot-toast';
 import ProtectedRoute from '@/components/Layout/ProtectedRoute';
 import { useUserData } from '@/hooks/useUserData';
+import { FiltrosDocumentos, FiltrosDocumento } from '@/components/Documentos/FiltrosDocumentos';
 
 export default function DocumentosPage() {
-  const [filtro, setFiltro] = useState('');
+  const [filtros, setFiltros] = useState<FiltrosDocumentoState>({
+    nombre: '',
+    descripcion: '',
+    usuario: '',
+    fechaDesde: '',
+    fechaHasta: ''
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -17,10 +24,20 @@ export default function DocumentosPage() {
   const { obtenerDocumentos, eliminarDocumento } = useDocumentos();
   const { usuario, loading: userLoading } = useUserData();
   
-  const documentosFiltrados = documentos.filter(doc => 
-    doc.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-    (doc.descripcion?.toLowerCase() || '').includes(filtro.toLowerCase())
-  );
+  const documentosFiltrados = documentos.filter(doc => {
+    const cumpleNombre = !filtros.nombre || doc.nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
+    const cumpleDescripcion = !filtros.descripcion || (doc.descripcion?.toLowerCase() || '').includes(filtros.descripcion.toLowerCase());
+    const cumpleUsuario = !filtros.usuario || 
+      (doc.usuario && 
+        (`${doc.usuario.nombre} ${doc.usuario.apellidos}`).toLowerCase().includes(filtros.usuario.toLowerCase())
+      );
+
+    const fechaDocumento = new Date(doc.created_at);
+    const cumpleFechaDesde = !filtros.fechaDesde || fechaDocumento >= new Date(filtros.fechaDesde);
+    const cumpleFechaHasta = !filtros.fechaHasta || fechaDocumento <= new Date(filtros.fechaHasta);
+
+    return cumpleNombre && cumpleDescripcion && cumpleUsuario && cumpleFechaDesde && cumpleFechaHasta;
+  });
 
   useEffect(() => {
     if (!userLoading && usuario) {
@@ -89,13 +106,7 @@ export default function DocumentosPage() {
         
         <Card>
           <div className="mb-4">
-            <input
-              type="text"
-              placeholder="Buscar documentos..."
-              className="w-full px-4 py-2 border border-input-border dark:border-input-border bg-input-bg dark:bg-input-bg rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-            />
+            <FiltrosDocumentos onFiltrosChange={setFiltros} />
           </div>
           
           <div className="overflow-x-auto">
@@ -167,7 +178,7 @@ export default function DocumentosPage() {
                   {documentosFiltrados.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                        No se encontraron documentos que coincidan con la búsqueda en nombre o descripción
+                        No se encontraron documentos que coincidan con los filtros aplicados
                       </td>
                     </tr>
                   )}
