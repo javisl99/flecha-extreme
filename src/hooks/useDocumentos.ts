@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import supabaseClient from '@/lib/supabaseClient';
 import { useUserData } from './useUserData';
 
@@ -37,7 +37,7 @@ export function useDocumentos() {
   const [loading, setLoading] = useState(false);
   const { usuario } = useUserData();
 
-  const subirDocumento = async ({ nombre, descripcion, archivo }: SubirDocumentoParams): Promise<DocumentoResponse> => {
+  const subirDocumento = useCallback(async ({ nombre, descripcion, archivo }: SubirDocumentoParams): Promise<DocumentoResponse> => {
     if (!usuario) {
       return { success: false, error: 'Usuario no autenticado' };
     }
@@ -99,9 +99,9 @@ export function useDocumentos() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [usuario]);
 
-  const obtenerDocumentos = async (intentos = 3): Promise<DocumentosResponse> => {
+  const obtenerDocumentos = useCallback(async (): Promise<DocumentosResponse> => {
     if (!usuario) {
       return { success: false, error: 'Usuario no autenticado' };
     }
@@ -122,12 +122,6 @@ export function useDocumentos() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // Si hay un error y aún quedan intentos, reintentamos
-        if (intentos > 1) {
-          console.log(`Reintentando obtener documentos. Intentos restantes: ${intentos - 1}`);
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Espera 1 segundo antes de reintentar
-          return obtenerDocumentos(intentos - 1);
-        }
         throw error;
       }
 
@@ -152,9 +146,9 @@ export function useDocumentos() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [usuario]);
 
-  const eliminarDocumento = async (documento: Documento): Promise<DocumentoResponse> => {
+  const eliminarDocumento = useCallback(async (documento: Documento): Promise<DocumentoResponse> => {
     if (!usuario) {
       return { success: false, error: 'Usuario no autenticado' };
     }
@@ -200,7 +194,7 @@ export function useDocumentos() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [usuario]);
 
   return {
     loading,
