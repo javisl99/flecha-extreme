@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import supabaseClient from '@/lib/supabaseClient';
 
 type TipoParking = 'embarcacion' | 'tabla' | 'kayak';
@@ -54,7 +54,7 @@ export function useParking() {
     });
   };
 
-  const fetchReservasParking = async () => {
+  const fetchReservasParking = useCallback(async () => {
     try {
       const { data: reservasData, error: reservasError } = await supabaseClient
         .from('reserva_parking')
@@ -71,9 +71,9 @@ export function useParking() {
       setError('Error al cargar las reservas de parking');
       return [];
     }
-  };
+  }, []);
 
-  const fetchPlazasParking = async () => {
+  const fetchPlazasParking = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -92,10 +92,7 @@ export function useParking() {
       const plazasConReservas = (plazasData.data || []).map(plaza => {
         const reservaActual = reservasData.find(reserva => {
           const ahora = new Date().toISOString();
-          const estaReservada = reserva.id_plaza === plaza.id && 
-                               reserva.fecha_fin >= ahora;
-          
-          return estaReservada;
+          return reserva.id_plaza === plaza.id && reserva.fecha_fin >= ahora;
         });
 
         return {
@@ -114,7 +111,7 @@ export function useParking() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchReservasParking]);
 
   const getPlazasByTipo = (tipo: TipoParking) => {
     return plazas.filter(plaza => plaza.tipo === tipo);
@@ -207,7 +204,7 @@ export function useParking() {
     }
   };
 
-  const getReservaActual = (plazaId: string): ReservaParking | undefined => {
+  const getReservaActual = useCallback((plazaId: string): ReservaParking | undefined => {
     const ahora = new Date().toISOString();
     const reserva = reservas.find(reserva => 
       reserva.id_plaza === plazaId &&
@@ -225,9 +222,9 @@ export function useParking() {
       };
     }
     return undefined;
-  };
+  }, [reservas]);
 
-  const fetchTarifas = async (tipo: string) => {
+  const fetchTarifas = useCallback(async (tipo: string) => {
     try {
       const { data, error: supabaseError } = await supabaseClient
         .from('tarifa_parking')
@@ -244,7 +241,7 @@ export function useParking() {
       console.error('Error al obtener las tarifas:', err);
       return [];
     }
-  };
+  }, []);
 
   const crearReserva = async (plazaId: string, data: {
     fecha_inicio: string;
