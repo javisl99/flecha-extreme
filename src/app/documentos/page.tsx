@@ -2,15 +2,28 @@
 
 import { useState } from 'react';
 import { Card, Button } from '@/shared/components';
-import { documentosMock } from '@/components/Documentos/data';
+import { SubirDocumentoModal } from '@/components/Documentos/SubirDocumentoModal';
+
+interface Documento {
+  id: string;
+  nombre: string;
+  tipo: string;
+  fechaCreacion: string;
+}
 
 export default function DocumentosPage() {
   const [filtro, setFiltro] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [documentos, setDocumentos] = useState<Documento[]>([]);
   
-  const documentosFiltrados = documentosMock.filter(doc => 
-    doc.nombre?.toLowerCase().includes(filtro.toLowerCase()) ||
-    doc.tipo?.toLowerCase().includes(filtro.toLowerCase())
+  const documentosFiltrados = documentos.filter(doc => 
+    doc.nombre.toLowerCase().includes(filtro.toLowerCase())
   );
+
+  const handleSubmitDocumento = (formData: any) => {
+    // Aquí implementaremos la lógica para subir el documento
+    console.log('Documento a subir:', formData);
+  };
   
   return (
     <div className="space-y-6">
@@ -20,7 +33,11 @@ export default function DocumentosPage() {
           <Button variant="outline" className="cursor-pointer">
             Nueva Carpeta
           </Button>
-          <Button variant="primary" className="cursor-pointer">
+          <Button 
+            variant="primary" 
+            className="cursor-pointer"
+            onClick={() => setIsModalOpen(true)}
+          >
             Subir Documento
           </Button>
         </div>
@@ -95,6 +112,12 @@ export default function DocumentosPage() {
           </table>
         </div>
       </Card>
+
+      <SubirDocumentoModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleSubmitDocumento}
+      />
     </div>
   );
 } 
