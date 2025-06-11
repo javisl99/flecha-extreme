@@ -57,6 +57,12 @@ const ConfiguracionIcon = () => (
   </svg>
 );
 
+const ParkingIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M5,22H19a3,3,0,0,0,3-3V5a3,3,0,0,0-3-3H5A3,3,0,0,0,2,5V19A3,3,0,0,0,5,22ZM4,5A1,1,0,0,1,5,4H19a1,1,0,0,1,1,1V19a1,1,0,0,1-1,1H5a1,1,0,0,1-1-1ZM9,18a1,1,0,0,0,1-1V14h2a4,4,0,0,0,0-8H9A1,1,0,0,0,8,7V17A1,1,0,0,0,9,18ZM10,8h2a2,2,0,0,1,0,4H10Z" />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -68,6 +74,7 @@ const navigation = [
   { name: 'Reservas', href: '/reservas', icon: ReservasIcon },
   { name: 'Clientes', href: '/clientes', icon: ClientesIcon },
   { name: 'Pagos', href: '/pagos', icon: PagosIcon },
+  { name: 'Parking', href: '/parking', icon: ParkingIcon },
   { name: 'Documentos', href: '/documentos', icon: DocumentosIcon },
   { name: 'Contabilidad', href: '/contabilidad', icon: ContabilidadIcon, roles: ['admin', 'fl-admin'] },
   { name: 'Empleados', href: '/empleados', icon: EmpleadosIcon, roles: ['admin', 'fl-admin'] },
@@ -161,7 +168,7 @@ export default function Sidebar() {
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="w-full flex items-center px-4 py-2 rounded-lg transition-colors hover:bg-red-700 text-white cursor-pointer"
+            className="w-full flex items-center px-4 py-2 rounded-lg transition-colors bg-red-600 hover:bg-red-700 text-white cursor-pointer"
           >
             <span className="mr-3">
               <LogoutIcon />
