@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Button } from '@/shared/components';
+import { useDocumentos } from '@/hooks/useDocumentos';
+import { toast } from 'react-hot-toast';
 
 interface SubirDocumentoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (formData: FormData) => void;
+  onSuccess: () => void;
 }
 
 interface FormData {
@@ -13,17 +15,53 @@ interface FormData {
   archivo: File | null;
 }
 
-export function SubirDocumentoModal({ isOpen, onClose, onSubmit }: SubirDocumentoModalProps) {
+export function SubirDocumentoModal({ isOpen, onClose, onSuccess }: SubirDocumentoModalProps) {
   const [formData, setFormData] = useState<FormData>({
     nombre: '',
     descripcion: '',
     archivo: null,
   });
+  const { subirDocumento, loading } = useDocumentos();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
-    onClose();
+    
+    if (!formData.archivo) {
+      toast.error('Por favor selecciona un archivo');
+      return;
+    }
+
+    // Validar que sea un archivo PDF
+    if (!formData.archivo.type.includes('pdf')) {
+      toast.error('Solo se permiten archivos PDF');
+      return;
+    }
+
+    // Validar tamaño máximo (10MB)
+    if (formData.archivo.size > 10 * 1024 * 1024) {
+      toast.error('El archivo no puede ser mayor a 10MB');
+      return;
+    }
+
+    const result = await subirDocumento({
+      nombre: formData.nombre,
+      descripcion: formData.descripcion || undefined,
+      archivo: formData.archivo,
+    });
+
+    if (result.success) {
+      toast.success('Documento subido correctamente');
+      onSuccess();
+      onClose();
+      // Limpiar el formulario
+      setFormData({
+        nombre: '',
+        descripcion: '',
+        archivo: null,
+      });
+    } else {
+      toast.error(result.error || 'Error al subir el documento');
+    }
   };
 
   if (!isOpen) return null;
@@ -78,14 +116,13 @@ export function SubirDocumentoModal({ isOpen, onClose, onSubmit }: SubirDocument
                   htmlFor="descripcion"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
-                  Descripción
+                  Descripción (opcional)
                 </label>
                 <textarea
                   id="descripcion"
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   className="w-full px-4 py-2 border border-input-border dark:border-input-border bg-input-bg dark:bg-input-bg rounded-md focus:outline-none focus:ring-2 focus:ring-primary min-h-[100px]"
-                  required
                 />
               </div>
 
@@ -94,7 +131,7 @@ export function SubirDocumentoModal({ isOpen, onClose, onSubmit }: SubirDocument
                   htmlFor="archivo"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
-                  Archivo
+                  Archivo PDF
                 </label>
                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-input-border dark:border-input-border rounded-md bg-input-bg dark:bg-input-bg hover:border-primary dark:hover:border-primary transition-colors">
                   <div className="space-y-2 text-center">
@@ -117,11 +154,12 @@ export function SubirDocumentoModal({ isOpen, onClose, onSubmit }: SubirDocument
                         htmlFor="archivo"
                         className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary-dark dark:hover:text-primary-light focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary"
                       >
-                        <span className="text-center">Selecciona un archivo</span>
+                        <span className="text-center">Selecciona un archivo PDF</span>
                         <input
                           id="archivo"
                           name="archivo"
                           type="file"
+                          accept=".pdf"
                           className="sr-only"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
@@ -132,7 +170,7 @@ export function SubirDocumentoModal({ isOpen, onClose, onSubmit }: SubirDocument
                       </label>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {formData.archivo ? formData.archivo.name : 'Cualquier tipo de archivo hasta 10MB'}
+                      {formData.archivo ? formData.archivo.name : 'PDF hasta 10MB'}
                     </p>
                   </div>
                 </div>
@@ -143,12 +181,14 @@ export function SubirDocumentoModal({ isOpen, onClose, onSubmit }: SubirDocument
                   variant="outline"
                   onClick={onClose}
                   type="button"
+                  disabled={loading}
                 >
                   Cancelar
                 </Button>
                 <Button
                   variant="primary"
                   type="submit"
+                  loading={loading}
                 >
                   Subir
                 </Button>
