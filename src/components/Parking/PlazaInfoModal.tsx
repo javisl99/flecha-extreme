@@ -337,7 +337,6 @@ export default function PlazaInfoModal({
           onClose={() => setShowReservaForm(false)}
           onSubmit={handleCrearReserva}
           plazaCodigo={plaza.codigo}
-          tipoPlaza={plaza.tipo}
           tarifas={tarifas}
         />
       )}
