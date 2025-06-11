@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import { UserProvider, useUserContext } from "@/context/UserContext";
 
@@ -10,6 +10,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useUserContext();
   const router = useRouter();
   const pathname = usePathname();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
   const isLoginPage = pathname === "/login";
   
@@ -31,8 +32,20 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen">
-      <Sidebar />
-      <main className="flex-1 overflow-auto p-6">{children}</main>
+      <Sidebar isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
+      <main className={`flex-1 overflow-auto p-6 transition-all duration-300 ${!isSidebarOpen ? 'md:ml-0' : ''}`}>
+        <div className="md:hidden mb-4">
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2 rounded-lg bg-primary text-white hover:bg-primary-dark transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

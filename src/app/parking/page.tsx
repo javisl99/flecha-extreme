@@ -76,6 +76,18 @@ export default function ParkingPage() {
   const [plazaSeleccionada, setPlazaSeleccionada] = useState<any>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [pagoInfo, setPagoInfo] = useState<PagoParking | undefined>(undefined);
+  const [tarjetasExpandidas, setTarjetasExpandidas] = useState<Record<string, boolean>>({
+    embarcacion: false,
+    tabla: false,
+    kayak: false
+  });
+
+  const toggleTarjeta = (tipo: string) => {
+    setTarjetasExpandidas(prev => ({
+      ...prev,
+      [tipo]: !prev[tipo]
+    }));
+  };
 
   useEffect(() => {
     fetchPlazasParking();
@@ -164,10 +176,14 @@ export default function ParkingPage() {
         {tiposParking.map((tipoParking) => {
           const plazasTipo = getPlazasPorTipo(tipoParking.tipo);
           const plazasDisponibles = plazasTipo.filter(plaza => plaza.disponible !== false && !plaza.reservada);
+          const estaExpandida = tarjetasExpandidas[tipoParking.tipo];
           
           return (
             <Card key={tipoParking.tipo} className="overflow-hidden">
-              <div className={`p-4 ${tipoParking.color} border-b ${tipoParking.colorBorde} flex items-center justify-between`}>
+              <div 
+                className={`p-4 ${tipoParking.color} border-b ${tipoParking.colorBorde} flex items-center justify-between cursor-pointer lg:cursor-default`}
+                onClick={() => toggleTarjeta(tipoParking.tipo)}
+              >
                 <div className="flex items-center">
                   <div className={`${tipoParking.colorTexto} mr-3`}>
                     {tipoParking.icono}
@@ -181,50 +197,63 @@ export default function ParkingPage() {
                     </p>
                   </div>
                 </div>
+                <div className="lg:hidden">
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className={`h-6 w-6 ${tipoParking.colorTexto} transform transition-transform duration-200 ${estaExpandida ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </div>
               
-              <div className="p-4">
-                <div className="grid grid-cols-4 gap-3">
-                  {plazasTipo.map((plaza) => {
-                    const estaDisponible = plaza.disponible !== false && !plaza.reservada;
-                    const estaReservada = plaza.reservada;
-                    
-                    let estilos = '';
-                    let titulo = '';
-                    
-                    if (estaDisponible) {
-                      estilos = 'border-green-500 bg-green-50 cursor-pointer hover:bg-green-100';
-                      titulo = 'Disponible';
-                    } else if (estaReservada) {
-                      estilos = 'border-red-500 bg-red-50 cursor-pointer';
-                      titulo = 'Reservada';
-                    } else {
-                      estilos = 'border-red-500 bg-red-50 cursor-pointer';
-                      titulo = 'Ocupada';
-                    }
+              <div className={`transition-all duration-300 ease-in-out ${!estaExpandida ? 'h-0 overflow-hidden lg:h-auto' : ''}`}>
+                <div className="p-4">
+                  <div className="grid grid-cols-4 gap-3">
+                    {plazasTipo.map((plaza) => {
+                      const estaDisponible = plaza.disponible !== false && !plaza.reservada;
+                      const estaReservada = plaza.reservada;
+                      
+                      let estilos = '';
+                      let titulo = '';
+                      
+                      if (estaDisponible) {
+                        estilos = 'border-green-500 bg-green-50 cursor-pointer hover:bg-green-100';
+                        titulo = 'Disponible';
+                      } else if (estaReservada) {
+                        estilos = 'border-red-500 bg-red-50 cursor-pointer';
+                        titulo = 'Reservada';
+                      } else {
+                        estilos = 'border-red-500 bg-red-50 cursor-pointer';
+                        titulo = 'Ocupada';
+                      }
 
-                    return (
-                      <div
-                        key={plaza.id}
-                        className={`
-                          relative aspect-square rounded-lg border-2 p-2
-                          flex flex-col items-center justify-center
-                          transition-colors duration-200
-                          ${estilos}
-                        `}
-                        title={titulo}
-                        onClick={() => handleClickPlaza(plaza)}
-                      >
-                        <span className={`text-lg font-medium ${
-                          estaDisponible ? 'text-green-700' : 
-                          estaReservada ? 'text-red-700' : 
-                          'text-red-700'
-                        }`}>
-                          {plaza.codigo}
-                        </span>
-                      </div>
-                    );
-                  })}
+                      return (
+                        <div
+                          key={plaza.id}
+                          className={`
+                            relative aspect-square rounded-lg border-2 p-2
+                            flex flex-col items-center justify-center
+                            transition-colors duration-200
+                            ${estilos}
+                          `}
+                          title={titulo}
+                          onClick={() => handleClickPlaza(plaza)}
+                        >
+                          <span className={`text-lg font-medium ${
+                            estaDisponible ? 'text-green-700' : 
+                            estaReservada ? 'text-red-700' : 
+                            'text-red-700'
+                          }`}>
+                            {plaza.codigo}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </Card>
