@@ -19,6 +19,14 @@ interface PagoParking {
   estado: EstadoPago;
 }
 
+interface PlazaParking {
+  id: string;
+  tipo: string;
+  codigo: string;
+  disponible?: boolean;
+  reservada?: boolean;
+}
+
 const tiposParking = [
   { 
     tipo: 'embarcacion', 
@@ -73,7 +81,7 @@ export default function ParkingPage() {
     getPagoReserva,
     tarifas
   } = useParking();
-  const [plazaSeleccionada, setPlazaSeleccionada] = useState<any>(null);
+  const [plazaSeleccionada, setPlazaSeleccionada] = useState<PlazaParking | null>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [pagoInfo, setPagoInfo] = useState<PagoParking | undefined>(undefined);
   const [tarjetasExpandidas, setTarjetasExpandidas] = useState<Record<string, boolean>>({
@@ -91,7 +99,7 @@ export default function ParkingPage() {
 
   useEffect(() => {
     fetchPlazasParking();
-  }, []);
+  }, [fetchPlazasParking]);
 
   useEffect(() => {
     const fetchPagoInfo = async () => {
@@ -107,13 +115,13 @@ export default function ParkingPage() {
     };
 
     fetchPagoInfo();
-  }, [plazaSeleccionada]);
+  }, [plazaSeleccionada, getReservaActual, getPagoReserva]);
 
   const getPlazasPorTipo = (tipo: string) => {
     return plazas.filter(plaza => plaza.tipo === tipo);
   };
 
-  const handleClickPlaza = async (plaza: any) => {
+  const handleClickPlaza = async (plaza: PlazaParking) => {
     await fetchTarifas(plaza.tipo);
     setPlazaSeleccionada(plaza);
     setModalAbierto(true);

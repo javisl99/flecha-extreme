@@ -26,7 +26,6 @@ interface ReservaFormProps {
     };
   }) => void;
   plazaCodigo: string;
-  tipoPlaza: string;
   tarifas: TarifaParking[];
 }
 
@@ -34,8 +33,7 @@ export default function ReservaForm({
   isOpen, 
   onClose, 
   onSubmit, 
-  plazaCodigo, 
-  tipoPlaza,
+  plazaCodigo,
   tarifas 
 }: ReservaFormProps) {
   const [formData, setFormData] = useState({
