@@ -46,10 +46,9 @@ export function useDocumentos() {
       setLoading(true);
 
       // 1. Subir el archivo al bucket 'documentos'
-      const fileExt = archivo.name.split('.').pop();
       const fileName = `${Date.now()}_${archivo.name}`;
 
-      const { data: uploadData, error: uploadError } = await supabaseClient
+      const { error: uploadError } = await supabaseClient
         .storage
         .from('documentos')
         .upload(fileName, archivo);

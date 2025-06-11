@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { useUserContext } from '@/context/UserContext';
-import { useUserData } from '@/hooks/useUserData';
 import supabaseClient from '@/lib/supabaseClient';
 
 type TipoParking = 'embarcacion' | 'tabla' | 'kayak';
@@ -33,19 +31,7 @@ interface TarifaParking {
   precio: number;
 }
 
-interface PagoParking {
-  id_cliente: string | null;
-  origen_tipo: 'parking';
-  origen_id: string;
-  concepto: string;
-  importe: number;
-  metodo: MetodoPago;
-  estado: EstadoPago;
-}
-
 export function useParking() {
-  const { user } = useUserContext();
-  const { usuario } = useUserData();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plazas, setPlazas] = useState<PlazaParking[]>([]);
