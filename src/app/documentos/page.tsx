@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, Button } from '@/shared/components';
 import { SubirDocumentoModal } from '@/components/Documentos/SubirDocumentoModal';
 import { useDocumentos, Documento } from '@/hooks/useDocumentos';
 import { toast } from 'react-hot-toast';
 import ProtectedRoute from '@/components/Layout/ProtectedRoute';
 import { useUserData } from '@/hooks/useUserData';
-import { FiltrosDocumentos, FiltrosDocumento } from '@/components/Documentos/FiltrosDocumentos';
+import { FiltrosDocumentos, type FiltrosDocumentoState } from '@/components/Documentos/FiltrosDocumentos';
 
 export default function DocumentosPage() {
   const [filtros, setFiltros] = useState<FiltrosDocumentoState>({
@@ -39,13 +39,7 @@ export default function DocumentosPage() {
     return cumpleNombre && cumpleDescripcion && cumpleUsuario && cumpleFechaDesde && cumpleFechaHasta;
   });
 
-  useEffect(() => {
-    if (!userLoading && usuario) {
-      cargarDocumentos();
-    }
-  }, [userLoading, usuario]);
-
-  const cargarDocumentos = async () => {
+  const cargarDocumentos = useCallback(async () => {
     try {
       setIsLoading(true);
       const result = await obtenerDocumentos();
@@ -62,7 +56,13 @@ export default function DocumentosPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [obtenerDocumentos]);
+
+  useEffect(() => {
+    if (!userLoading && usuario) {
+      cargarDocumentos();
+    }
+  }, [userLoading, usuario, cargarDocumentos]);
 
   const handleEliminarDocumento = async (documento: Documento) => {
     const confirmacion = window.confirm('¿Estás seguro de que quieres eliminar este documento?');
