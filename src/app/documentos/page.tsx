@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import ProtectedRoute from '@/components/Layout/ProtectedRoute';
 import { useUserData } from '@/hooks/useUserData';
 import { FiltrosDocumentos, type FiltrosDocumentoState } from '@/components/Documentos/FiltrosDocumentos';
+import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 
 export default function DocumentosPage() {
   const [filtros, setFiltros] = useState<FiltrosDocumentoState>({
@@ -18,6 +19,8 @@ export default function DocumentosPage() {
     fechaHasta: ''
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
+  const [documentoAEliminar, setDocumentoAEliminar] = useState<Documento | null>(null);
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,12 +68,16 @@ export default function DocumentosPage() {
   }, [userLoading, usuario, cargarDocumentos]);
 
   const handleEliminarDocumento = async (documento: Documento) => {
-    const confirmacion = window.confirm('¿Estás seguro de que quieres eliminar este documento?');
-    if (!confirmacion) return;
+    setDocumentoAEliminar(documento);
+    setIsModalConfirmacionOpen(true);
+  };
+
+  const handleConfirmarEliminacion = async () => {
+    if (!documentoAEliminar) return;
 
     try {
       setIsDeleting(true);
-      const result = await eliminarDocumento(documento);
+      const result = await eliminarDocumento(documentoAEliminar);
       
       if (result.success) {
         toast.success('Documento eliminado correctamente');
@@ -83,6 +90,7 @@ export default function DocumentosPage() {
       toast.error('Error inesperado al eliminar el documento');
     } finally {
       setIsDeleting(false);
+      setDocumentoAEliminar(null);
     }
   };
 
@@ -192,6 +200,19 @@ export default function DocumentosPage() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSuccess={cargarDocumentos}
+        />
+
+        <ModalConfirmacion
+          isOpen={isModalConfirmacionOpen}
+          onClose={() => {
+            setIsModalConfirmacionOpen(false);
+            setDocumentoAEliminar(null);
+          }}
+          onConfirm={handleConfirmarEliminacion}
+          titulo="Eliminar Documento"
+          mensaje={`¿Estás seguro de que quieres eliminar el documento "${documentoAEliminar?.nombre}"? Esta acción no se puede deshacer.`}
+          textoConfirmar="Eliminar"
+          textoCancelar="Cancelar"
         />
       </div>
     </ProtectedRoute>

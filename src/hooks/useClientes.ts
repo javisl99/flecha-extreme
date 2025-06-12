@@ -1,59 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUserContext } from '@/context/UserContext';
 import { useUserData } from '@/hooks/useUserData';
 import supabaseClient from '@/lib/supabaseClient';
 import { Cliente } from '@/shared/types';
-import { FiltrosCliente } from '@/components/Clientes/types';
 
-export function useClientes(filtros: FiltrosCliente) {
+export function useClientes() {
   const { user } = useUserContext();
   const { usuario } = useUserData();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Función para filtrar y ordenar los clientes
-  const filtrarYOrdenarClientes = useCallback((clientes: Cliente[], filtros: FiltrosCliente) => {
-    let resultado = [...clientes];
-
-    // Aplicar filtros de búsqueda si existen
-    if (filtros.busqueda) {
-      const termino = filtros.busqueda.toLowerCase().trim();
-      resultado = resultado.filter(cliente => {
-        // Convertir todos los campos a string y asegurar que no sean undefined
-        const nombre = String(cliente.nombre || '');
-        const apellidos = String(cliente.apellidos || '');
-        const email = String(cliente.email || '');
-        const movil = String(cliente.movil || '');
-        const dni = String(cliente.dni || '');
-
-        // Buscar en cada campo
-        return nombre.toLowerCase().includes(termino) ||
-               apellidos.toLowerCase().includes(termino) ||
-               email.toLowerCase().includes(termino) ||
-               movil.toLowerCase().includes(termino) ||
-               dni.toLowerCase().includes(termino);
-      });
-    }
-
-    // Aplicar ordenamiento
-    if (filtros.ordenarPor) {
-      resultado.sort((a, b) => {
-        const valorA = a[filtros.ordenarPor as keyof Cliente] || '';
-        const valorB = b[filtros.ordenarPor as keyof Cliente] || '';
-        
-        if (typeof valorA === 'string' && typeof valorB === 'string') {
-          return filtros.direccion === 'asc' 
-            ? valorA.localeCompare(valorB)
-            : valorB.localeCompare(valorA);
-        }
-        
-        return 0;
-      });
-    }
-
-    return resultado;
-  }, []);
 
   // Función para refrescar los clientes
   const refreshClientes = useCallback(async () => {
@@ -159,11 +115,6 @@ export function useClientes(filtros: FiltrosCliente) {
       }
     };
   }, [user, usuario]);
-
-  // Usar useMemo para calcular los clientes filtrados
-  const clientesFiltrados = useMemo(() => {
-    return filtrarYOrdenarClientes(clientes, filtros);
-  }, [clientes, filtros, filtrarYOrdenarClientes]);
 
   const crearCliente = async (nuevoCliente: Omit<Cliente, 'id'>) => {
     if (!usuario) {
@@ -305,7 +256,7 @@ export function useClientes(filtros: FiltrosCliente) {
   };
 
   return {
-    clientes: clientesFiltrados,
+    clientes,
     loading,
     error,
     crearCliente,

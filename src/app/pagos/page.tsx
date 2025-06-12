@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Button } from '@/shared/components';
-import { pagosMock } from '@/components/Pagos/data';
+import { Card, Button } from '@/shared/components'
 
 // Iconos para métodos de pago
 const CashIcon = () => (

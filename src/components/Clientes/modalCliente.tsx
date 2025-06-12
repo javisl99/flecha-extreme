@@ -12,16 +12,15 @@ interface ModalClienteProps {
 }
 
 // Validación de teléfono español (9 dígitos)
-const validarTelefono = (movil: string): boolean => {
-  const regexTelefono = /^[6-9]\d{8}$/;
-  return regexTelefono.test(movil);
+const validarTelefono = (telefono: string): boolean => {
+  const regex = /^[6789]\d{8}$/;
+  return regex.test(telefono);
 };
 
 // Validación de DNI/NIF español
 const validarDNI = (dni: string): boolean => {
-  const regexDNI = /^[0-9]{8}[A-Z]$/;
-  const regexNIF = /^[A-Z][0-9]{7}[A-Z]$/;
-  return regexDNI.test(dni) || regexNIF.test(dni);
+  const regex = /^[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]$/i;
+  return regex.test(dni);
 };
 
 export default function ModalCliente({ isOpen, onClose, onSuccess, modo, cliente }: ModalClienteProps) {
@@ -47,12 +46,7 @@ export default function ModalCliente({ isOpen, onClose, onSuccess, modo, cliente
     visible: false
   });
 
-  // Inicializar el hook con filtros vacíos ya que solo lo necesitamos para crear
-  const { crearCliente, actualizarCliente } = useClientes({
-    busqueda: '',
-    ordenarPor: 'nombre',
-    direccion: 'asc'
-  });
+  const { crearCliente, actualizarCliente } = useClientes();
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -287,7 +281,7 @@ export default function ModalCliente({ isOpen, onClose, onSuccess, modo, cliente
                   name="dni"
                   value={formData.dni}
                   onChange={handleChange}
-                  placeholder="12345678A o A1234567B"
+                  placeholder="12345678A"
                   className={`mt-1 block w-full px-3 py-2 border ${
                     errors.dni ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   } rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary`}
@@ -313,9 +307,9 @@ export default function ModalCliente({ isOpen, onClose, onSuccess, modo, cliente
                 <Button
                   type="submit"
                   variant="primary"
-                  disabled={loading}
+                  loading={loading}
                 >
-                  {loading ? (modo === 'nuevo' ? 'Creando...' : 'Guardando...') : (modo === 'nuevo' ? 'Crear Cliente' : 'Guardar Cambios')}
+                  {modo === 'nuevo' ? 'Crear Cliente' : 'Guardar Cambios'}
                 </Button>
               </div>
             </form>
@@ -326,7 +320,7 @@ export default function ModalCliente({ isOpen, onClose, onSuccess, modo, cliente
       <Toast
         message={toast.message}
         type={toast.type}
-        visible={toast.visible}
+        show={toast.visible}
         onClose={() => setToast(prev => ({ ...prev, visible: false }))}
       />
     </>
