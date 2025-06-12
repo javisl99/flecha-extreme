@@ -5,7 +5,7 @@ import { Card, Button } from '@/shared/components';
 import { Cliente } from '@/shared/types';
 import { FiltrosCliente } from '@/components/Clientes/types';
 import { useClientes } from '@/hooks/useClientes';
-import ModalNuevoCliente from '@/components/Clientes/ModalNuevoCliente';
+import ModalCliente from '@/components/Clientes/modalCliente';
 
 const UserIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -22,7 +22,8 @@ export default function ClientesPage() {
   
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { clientes, loading, error } = useClientes(filtros);
+  const [modoModal, setModoModal] = useState<'nuevo' | 'editar'>('nuevo');
+  const { clientes, loading, error, refreshClientes } = useClientes(filtros);
   
   const handleBusqueda = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFiltros({ ...filtros, busqueda: e.target.value });
@@ -36,9 +37,11 @@ export default function ClientesPage() {
     }
   };
 
-  const handleNuevoClienteSuccess = () => {
-    // Recargar la lista de clientes
-    setFiltros(prev => ({ ...prev }));
+  const handleNuevoClienteSuccess = async (updatedClient: Cliente) => {
+    // Recargar la lista de clientes para asegurar que la tabla está al día
+    await refreshClientes();
+    // Actualizar el cliente seleccionado directamente con los datos del modal
+    setClienteSeleccionado(updatedClient);
   };
 
   if (loading) {
@@ -65,7 +68,7 @@ export default function ClientesPage() {
           variant="primary"
           icon={<UserIcon />}
           className="cursor-pointer"
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => { setModoModal('nuevo'); setIsModalOpen(true); }}
         >
           Nuevo Cliente
         </Button>
@@ -92,31 +95,56 @@ export default function ClientesPage() {
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
                       onClick={() => handleOrdenar('nombre')}
                     >
-                      Nombre {filtros.ordenarPor === 'nombre' && (filtros.direccion === 'asc' ? '▲' : '▼')}
+                      <span className="flex items-center gap-1">
+                        Nombre
+                        {filtros.ordenarPor === 'nombre' && (
+                          <span>{filtros.direccion === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </span>
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
                       onClick={() => handleOrdenar('apellidos')}
                     >
-                      Apellidos {filtros.ordenarPor === 'apellidos' && (filtros.direccion === 'asc' ? '▲' : '▼')}
+                      <span className="flex items-center gap-1">
+                        Apellidos
+                        {filtros.ordenarPor === 'apellidos' && (
+                          <span>{filtros.direccion === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </span>
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
                       onClick={() => handleOrdenar('email')}
                     >
-                      Email {filtros.ordenarPor === 'email' && (filtros.direccion === 'asc' ? '▲' : '▼')}
+                      <span className="flex items-center gap-1">
+                        Email
+                        {filtros.ordenarPor === 'email' && (
+                          <span>{filtros.direccion === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </span>
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
-                      onClick={() => handleOrdenar('telefono')}
+                      onClick={() => handleOrdenar('movil')}
                     >
-                      Teléfono {filtros.ordenarPor === 'telefono' && (filtros.direccion === 'asc' ? '▲' : '▼')}
+                      <span className="flex items-center gap-1">
+                        Móvil
+                        {filtros.ordenarPor === 'movil' && (
+                          <span>{filtros.direccion === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </span>
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
-                      onClick={() => handleOrdenar('fechaRegistro')}
+                      onClick={() => handleOrdenar('dni')}
                     >
-                      Registro {filtros.ordenarPor === 'fechaRegistro' && (filtros.direccion === 'asc' ? '▲' : '▼')}
+                      <span className="flex items-center gap-1">
+                        DNI
+                        {filtros.ordenarPor === 'dni' && (
+                          <span>{filtros.direccion === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </span>
                     </th>
                   </tr>
                 </thead>
@@ -137,10 +165,10 @@ export default function ClientesPage() {
                         {cliente.email}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {cliente.telefono}
+                        {cliente.movil}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(cliente.fechaRegistro).toLocaleDateString()}
+                        {cliente.dni || 'No especificado'}
                       </td>
                     </tr>
                   ))}
@@ -175,8 +203,8 @@ export default function ClientesPage() {
                     <span className="text-gray-900 dark:text-gray-100">{clienteSeleccionado.email}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Teléfono:</span>
-                    <span className="text-gray-900 dark:text-gray-100">{clienteSeleccionado.telefono}</span>
+                    <span className="text-gray-500 dark:text-gray-400">Móvil:</span>
+                    <span className="text-gray-900 dark:text-gray-100">{clienteSeleccionado.movil || 'No especificado'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">DNI:</span>
@@ -207,7 +235,7 @@ export default function ClientesPage() {
                 </div>
                 
                 <div className="pt-4 flex space-x-2">
-                  <Button variant="primary" size="sm" className="flex-1">
+                  <Button variant="primary" size="sm" className="flex-1" onClick={() => { setModoModal('editar'); setIsModalOpen(true); }}>
                     Editar
                   </Button>
                   <Button variant="accent" size="sm" className="flex-1">
@@ -224,10 +252,12 @@ export default function ClientesPage() {
         </div>
       </div>
 
-      <ModalNuevoCliente
+      <ModalCliente
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleNuevoClienteSuccess}
+        modo={modoModal}
+        cliente={modoModal === 'editar' && clienteSeleccionado ? clienteSeleccionado : undefined}
       />
     </div>
   );
