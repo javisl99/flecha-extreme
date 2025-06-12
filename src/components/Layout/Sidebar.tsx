@@ -57,6 +57,12 @@ const ConfiguracionIcon = () => (
   </svg>
 );
 
+const ParkingIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M5,22H19a3,3,0,0,0,3-3V5a3,3,0,0,0-3-3H5A3,3,0,0,0,2,5V19A3,3,0,0,0,5,22ZM4,5A1,1,0,0,1,5,4H19a1,1,0,0,1,1,1V19a1,1,0,0,1-1,1H5a1,1,0,0,1-1-1ZM9,18a1,1,0,0,0,1-1V14h2a4,4,0,0,0,0-8H9A1,1,0,0,0,8,7V17A1,1,0,0,0,9,18ZM10,8h2a2,2,0,0,1,0,4H10Z" />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -68,13 +74,19 @@ const navigation = [
   { name: 'Reservas', href: '/reservas', icon: ReservasIcon },
   { name: 'Clientes', href: '/clientes', icon: ClientesIcon },
   { name: 'Pagos', href: '/pagos', icon: PagosIcon },
+  { name: 'Parking', href: '/parking', icon: ParkingIcon },
   { name: 'Documentos', href: '/documentos', icon: DocumentosIcon },
   { name: 'Contabilidad', href: '/contabilidad', icon: ContabilidadIcon, roles: ['admin', 'fl-admin'] },
   { name: 'Empleados', href: '/empleados', icon: EmpleadosIcon, roles: ['admin', 'fl-admin'] },
   { name: 'Configuración', href: '/configuracion', icon: ConfiguracionIcon },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useUserContext();
   const { usuario } = useUserData();
@@ -100,76 +112,105 @@ export default function Sidebar() {
   });
   
   return (
-    <div className="w-64 bg-primary-dark text-white flex flex-col h-screen">
-      <div className="p-4 flex items-center justify-center border-b border-primary-light">
-        <div className="text-xl font-bold flex flex-col items-center">
-          <Image
-            src="/cropped-lgo.png"
-            alt="Flecha Extreme Logo"
-            width={150}
-            height={50}
-            priority
-          />
-        </div>
-      </div>
+    <>
+      {/* Overlay para móvil */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 backdrop-blur-sm bg-white/30 z-20 md:hidden"
+          onClick={onToggle}
+        />
+      )}
       
-      <nav className="flex-1 overflow-y-auto p-4">
-        <ul className="space-y-2">
-          {filteredNavigation.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <li key={item.name}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-primary text-accent-light'
-                      : 'hover:bg-primary hover:text-accent'
-                  }`}
-                >
-                  <span className="mr-3">
-                    <item.icon />
-                  </span>
-                  {item.name}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-      
-      <div className="p-4 border-t border-primary-light">
-        <div className="flex items-center text-sm mb-4">
-          <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center mr-2">
-            {usuario?.nombre ? (
-              <span className="text-primary-dark font-bold">
-                {usuario.nombre.substring(0, 1).toUpperCase()}
-              </span>
-            ) : (
-              <span className="text-primary-dark font-bold">FE</span>
-            )}
+      {/* Sidebar */}
+      <div 
+        className={`fixed md:static w-64 bg-primary-dark text-white flex flex-col h-screen z-30 transition-transform duration-300 transform ${
+          isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        <div className="p-4 flex items-center justify-between border-b border-primary-light">
+          <div className="text-xl font-bold flex flex-col items-center flex-1">
+            <Image
+              src="/cropped-lgo.png"
+              alt="Flecha Extreme Logo"
+              width={150}
+              height={50}
+              priority
+            />
           </div>
-          <div>
-            <p className="font-medium">
-              {usuario ? `${usuario.nombre} ${usuario.apellidos}` : 'Flecha Extreme'}
-            </p>
-            <p className="text-xs text-gray-300">{usuario?.displayRol || 'ERP Admin'}</p>
-          </div>
-        </div>
-
-        {user && (
-          <button
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className="w-full flex items-center px-4 py-2 rounded-lg transition-colors hover:bg-red-700 text-white cursor-pointer"
+          <button 
+            onClick={onToggle}
+            className="md:hidden p-2 rounded-lg hover:bg-primary transition-colors"
           >
-            <span className="mr-3">
-              <LogoutIcon />
-            </span>
-            {isLoggingOut ? 'Cerrando sesión...' : 'Cerrar Sesión'}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
-        )}
+        </div>
+        
+        <nav className="flex-1 overflow-y-auto p-4">
+          <ul className="space-y-2">
+            {filteredNavigation.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <li key={item.name}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-primary text-accent-light'
+                        : 'hover:bg-primary hover:text-accent'
+                    }`}
+                    onClick={() => {
+                      // En móvil, cerrar el sidebar al hacer clic en un enlace
+                      if (window.innerWidth < 768) {
+                        onToggle();
+                      }
+                    }}
+                  >
+                    <span className="mr-3">
+                      <item.icon />
+                    </span>
+                    {item.name}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+        
+        <div className="p-4 border-t border-primary-light">
+          <div className="flex items-center text-sm mb-4">
+            <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center mr-2">
+              {usuario?.nombre ? (
+                <span className="text-primary-dark font-bold">
+                  {usuario.nombre.substring(0, 1).toUpperCase()}
+                </span>
+              ) : (
+                <span className="text-primary-dark font-bold">FE</span>
+              )}
+            </div>
+            <div>
+              <p className="font-medium">
+                {usuario ? `${usuario.nombre} ${usuario.apellidos}` : 'Flecha Extreme'}
+              </p>
+              <p className="text-xs text-gray-300">{usuario?.displayRol || 'ERP Admin'}</p>
+            </div>
+          </div>
+
+          {user && (
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="w-full flex items-center px-4 py-2 rounded-lg transition-colors bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+            >
+              <span className="mr-3">
+                <LogoutIcon />
+              </span>
+              {isLoggingOut ? 'Cerrando sesión...' : 'Cerrar Sesión'}
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 } 
