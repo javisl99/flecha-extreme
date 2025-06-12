@@ -236,7 +236,7 @@ export default function ReservasPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Contacto</label>
-                  <p className="text-gray-900 dark:text-gray-100">{reservaSeleccionada.cliente?.telefono}</p>
+                  <p className="text-gray-900 dark:text-gray-100">{reservaSeleccionada.cliente?.movil}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Precio</label>
