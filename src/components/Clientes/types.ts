@@ -10,6 +10,6 @@ export interface ClienteDetalle extends Cliente {
 
 export interface FiltrosCliente {
   busqueda?: string;
-  ordenarPor?: 'nombre' | 'apellidos' | 'email' | 'telefono' | 'dni' | 'fechaRegistro' | 'fechaActualizacion';
+  ordenarPor?: 'nombre' | 'apellidos' | 'email' | 'movil' | 'dni' | 'fechaRegistro' | 'fechaActualizacion';
   direccion?: 'asc' | 'desc';
 } 
