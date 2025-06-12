@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, Toast } from '@/shared/components';
 import { useClientes } from '@/hooks/useClientes';
-import { FiltrosCliente } from '@/components/Clientes/types';
+import { Cliente } from '@/shared/types';
 
-interface ModalNuevoClienteProps {
+interface ModalClienteProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (cliente: Cliente) => void;
+  modo: 'nuevo' | 'editar';
+  cliente?: Cliente;
 }
 
 // Validación de teléfono español (9 dígitos)
-const validarTelefono = (telefono: string): boolean => {
+const validarTelefono = (movil: string): boolean => {
   const regexTelefono = /^[6-9]\d{8}$/;
-  return regexTelefono.test(telefono);
+  return regexTelefono.test(movil);
 };
 
 // Validación de DNI/NIF español
@@ -22,12 +24,12 @@ const validarDNI = (dni: string): boolean => {
   return regexDNI.test(dni) || regexNIF.test(dni);
 };
 
-export default function ModalNuevoCliente({ isOpen, onClose, onSuccess }: ModalNuevoClienteProps) {
+export default function ModalCliente({ isOpen, onClose, onSuccess, modo, cliente }: ModalClienteProps) {
   const [formData, setFormData] = useState({
     nombre: '',
     apellidos: '',
     email: '',
-    telefono: '',
+    movil: '',
     dni: ''
   });
   
@@ -46,7 +48,7 @@ export default function ModalNuevoCliente({ isOpen, onClose, onSuccess }: ModalN
   });
 
   // Inicializar el hook con filtros vacíos ya que solo lo necesitamos para crear
-  const { crearCliente } = useClientes({
+  const { crearCliente, actualizarCliente } = useClientes({
     busqueda: '',
     ordenarPor: 'nombre',
     direccion: 'asc'
@@ -72,6 +74,21 @@ export default function ModalNuevoCliente({ isOpen, onClose, onSuccess }: ModalN
       if (timer) clearTimeout(timer);
     };
   }, [isOpen]);
+
+  // Inicializa el formulario si es edición
+  useEffect(() => {
+    if (modo === 'editar' && cliente) {
+      setFormData({
+        nombre: String(cliente.nombre || ''),
+        apellidos: String(cliente.apellidos || ''),
+        email: String(cliente.email || ''),
+        movil: String(cliente.movil || ''),
+        dni: String(cliente.dni || '')
+      });
+    } else if (modo === 'nuevo') {
+      setFormData({ nombre: '', apellidos: '', email: '', movil: '', dni: '' });
+    }
+  }, [modo, cliente, isOpen]);
 
   const handleClose = () => {
     setIsVisible(false);
@@ -104,16 +121,16 @@ export default function ModalNuevoCliente({ isOpen, onClose, onSuccess }: ModalN
     if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es obligatorio';
     if (!formData.apellidos.trim()) newErrors.apellidos = 'Los apellidos son obligatorios';
     if (!formData.email.trim()) newErrors.email = 'El email es obligatorio';
-    if (!formData.telefono.trim()) newErrors.telefono = 'El teléfono es obligatorio';
+    if (!formData.movil.trim()) newErrors.movil = 'El móvil es obligatorio';
     
     // Validar formato de email
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'El formato del email no es válido';
     }
     
-    // Validar formato de teléfono
-    if (formData.telefono && !validarTelefono(formData.telefono)) {
-      newErrors.telefono = 'El formato del teléfono no es válido (9 dígitos empezando por 6, 7, 8 o 9)';
+    // Validar formato de móvil
+    if (formData.movil && !validarTelefono(formData.movil)) {
+      newErrors.movil = 'El formato del móvil no es válido (9 dígitos empezando por 6, 7, 8 o 9)';
     }
     
     // Validar DNI si se ha proporcionado
@@ -127,32 +144,33 @@ export default function ModalNuevoCliente({ isOpen, onClose, onSuccess }: ModalN
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-    
     try {
       setLoading(true);
-      
-      const { error } = await crearCliente({
-        ...formData,
-        fechaRegistro: new Date().toISOString()
-      });
-        
+      let error;
+      let data = null;
+      if (modo === 'nuevo') {
+        const result = await crearCliente({ ...formData, movil: formData.movil, fechaRegistro: new Date().toISOString() });
+        error = result.error;
+        data = result.data;
+      } else if (modo === 'editar' && cliente) {
+        const result = await actualizarCliente(cliente.id, { ...formData, movil: formData.movil });
+        error = result.error;
+        data = result.data;
+      }
       if (error) throw error;
-      
       setToast({
-        message: 'Cliente creado correctamente',
+        message: modo === 'nuevo' ? 'Cliente creado correctamente' : 'Cliente actualizado correctamente',
         type: 'success',
         visible: true
       });
-      
-      onSuccess();
+      if (data) onSuccess(data);
       handleClose();
     } catch (err) {
-      console.error('Error al crear el cliente:', err);
-      setErrors({ submit: 'Error al crear el cliente. Por favor, inténtalo de nuevo.' });
+      console.error(modo === 'nuevo' ? 'Error al crear el cliente:' : 'Error al actualizar el cliente:', err);
+      setErrors({ submit: modo === 'nuevo' ? 'Error al crear el cliente.' : 'Error al actualizar el cliente.' });
       setToast({
-        message: 'Error al crear el cliente. Por favor, inténtalo de nuevo.',
+        message: modo === 'nuevo' ? 'Error al crear el cliente.' : 'Error al actualizar el cliente.',
         type: 'error',
         visible: true
       });
@@ -180,7 +198,7 @@ export default function ModalNuevoCliente({ isOpen, onClose, onSuccess }: ModalN
             willChange: 'transform, opacity'
           }}
         >
-          <Card title="Nuevo Cliente" className="m-0">
+          <Card title={modo === 'nuevo' ? 'Nuevo Cliente' : 'Editar Cliente'} className="m-0">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -240,22 +258,22 @@ export default function ModalNuevoCliente({ isOpen, onClose, onSuccess }: ModalN
               </div>
 
               <div>
-                <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Teléfono *
+                <label htmlFor="movil" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Móvil *
                 </label>
                 <input
                   type="tel"
-                  id="telefono"
-                  name="telefono"
-                  value={formData.telefono}
+                  id="movil"
+                  name="movil"
+                  value={formData.movil}
                   onChange={handleChange}
                   placeholder="6XXXXXXXX"
                   className={`mt-1 block w-full px-3 py-2 border ${
-                    errors.telefono ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    errors.movil ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   } rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary`}
                 />
-                {errors.telefono && (
-                  <p className="mt-1 text-sm text-red-500">{errors.telefono}</p>
+                {errors.movil && (
+                  <p className="mt-1 text-sm text-red-500">{errors.movil}</p>
                 )}
               </div>
 
@@ -297,7 +315,7 @@ export default function ModalNuevoCliente({ isOpen, onClose, onSuccess }: ModalN
                   variant="primary"
                   disabled={loading}
                 >
-                  {loading ? 'Creando...' : 'Crear Cliente'}
+                  {loading ? (modo === 'nuevo' ? 'Creando...' : 'Guardando...') : (modo === 'nuevo' ? 'Crear Cliente' : 'Guardar Cambios')}
                 </Button>
               </div>
             </form>
