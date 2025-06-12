@@ -5,11 +5,10 @@ export interface Cliente {
   nombre: string;
   apellidos: string;
   email: string;
-  telefono: string;
+  movil: string;
   fechaRegistro: string;
   dni?: string;
   notas?: string;
-  movil?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -57,7 +56,7 @@ export interface Empleado {
   nombre: string;
   apellidos: string;
   email: string;
-  telefono: string;
+  movil: string;
   puesto: string;
   departamento: string;
   fechaContratacion: string;
