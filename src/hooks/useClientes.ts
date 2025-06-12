@@ -24,14 +24,14 @@ export function useClientes(filtros: FiltrosCliente) {
         const nombre = String(cliente.nombre || '');
         const apellidos = String(cliente.apellidos || '');
         const email = String(cliente.email || '');
-        const telefono = String(cliente.telefono || '');
+        const movil = String(cliente.movil || '');
         const dni = String(cliente.dni || '');
 
         // Buscar en cada campo
         return nombre.toLowerCase().includes(termino) ||
                apellidos.toLowerCase().includes(termino) ||
                email.toLowerCase().includes(termino) ||
-               telefono.toLowerCase().includes(termino) ||
+               movil.toLowerCase().includes(termino) ||
                dni.toLowerCase().includes(termino);
       });
     }
@@ -76,7 +76,7 @@ export function useClientes(filtros: FiltrosCliente) {
         nombre: cliente.nombre,
         apellidos: cliente.apellidos,
         email: cliente.email,
-        telefono: cliente.movil,
+        movil: cliente.movil,
         dni: cliente.dni,
         fechaRegistro: cliente.created_at,
         notas: cliente.notas || undefined
@@ -129,7 +129,7 @@ export function useClientes(filtros: FiltrosCliente) {
             nombre: cliente.nombre,
             apellidos: cliente.apellidos,
             email: cliente.email,
-            telefono: cliente.movil,
+            movil: cliente.movil,
             dni: cliente.dni,
             fechaRegistro: cliente.created_at,
             notas: cliente.notas || undefined
@@ -180,7 +180,7 @@ export function useClientes(filtros: FiltrosCliente) {
           nombre: nuevoCliente.nombre,
           apellidos: nuevoCliente.apellidos,
           email: nuevoCliente.email,
-          movil: nuevoCliente.telefono,
+          movil: nuevoCliente.movil,
           dni: nuevoCliente.dni,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -197,7 +197,7 @@ export function useClientes(filtros: FiltrosCliente) {
         nombre: data.nombre,
         apellidos: data.apellidos,
         email: data.email,
-        telefono: data.movil,
+        movil: data.movil,
         dni: data.dni,
         fechaRegistro: data.created_at,
         notas: data.notas || undefined
@@ -234,7 +234,7 @@ export function useClientes(filtros: FiltrosCliente) {
           ...(datosActualizados.nombre && { nombre: datosActualizados.nombre }),
           ...(datosActualizados.apellidos && { apellidos: datosActualizados.apellidos }),
           ...(datosActualizados.email && { email: datosActualizados.email }),
-          ...(datosActualizados.telefono && { movil: datosActualizados.telefono }),
+          ...(datosActualizados.movil && { movil: datosActualizados.movil }),
           ...(datosActualizados.dni && { dni: datosActualizados.dni }),
           updated_at: new Date().toISOString()
         })
@@ -251,7 +251,7 @@ export function useClientes(filtros: FiltrosCliente) {
         nombre: data.nombre,
         apellidos: data.apellidos,
         email: data.email,
-        telefono: data.movil,
+        movil: data.movil,
         dni: data.dni,
         fechaRegistro: data.created_at,
         notas: data.notas || undefined
