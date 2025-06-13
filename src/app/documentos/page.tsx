@@ -9,6 +9,7 @@ import ProtectedRoute from '@/components/Layout/ProtectedRoute';
 import { useUserData } from '@/hooks/useUserData';
 import { FiltrosDocumentos, type FiltrosDocumentoState } from '@/components/Documentos/FiltrosDocumentos';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
+import TableSkeleton from '@/components/shared/TableSkeleton';
 
 export default function DocumentosPage() {
   const [filtros, setFiltros] = useState<FiltrosDocumentoState>({
@@ -67,8 +68,8 @@ export default function DocumentosPage() {
     }
   }, [userLoading, usuario, cargarDocumentos]);
 
-  const handleEliminarDocumento = async (documento: Documento) => {
-    setDocumentoAEliminar(documento);
+  const handleEliminarDocumento = async () => {
+    if (!documentoAEliminar) return;
     setIsModalConfirmacionOpen(true);
   };
 
@@ -77,7 +78,7 @@ export default function DocumentosPage() {
 
     try {
       setIsDeleting(true);
-      const result = await eliminarDocumento(documentoAEliminar);
+      const result = await eliminarDocumento(documentoAEliminar.id);
       
       if (result.success) {
         toast.success('Documento eliminado correctamente');
@@ -90,6 +91,7 @@ export default function DocumentosPage() {
       toast.error('Error inesperado al eliminar el documento');
     } finally {
       setIsDeleting(false);
+      setIsModalConfirmacionOpen(false);
       setDocumentoAEliminar(null);
     }
   };
@@ -119,9 +121,7 @@ export default function DocumentosPage() {
           
           <div className="overflow-x-auto">
             {isLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
+              <TableSkeleton columns={5} rows={5} />
             ) : (
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
@@ -169,7 +169,10 @@ export default function DocumentosPage() {
                             </svg>
                           </a>
                           <button 
-                            onClick={() => handleEliminarDocumento(documento)}
+                            onClick={() => {
+                              setDocumentoAEliminar(documento);
+                              handleEliminarDocumento();
+                            }}
                             className="p-1.5 rounded-full text-red-600 dark:text-red-500 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 cursor-pointer" 
                             title="Eliminar"
                             disabled={isDeleting}
@@ -199,7 +202,10 @@ export default function DocumentosPage() {
         <SubirDocumentoModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          onSuccess={cargarDocumentos}
+          onSuccess={() => {
+            setIsModalOpen(false);
+            cargarDocumentos();
+          }}
         />
 
         <ModalConfirmacion

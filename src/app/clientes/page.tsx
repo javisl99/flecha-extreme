@@ -8,6 +8,7 @@ import ModalCliente from '@/components/Clientes/modalCliente';
 import { FiltrosClientes, type FiltrosClienteState } from '@/components/Clientes/FiltrosClientes';
 import { toast } from 'react-hot-toast';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
+import TableSkeleton from '@/components/shared/TableSkeleton';
 
 const UserIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -74,14 +75,6 @@ export default function ClientesPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-lg">Cargando clientes...</div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -110,60 +103,64 @@ export default function ClientesPage() {
             <FiltrosClientes onFiltrosChange={setFiltros} />
             
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Nombre
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Apellidos
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Móvil
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      DNI
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-card-bg divide-y divide-gray-200 dark:divide-gray-700">
-                  {clientesFiltrados.map((cliente) => (
-                    <tr 
-                      key={cliente.id} 
-                      className="hover:bg-table-row-hover dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                      onClick={() => setClienteSeleccionado(cliente)}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {cliente.nombre}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                        {cliente.apellidos}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {cliente.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {cliente.movil}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {cliente.dni || 'No especificado'}
-                      </td>
-                    </tr>
-                  ))}
-                  
-                  {clientesFiltrados.length === 0 && (
+              {loading ? (
+                <TableSkeleton columns={5} rows={5} />
+              ) : (
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead>
                     <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                        No se encontraron clientes con esos criterios
-                      </td>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Nombre
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Apellidos
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Móvil
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        DNI
+                      </th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-card-bg divide-y divide-gray-200 dark:divide-gray-700">
+                    {clientesFiltrados.map((cliente) => (
+                      <tr 
+                        key={cliente.id} 
+                        className="hover:bg-table-row-hover dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                        onClick={() => setClienteSeleccionado(cliente)}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {cliente.nombre}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                          {cliente.apellidos}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {cliente.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {cliente.movil}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {cliente.dni || 'No especificado'}
+                        </td>
+                      </tr>
+                    ))}
+                    
+                    {clientesFiltrados.length === 0 && !loading && (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                          No se encontraron clientes con esos criterios
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </Card>
         </div>
@@ -232,7 +229,7 @@ export default function ClientesPage() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-10 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 Selecciona un cliente para ver sus detalles
               </div>
             )}
