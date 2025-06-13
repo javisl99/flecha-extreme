@@ -80,12 +80,12 @@ export function FiltrosPagos({ onFiltrosChange }: FiltrosPagosProps) {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
-      <div className="p-4 flex items-center justify-between border-b dark:border-gray-700">
+      <div 
+        onClick={() => setFiltrosAbiertos(!filtrosAbiertos)}
+        className="p-4 flex items-center justify-between border-b dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+      >
         <h3 className="font-medium text-lg dark:text-white">Filtros</h3>
-        <button 
-          onClick={() => setFiltrosAbiertos(!filtrosAbiertos)}
-          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-        >
+        <div className="text-gray-500 dark:text-gray-400">
           {filtrosAbiertos ? (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -95,7 +95,7 @@ export function FiltrosPagos({ onFiltrosChange }: FiltrosPagosProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           )}
-        </button>
+        </div>
       </div>
       
       {filtrosAbiertos && (
@@ -130,7 +130,7 @@ export function FiltrosPagos({ onFiltrosChange }: FiltrosPagosProps) {
                   id="filtro-origen"
                   value={filtros.origen_tipo}
                   onChange={(e) => handleFiltroChange('origen_tipo', e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
                 >
                   <option value="">Todos los orígenes</option>
                   {Object.entries(origenesDisponibles).map(([value, label]) => (
@@ -169,7 +169,7 @@ export function FiltrosPagos({ onFiltrosChange }: FiltrosPagosProps) {
                   id="filtro-metodo"
                   value={filtros.metodo}
                   onChange={(e) => handleFiltroChange('metodo', e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
                 >
                   <option value="">Todos los métodos</option>
                   {Object.entries(metodosDisponibles).map(([value, label]) => (
@@ -190,7 +190,7 @@ export function FiltrosPagos({ onFiltrosChange }: FiltrosPagosProps) {
                   id="filtro-estado"
                   value={filtros.estado}
                   onChange={(e) => handleFiltroChange('estado', e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
                 >
                   <option value="">Todos los estados</option>
                   {Object.entries(estadosDisponibles).map(([value, label]) => (
