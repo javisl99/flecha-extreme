@@ -110,10 +110,7 @@ export default function ClientesPage() {
                   <thead>
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Nombre
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Apellidos
+                        Cliente
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Email
@@ -130,20 +127,30 @@ export default function ClientesPage() {
                     {clientesFiltrados.map((cliente) => (
                       <tr 
                         key={cliente.id} 
-                        className="hover:bg-table-row-hover dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                        className={`transition-colors cursor-pointer ${
+                          clienteSeleccionado?.id === cliente.id 
+                            ? 'bg-primary/10 hover:bg-primary/20' 
+                            : 'hover:bg-table-row-hover dark:hover:bg-gray-700'
+                        }`}
                         onClick={() => setClienteSeleccionado(cliente)}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {cliente.nombre}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                          {cliente.apellidos}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary-light text-white flex items-center justify-center">
+                              {cliente.nombre?.charAt(0)}{cliente.apellidos?.charAt(0)}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {cliente.nombre} {cliente.apellidos}
+                              </div>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                           {cliente.email}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {cliente.movil}
+                          {cliente.movil || 'No especificado'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                           {cliente.dni || 'No especificado'}
@@ -153,7 +160,7 @@ export default function ClientesPage() {
                     
                     {clientesFiltrados.length === 0 && !loading && (
                       <tr>
-                        <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                           No se encontraron clientes con esos criterios
                         </td>
                       </tr>
@@ -173,7 +180,9 @@ export default function ClientesPage() {
                   <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-primary-light text-white text-xl font-bold">
                     {clienteSeleccionado.nombre.charAt(0)}{clienteSeleccionado.apellidos.charAt(0)}
                   </div>
-                  <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-gray-100">{clienteSeleccionado.nombre} {clienteSeleccionado.apellidos}</h3>
+                  <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+                    {clienteSeleccionado.nombre} {clienteSeleccionado.apellidos}
+                  </h3>
                 </div>
                 
                 <div className="space-y-2">
@@ -191,7 +200,9 @@ export default function ClientesPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">Fecha de registro:</span>
-                    <span className="text-gray-900 dark:text-gray-100">{new Date(clienteSeleccionado.fechaRegistro).toLocaleDateString()}</span>
+                    <span className="text-gray-900 dark:text-gray-100">
+                      {new Date(clienteSeleccionado.fechaRegistro).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
                 
@@ -229,7 +240,7 @@ export default function ClientesPage() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-10 text-gray-500 dark:text-gray-400">
                 Selecciona un cliente para ver sus detalles
               </div>
             )}

@@ -2,8 +2,13 @@
 
 import { useState } from 'react';
 import { Card, Button } from '@/shared/components';
-import { empleadosMock } from '@/components/Empleados/data';
 import ProtectedRoute from '@/components/Layout/ProtectedRoute';
+import { useEmpleados, type Empleado } from '@/hooks/useEmpleados';
+import { toast } from 'react-hot-toast';
+import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
+import TableSkeleton from '@/components/shared/TableSkeleton';
+import ModalEmpleado from '@/components/Empleados/ModalEmpleado';
+import { FiltrosEmpleados, type FiltrosEmpleadoState } from '@/components/Empleados/FiltrosEmpleados';
 
 // Componente del icono SVG de Empleados
 const EmpleadosIcon = () => (
@@ -12,30 +17,82 @@ const EmpleadosIcon = () => (
   </svg>
 );
 
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+
 export default function EmpleadosPage() {
-  const [filtro, setFiltro] = useState('');
-  const [filtroActivo, setFiltroActivo] = useState<boolean | null>(null);
-  const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<(typeof empleadosMock)[0] | null>(null);
-  
-  const empleadosFiltrados = empleadosMock.filter(empleado => {
-    const coincideBusqueda = 
-      empleado.nombre?.toLowerCase().includes(filtro.toLowerCase()) ||
-      empleado.apellidos?.toLowerCase().includes(filtro.toLowerCase()) ||
-      empleado.puesto?.toLowerCase().includes(filtro.toLowerCase()) ||
-      empleado.departamento?.toLowerCase().includes(filtro.toLowerCase()) ||
-      empleado.email?.toLowerCase().includes(filtro.toLowerCase());
-      
-    const coincideActivo = filtroActivo === null || empleado.activo === filtroActivo;
-    
-    return coincideBusqueda && coincideActivo;
+  const [filtros, setFiltros] = useState<FiltrosEmpleadoState>({
+    nombre: '',
+    apellidos: '',
+    email: '',
+    movil: '',
+    dni: ''
   });
+  const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<Empleado | null>(null);
+  const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
+  const [isModalEmpleadoOpen, setIsModalEmpleadoOpen] = useState(false);
+  const [modoModal, setModoModal] = useState<'nuevo' | 'editar'>('nuevo');
+  const { empleados, loading, error, eliminarEmpleado, refreshEmpleados } = useEmpleados();
+  
+  const empleadosFiltrados = empleados.filter(empleado => {
+    const coincideNombre = !filtros.nombre || empleado.nombre?.toLowerCase().includes(filtros.nombre.toLowerCase());
+    const coincideApellidos = !filtros.apellidos || empleado.apellidos?.toLowerCase().includes(filtros.apellidos.toLowerCase());
+    const coincideEmail = !filtros.email || empleado.email?.toLowerCase().includes(filtros.email.toLowerCase());
+    const coincideMovil = !filtros.movil || empleado.movil?.toLowerCase().includes(filtros.movil.toLowerCase());
+    const coincideDNI = !filtros.dni || empleado.dni?.toLowerCase().includes(filtros.dni.toLowerCase());
+      
+    return coincideNombre && coincideApellidos && coincideEmail && coincideMovil && coincideDNI;
+  });
+
+  const handleNuevoEmpleadoSuccess = async (updatedEmpleado: Empleado) => {
+    await refreshEmpleados();
+    setEmpleadoSeleccionado(updatedEmpleado);
+  };
+
+  const handleEliminarEmpleado = async () => {
+    if (!empleadoSeleccionado) return;
+    setIsModalConfirmacionOpen(true);
+  };
+
+  const handleConfirmarEliminacion = async () => {
+    if (!empleadoSeleccionado) return;
+    
+    try {
+      const result = await eliminarEmpleado(empleadoSeleccionado.id);
+      if (!result.error) {
+        toast.success('Empleado eliminado correctamente');
+        setEmpleadoSeleccionado(null);
+        await refreshEmpleados();
+      } else {
+        toast.error('Error al eliminar el empleado');
+      }
+    } catch (error) {
+      console.error('Error al eliminar empleado:', error);
+      toast.error('Error al eliminar el empleado');
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg text-red-500">{error}</div>
+      </div>
+    );
+  }
   
   return (
     <ProtectedRoute allowedRoles={['admin', 'fl-admin']}>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Empleados</h1>
-          <Button variant="primary" icon={<EmpleadosIcon />}>
+          <Button 
+            variant="primary" 
+            icon={<EmpleadosIcon />}
+            onClick={() => { setModoModal('nuevo'); setIsModalEmpleadoOpen(true); }}
+          >
             Nuevo Empleado
           </Button>
         </div>
@@ -43,102 +100,73 @@ export default function EmpleadosPage() {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="w-full md:w-2/3">
             <Card>
-              <div className="flex flex-wrap gap-4 mb-4">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Buscar empleados..."
-                    className="w-full px-4 py-2 border border-input-border dark:border-input-border bg-input-bg dark:bg-input-bg rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={filtro}
-                    onChange={(e) => setFiltro(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <select
-                    className="px-4 py-2 border border-input-border dark:border-input-border bg-input-bg dark:bg-input-bg rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={filtroActivo === null ? '' : filtroActivo ? 'activo' : 'inactivo'}
-                    onChange={(e) => {
-                      if (e.target.value === '') setFiltroActivo(null);
-                      else setFiltroActivo(e.target.value === 'activo');
-                    }}
-                  >
-                    <option value="">Todos</option>
-                    <option value="activo">Activos</option>
-                    <option value="inactivo">Inactivos</option>
-                  </select>
-                </div>
-              </div>
-              
+              <FiltrosEmpleados onFiltrosChange={setFiltros} />
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-table-head-bg dark:bg-gray-800">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Empleado
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Puesto
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Departamento
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Contacto
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Estado
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-card-bg divide-y divide-gray-200 dark:divide-gray-700">
-                    {empleadosFiltrados.map((empleado) => (
-                      <tr 
-                        key={empleado.id} 
-                        className="hover:bg-table-row-hover dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                        onClick={() => setEmpleadoSeleccionado(empleado)}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary-light text-white flex items-center justify-center">
-                              {empleado.nombre?.charAt(0)}{empleado.apellidos?.charAt(0)}
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                {empleado.nombre} {empleado.apellidos}
+                {loading ? (
+                  <TableSkeleton columns={5} rows={5} />
+                ) : (
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-table-head-bg dark:bg-gray-800">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Empleado
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Email
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Móvil
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          DNI
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-card-bg divide-y divide-gray-200 dark:divide-gray-700">
+                      {empleadosFiltrados.map((empleado) => (
+                        <tr 
+                          key={empleado.id} 
+                          className={`transition-colors cursor-pointer ${
+                            empleadoSeleccionado?.id === empleado.id 
+                              ? 'bg-primary/10 hover:bg-primary/20' 
+                              : 'hover:bg-table-row-hover dark:hover:bg-gray-700'
+                          }`}
+                          onClick={() => setEmpleadoSeleccionado(empleado)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary-light text-white flex items-center justify-center">
+                                {empleado.nombre?.charAt(0)}{empleado.apellidos?.charAt(0)}
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                  {empleado.nombre} {empleado.apellidos}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                          {empleado.puesto}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                          {empleado.departamento}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {empleado.email}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            empleado.activo 
-                              ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' 
-                              : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'
-                          }`}>
-                            {empleado.activo ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    
-                    {empleadosFiltrados.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                          No se encontraron empleados con los filtros seleccionados
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {empleado.email}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {empleado.movil}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {empleado.dni}
+                          </td>
+                        </tr>
+                      ))}
+                      
+                      {empleadosFiltrados.length === 0 && !loading && (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                            No se encontraron empleados con los filtros seleccionados
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </Card>
           </div>
@@ -154,9 +182,6 @@ export default function EmpleadosPage() {
                     <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-gray-100">
                       {empleadoSeleccionado.nombre} {empleadoSeleccionado.apellidos}
                     </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {empleadoSeleccionado.puesto} - {empleadoSeleccionado.departamento}
-                    </p>
                   </div>
                   
                   <div className="space-y-2">
@@ -169,15 +194,13 @@ export default function EmpleadosPage() {
                       <span className="text-gray-900 dark:text-gray-100">{empleadoSeleccionado.movil}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-gray-400">Fecha de contratación:</span>
-                      <span className="text-gray-900 dark:text-gray-100">
-                        {new Date(empleadoSeleccionado.fechaContratacion).toLocaleDateString()}
-                      </span>
+                      <span className="text-gray-500 dark:text-gray-400">DNI:</span>
+                      <span className="text-gray-900 dark:text-gray-100">{empleadoSeleccionado.dni}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-gray-400">Estado:</span>
-                      <span className={empleadoSeleccionado.activo ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}>
-                        {empleadoSeleccionado.activo ? 'Activo' : 'Inactivo'}
+                      <span className="text-gray-500 dark:text-gray-400">Fecha de registro:</span>
+                      <span className="text-gray-900 dark:text-gray-100">
+                        {new Date(empleadoSeleccionado.created_at || '').toLocaleDateString()}
                       </span>
                     </div>
                   </div>
@@ -192,15 +215,22 @@ export default function EmpleadosPage() {
                   </div>
                   
                   <div className="pt-4 flex space-x-2">
-                    <Button variant="primary" size="sm" className="flex-1">
+                    <Button 
+                      variant="primary" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => { setModoModal('editar'); setIsModalEmpleadoOpen(true); }}
+                    >
                       Editar
                     </Button>
                     <Button 
-                      variant={empleadoSeleccionado.activo ? 'accent' : 'secondary'} 
+                      variant="accent"
                       size="sm" 
-                      className="flex-1"
+                      className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                      onClick={handleEliminarEmpleado}
+                      icon={<TrashIcon />}
                     >
-                      {empleadoSeleccionado.activo ? 'Desactivar' : 'Activar'}
+                      Eliminar
                     </Button>
                   </div>
                 </div>
@@ -213,6 +243,24 @@ export default function EmpleadosPage() {
           </div>
         </div>
       </div>
+
+      <ModalEmpleado
+        isOpen={isModalEmpleadoOpen}
+        onClose={() => setIsModalEmpleadoOpen(false)}
+        onSuccess={handleNuevoEmpleadoSuccess}
+        modo={modoModal}
+        empleado={modoModal === 'editar' && empleadoSeleccionado ? empleadoSeleccionado : undefined}
+      />
+
+      <ModalConfirmacion
+        isOpen={isModalConfirmacionOpen}
+        onClose={() => setIsModalConfirmacionOpen(false)}
+        onConfirm={handleConfirmarEliminacion}
+        titulo="Eliminar Empleado"
+        mensaje={`¿Estás seguro de que quieres eliminar al empleado ${empleadoSeleccionado?.nombre} ${empleadoSeleccionado?.apellidos}? Esta acción no se puede deshacer.`}
+        textoConfirmar="Eliminar"
+        textoCancelar="Cancelar"
+      />
     </ProtectedRoute>
   );
 } 

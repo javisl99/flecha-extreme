@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/shared/components';
 import { useParking } from '@/hooks/useParking';
+import { useClientes } from '@/hooks/useClientes';
 import PlazaInfoModal from '@/components/Parking/PlazaInfoModal';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
@@ -81,9 +82,11 @@ export default function ParkingPage() {
     getPagoReserva,
     tarifas
   } = useParking();
+  const { getCliente } = useClientes();
   const [plazaSeleccionada, setPlazaSeleccionada] = useState<PlazaParking | null>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [pagoInfo, setPagoInfo] = useState<PagoParking | undefined>(undefined);
+  const [clienteInfo, setClienteInfo] = useState<{ nombre: string; apellidos: string } | null>(null);
   const [tarjetasExpandidas, setTarjetasExpandidas] = useState<Record<string, boolean>>({
     embarcacion: false,
     tabla: false,
@@ -106,16 +109,21 @@ export default function ParkingPage() {
       if (plazaSeleccionada) {
         const reservaActual = getReservaActual(plazaSeleccionada.id);
         if (reservaActual?.id) {
-          const pago = await getPagoReserva(reservaActual.id);
+          const [pago, cliente] = await Promise.all([
+            getPagoReserva(reservaActual.id),
+            reservaActual.id_cliente ? getCliente(reservaActual.id_cliente) : null
+          ]);
           setPagoInfo(pago || undefined);
+          setClienteInfo(cliente || null);
         } else {
           setPagoInfo(undefined);
+          setClienteInfo(null);
         }
       }
     };
 
     fetchPagoInfo();
-  }, [plazaSeleccionada, getReservaActual, getPagoReserva]);
+  }, [plazaSeleccionada, getReservaActual, getPagoReserva, getCliente]);
 
   const getPlazasPorTipo = (tipo: string) => {
     return plazas.filter(plaza => plaza.tipo === tipo);
@@ -131,6 +139,7 @@ export default function ParkingPage() {
     fecha_inicio: string;
     fecha_fin: string;
     id_tarifa: string;
+    id_cliente: string | null;
     pago?: {
       concepto: string;
       metodo: MetodoPago;
@@ -144,6 +153,7 @@ export default function ParkingPage() {
       setModalAbierto(false);
       setPlazaSeleccionada(null);
       setPagoInfo(undefined);
+      setClienteInfo(null);
     }
   };
 
@@ -155,6 +165,7 @@ export default function ParkingPage() {
       setModalAbierto(false);
       setPlazaSeleccionada(null);
       setPagoInfo(undefined);
+      setClienteInfo(null);
     }
   };
 
@@ -276,10 +287,12 @@ export default function ParkingPage() {
             setModalAbierto(false);
             setPlazaSeleccionada(null);
             setPagoInfo(undefined);
+            setClienteInfo(null);
           }}
           plaza={plazaSeleccionada}
           reservaInfo={getReservaActual(plazaSeleccionada.id)}
           pagoInfo={pagoInfo}
+          clienteInfo={clienteInfo}
           onCrearReserva={handleCrearReserva}
           onEliminarReserva={handleEliminarReserva}
           tarifas={tarifas}
