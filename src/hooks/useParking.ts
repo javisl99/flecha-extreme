@@ -247,6 +247,7 @@ export function useParking() {
     fecha_inicio: string;
     fecha_fin: string;
     id_tarifa: string;
+    id_cliente: string | null;
     pago?: {
       concepto: string;
       metodo: MetodoPago;
@@ -262,7 +263,7 @@ export function useParking() {
         .from('reserva_parking')
         .insert([{
           id_plaza: plazaId,
-          id_cliente: null, // Por ahora siempre será null
+          id_cliente: data.id_cliente,
           id_tarifa: data.id_tarifa,
           fecha_inicio: data.fecha_inicio,
           fecha_fin: data.fecha_fin
@@ -284,7 +285,7 @@ export function useParking() {
         const { error: pagoError } = await supabaseClient
           .from('pago')
           .insert([{
-            id_cliente: null,
+            id_cliente: data.id_cliente,
             origen_tipo: 'parking',
             origen_id: reservaData.id,
             concepto: data.pago.concepto,

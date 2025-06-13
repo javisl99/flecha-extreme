@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useClientes } from '@/hooks/useClientes';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
@@ -19,6 +20,7 @@ interface ReservaFormProps {
     fecha_inicio: string;
     fecha_fin: string;
     id_tarifa: string;
+    id_cliente: string | null;
     pago?: {
       concepto: string;
       metodo: MetodoPago;
@@ -36,10 +38,12 @@ export default function ReservaForm({
   plazaCodigo,
   tarifas 
 }: ReservaFormProps) {
+  const { clientes, loading: loadingClientes } = useClientes();
   const [formData, setFormData] = useState({
     fecha_inicio: '',
     fecha_fin: '',
     id_tarifa: '',
+    id_cliente: '',
     pago: {
       concepto: '',
       metodo: 'efectivo' as MetodoPago,
@@ -56,7 +60,10 @@ export default function ReservaForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      id_cliente: formData.id_cliente || null
+    });
     onClose();
   };
 
@@ -124,6 +131,29 @@ export default function ReservaForm({
                   {/* Contenido */}
                   <div className="px-6 py-4">
                     <div className="space-y-4">
+                      <div>
+                        <label htmlFor="cliente" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Cliente
+                        </label>
+                        <select
+                          id="cliente"
+                          className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                          value={formData.id_cliente}
+                          onChange={(e) => setFormData({ ...formData, id_cliente: e.target.value })}
+                        >
+                          <option value="">Sin cliente asignado</option>
+                          {loadingClientes ? (
+                            <option disabled>Cargando clientes...</option>
+                          ) : (
+                            clientes.map((cliente) => (
+                              <option key={cliente.id} value={cliente.id}>
+                                {cliente.nombre} {cliente.apellidos}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+
                       <div>
                         <label htmlFor="tarifa" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                           Tarifa
