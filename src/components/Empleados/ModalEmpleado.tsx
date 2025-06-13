@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Button } from '@/shared/components';
+import { Button } from '@/shared/components';
 import { useEmpleados, type Empleado } from '@/hooks/useEmpleados';
 import { toast } from 'react-hot-toast';
 
