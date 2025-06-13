@@ -2,9 +2,13 @@
 
 import { useState } from 'react';
 import { Card, Button } from '@/shared/components';
-import { clientesMock } from '@/components/Clientes/data';
 import { Cliente } from '@/shared/types';
-import { FiltrosCliente } from '@/components/Clientes/types';
+import { useClientes } from '@/hooks/useClientes';
+import ModalCliente from '@/components/Clientes/modalCliente';
+import { FiltrosClientes, type FiltrosClienteState } from '@/components/Clientes/FiltrosClientes';
+import { toast } from 'react-hot-toast';
+import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
+import TableSkeleton from '@/components/shared/TableSkeleton';
 
 const UserIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -12,55 +16,72 @@ const UserIcon = () => (
   </svg>
 );
 
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+
 export default function ClientesPage() {
-  const [filtros, setFiltros] = useState<FiltrosCliente>({
-    busqueda: '',
-    ordenarPor: 'nombre',
-    direccion: 'asc'
+  const [filtros, setFiltros] = useState<FiltrosClienteState>({
+    nombre: '',
+    apellidos: '',
+    email: '',
+    movil: '',
+    dni: ''
   });
   
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
+  const [modoModal, setModoModal] = useState<'nuevo' | 'editar'>('nuevo');
+  const { clientes, loading, error, refreshClientes, eliminarCliente } = useClientes();
   
-  // Filtrar y ordenar clientes
-  const clientesFiltrados = clientesMock
-    .filter((cliente) => {
-      if (!filtros.busqueda) return true;
-      
-      const termino = filtros.busqueda.toLowerCase();
-      return (
-        cliente.nombre.toLowerCase().includes(termino) ||
-        cliente.apellidos.toLowerCase().includes(termino) ||
-        cliente.email.toLowerCase().includes(termino) ||
-        cliente.telefono.toLowerCase().includes(termino) ||
-        (cliente.dni && cliente.dni.toLowerCase().includes(termino))
-      );
-    })
-    .sort((a, b) => {
-      const orden = filtros.direccion === 'asc' ? 1 : -1;
-      
-      switch (filtros.ordenarPor) {
-        case 'nombre':
-          return a.nombre.localeCompare(b.nombre) * orden;
-        case 'apellidos':
-          return a.apellidos.localeCompare(b.apellidos) * orden;
-        case 'fechaRegistro':
-          return (new Date(a.fechaRegistro).getTime() - new Date(b.fechaRegistro).getTime()) * orden;
-        default:
-          return 0;
-      }
-    });
-    
-  const handleBusqueda = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFiltros({ ...filtros, busqueda: e.target.value });
+  const clientesFiltrados = clientes.filter(cliente => {
+    const cumpleNombre = !filtros.nombre || cliente.nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
+    const cumpleApellidos = !filtros.apellidos || cliente.apellidos.toLowerCase().includes(filtros.apellidos.toLowerCase());
+    const cumpleEmail = !filtros.email || cliente.email.toLowerCase().includes(filtros.email.toLowerCase());
+    const cumpleMovil = !filtros.movil || String(cliente.movil).includes(filtros.movil);
+    const cumpleDni = !filtros.dni || (cliente.dni && cliente.dni.toLowerCase().includes(filtros.dni.toLowerCase()));
+
+    return cumpleNombre && cumpleApellidos && cumpleEmail && cumpleMovil && cumpleDni;
+  });
+
+  const handleNuevoClienteSuccess = async (updatedClient: Cliente) => {
+    await refreshClientes();
+    setClienteSeleccionado(updatedClient);
   };
-  
-  const handleOrdenar = (campo: FiltrosCliente['ordenarPor']) => {
-    if (filtros.ordenarPor === campo) {
-      setFiltros({ ...filtros, direccion: filtros.direccion === 'asc' ? 'desc' : 'asc' });
-    } else {
-      setFiltros({ ...filtros, ordenarPor: campo, direccion: 'asc' });
+
+  const handleEliminarCliente = async () => {
+    if (!clienteSeleccionado) return;
+    setIsModalConfirmacionOpen(true);
+  };
+
+  const handleConfirmarEliminacion = async () => {
+    if (!clienteSeleccionado) return;
+    
+    try {
+      const result = await eliminarCliente(clienteSeleccionado.id);
+      if (!result.error) {
+        toast.success('Cliente eliminado correctamente');
+        setClienteSeleccionado(null);
+        await refreshClientes();
+      } else {
+        toast.error('Error al eliminar el cliente');
+      }
+    } catch (error) {
+      console.error('Error al eliminar cliente:', error);
+      toast.error('Error al eliminar el cliente');
     }
   };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg text-red-500">{error}</div>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">
@@ -70,6 +91,7 @@ export default function ClientesPage() {
           variant="primary"
           icon={<UserIcon />}
           className="cursor-pointer"
+          onClick={() => { setModoModal('nuevo'); setIsModalOpen(true); }}
         >
           Nuevo Cliente
         </Button>
@@ -78,80 +100,67 @@ export default function ClientesPage() {
       <div className="flex flex-col md:flex-row gap-4">
         <div className="w-full md:w-2/3">
           <Card>
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Buscar cliente..."
-                className="w-full px-4 py-2 border border-input-border dark:border-input-border bg-input-bg dark:bg-input-bg rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                value={filtros.busqueda}
-                onChange={handleBusqueda}
-              />
-            </div>
+            <FiltrosClientes onFiltrosChange={setFiltros} />
             
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead>
-                  <tr>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
-                      onClick={() => handleOrdenar('nombre')}
-                    >
-                      Nombre {filtros.ordenarPor === 'nombre' && (filtros.direccion === 'asc' ? '▲' : '▼')}
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
-                      onClick={() => handleOrdenar('apellidos')}
-                    >
-                      Apellidos {filtros.ordenarPor === 'apellidos' && (filtros.direccion === 'asc' ? '▲' : '▼')}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Teléfono
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
-                      onClick={() => handleOrdenar('fechaRegistro')}
-                    >
-                      Registro {filtros.ordenarPor === 'fechaRegistro' && (filtros.direccion === 'asc' ? '▲' : '▼')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-card-bg divide-y divide-gray-200 dark:divide-gray-700">
-                  {clientesFiltrados.map((cliente) => (
-                    <tr 
-                      key={cliente.id} 
-                      className="hover:bg-table-row-hover dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                      onClick={() => setClienteSeleccionado(cliente)}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {cliente.nombre}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                        {cliente.apellidos}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {cliente.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {cliente.telefono}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(cliente.fechaRegistro).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                  
-                  {clientesFiltrados.length === 0 && (
+              {loading ? (
+                <TableSkeleton columns={5} rows={5} />
+              ) : (
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead>
                     <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                        No se encontraron clientes con esos criterios
-                      </td>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Nombre
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Apellidos
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Móvil
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        DNI
+                      </th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-card-bg divide-y divide-gray-200 dark:divide-gray-700">
+                    {clientesFiltrados.map((cliente) => (
+                      <tr 
+                        key={cliente.id} 
+                        className="hover:bg-table-row-hover dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                        onClick={() => setClienteSeleccionado(cliente)}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {cliente.nombre}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                          {cliente.apellidos}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {cliente.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {cliente.movil}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {cliente.dni || 'No especificado'}
+                        </td>
+                      </tr>
+                    ))}
+                    
+                    {clientesFiltrados.length === 0 && !loading && (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                          No se encontraron clientes con esos criterios
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </Card>
         </div>
@@ -173,8 +182,8 @@ export default function ClientesPage() {
                     <span className="text-gray-900 dark:text-gray-100">{clienteSeleccionado.email}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Teléfono:</span>
-                    <span className="text-gray-900 dark:text-gray-100">{clienteSeleccionado.telefono}</span>
+                    <span className="text-gray-500 dark:text-gray-400">Móvil:</span>
+                    <span className="text-gray-900 dark:text-gray-100">{clienteSeleccionado.movil || 'No especificado'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">DNI:</span>
@@ -205,22 +214,46 @@ export default function ClientesPage() {
                 </div>
                 
                 <div className="pt-4 flex space-x-2">
-                  <Button variant="primary" size="sm" className="flex-1">
+                  <Button variant="primary" size="sm" className="flex-1" onClick={() => { setModoModal('editar'); setIsModalOpen(true); }}>
                     Editar
                   </Button>
-                  <Button variant="accent" size="sm" className="flex-1">
-                    Nueva Reserva
+                  <Button 
+                    variant="accent" 
+                    size="sm" 
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                    onClick={handleEliminarCliente}
+                    icon={<TrashIcon />}
+                  >
+                    Eliminar
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-10 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 Selecciona un cliente para ver sus detalles
               </div>
             )}
           </Card>
         </div>
       </div>
+
+      <ModalCliente
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleNuevoClienteSuccess}
+        modo={modoModal}
+        cliente={modoModal === 'editar' && clienteSeleccionado ? clienteSeleccionado : undefined}
+      />
+
+      <ModalConfirmacion
+        isOpen={isModalConfirmacionOpen}
+        onClose={() => setIsModalConfirmacionOpen(false)}
+        onConfirm={handleConfirmarEliminacion}
+        titulo="Eliminar Cliente"
+        mensaje={`¿Estás seguro de que quieres eliminar al cliente ${clienteSeleccionado?.nombre} ${clienteSeleccionado?.apellidos}? Esta acción no se puede deshacer.`}
+        textoConfirmar="Eliminar"
+        textoCancelar="Cancelar"
+      />
     </div>
   );
 } 

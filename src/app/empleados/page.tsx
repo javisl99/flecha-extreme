@@ -166,7 +166,7 @@ export default function EmpleadosPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500 dark:text-gray-400">Teléfono:</span>
-                      <span className="text-gray-900 dark:text-gray-100">{empleadoSeleccionado.telefono}</span>
+                      <span className="text-gray-900 dark:text-gray-100">{empleadoSeleccionado.movil}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500 dark:text-gray-400">Fecha de contratación:</span>

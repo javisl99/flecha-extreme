@@ -1,54 +1,53 @@
-import { useState } from 'react';
-import { DocumentIcon, CalendarIcon, UserIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from 'react';
+import { UserIcon, EnvelopeIcon, PhoneIcon, IdentificationIcon } from '@heroicons/react/24/outline';
 
-export interface FiltrosDocumentoState {
+export interface FiltrosClienteState {
   nombre: string;
-  descripcion: string;
-  usuario: string;
-  fechaDesde: string;
-  fechaHasta: string;
+  apellidos: string;
+  email: string;
+  movil: string;
+  dni: string;
 }
 
-interface FiltrosDocumentosProps {
-  onFiltrosChange: (filtros: FiltrosDocumentoState) => void;
+interface FiltrosClientesProps {
+  onFiltrosChange: (filtros: FiltrosClienteState) => void;
 }
 
-export function FiltrosDocumentos({ onFiltrosChange }: FiltrosDocumentosProps) {
+export function FiltrosClientes({ onFiltrosChange }: FiltrosClientesProps) {
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
   
-  const [filtros, setFiltros] = useState<FiltrosDocumentoState>({
+  const [filtros, setFiltros] = useState<FiltrosClienteState>({
     nombre: '',
-    descripcion: '',
-    usuario: '',
-    fechaDesde: '',
-    fechaHasta: ''
+    apellidos: '',
+    email: '',
+    movil: '',
+    dni: ''
   });
 
+  // Usar useEffect para notificar al padre de los cambios
+  useEffect(() => {
+    onFiltrosChange(filtros);
+  }, [filtros, onFiltrosChange]);
+
   // Manejar cambios en los filtros
-  const handleFiltroChange = (campo: keyof FiltrosDocumentoState, valor: string) => {
-    setFiltros(prevFiltros => {
-      const nuevosFiltros = {
-        ...prevFiltros,
-        [campo]: valor
-      };
-      
-      onFiltrosChange(nuevosFiltros);
-      return nuevosFiltros;
-    });
+  const handleFiltroChange = (campo: keyof FiltrosClienteState, valor: string) => {
+    setFiltros(prevFiltros => ({
+      ...prevFiltros,
+      [campo]: valor
+    }));
   };
 
   // Limpiar todos los filtros
   const limpiarFiltros = () => {
-    const filtrosVacios: FiltrosDocumentoState = {
+    const filtrosVacios: FiltrosClienteState = {
       nombre: '',
-      descripcion: '',
-      usuario: '',
-      fechaDesde: '',
-      fechaHasta: ''
+      apellidos: '',
+      email: '',
+      movil: '',
+      dni: ''
     };
     
     setFiltros(filtrosVacios);
-    onFiltrosChange(filtrosVacios);
   };
 
   const inputIconClass = "absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400";
@@ -79,10 +78,10 @@ export function FiltrosDocumentos({ onFiltrosChange }: FiltrosDocumentosProps) {
             {/* Filtro por Nombre */}
             <div>
               <label htmlFor="filtro-nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Nombre del documento
+                Nombre
               </label>
               <div className="relative">
-                <DocumentIcon className={inputIconClass} />
+                <UserIcon className={inputIconClass} />
                 <input
                   id="filtro-nombre"
                   type="text"
@@ -94,71 +93,73 @@ export function FiltrosDocumentos({ onFiltrosChange }: FiltrosDocumentosProps) {
               </div>
             </div>
 
-            {/* Filtro por Descripción */}
+            {/* Filtro por Apellidos */}
             <div>
-              <label htmlFor="filtro-descripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Descripción
-              </label>
-              <div className="relative">
-                <DocumentIcon className={inputIconClass} />
-                <input
-                  id="filtro-descripcion"
-                  type="text"
-                  value={filtros.descripcion}
-                  onChange={(e) => handleFiltroChange('descripcion', e.target.value)}
-                  placeholder="Buscar en descripción..."
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-            </div>
-
-            {/* Filtro por Usuario */}
-            <div>
-              <label htmlFor="filtro-usuario" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Usuario
+              <label htmlFor="filtro-apellidos" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Apellidos
               </label>
               <div className="relative">
                 <UserIcon className={inputIconClass} />
                 <input
-                  id="filtro-usuario"
+                  id="filtro-apellidos"
                   type="text"
-                  value={filtros.usuario}
-                  onChange={(e) => handleFiltroChange('usuario', e.target.value)}
-                  placeholder="Buscar por usuario..."
+                  value={filtros.apellidos}
+                  onChange={(e) => handleFiltroChange('apellidos', e.target.value)}
+                  placeholder="Buscar por apellidos..."
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
             </div>
 
-            {/* Filtro por Fecha desde */}
+            {/* Filtro por Email */}
             <div>
-              <label htmlFor="filtro-fecha-desde" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Fecha desde
+              <label htmlFor="filtro-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Email
               </label>
               <div className="relative">
-                <CalendarIcon className={inputIconClass} />
+                <EnvelopeIcon className={inputIconClass} />
                 <input
-                  id="filtro-fecha-desde"
-                  type="date"
-                  value={filtros.fechaDesde}
-                  onChange={(e) => handleFiltroChange('fechaDesde', e.target.value)}
+                  id="filtro-email"
+                  type="text"
+                  value={filtros.email}
+                  onChange={(e) => handleFiltroChange('email', e.target.value)}
+                  placeholder="Buscar por email..."
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
             </div>
 
-            {/* Filtro por Fecha hasta */}
+            {/* Filtro por Móvil */}
             <div>
-              <label htmlFor="filtro-fecha-hasta" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Fecha hasta
+              <label htmlFor="filtro-movil" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Móvil
               </label>
               <div className="relative">
-                <CalendarIcon className={inputIconClass} />
+                <PhoneIcon className={inputIconClass} />
                 <input
-                  id="filtro-fecha-hasta"
-                  type="date"
-                  value={filtros.fechaHasta}
-                  onChange={(e) => handleFiltroChange('fechaHasta', e.target.value)}
+                  id="filtro-movil"
+                  type="text"
+                  value={filtros.movil}
+                  onChange={(e) => handleFiltroChange('movil', e.target.value)}
+                  placeholder="Buscar por móvil..."
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+            </div>
+
+            {/* Filtro por DNI */}
+            <div>
+              <label htmlFor="filtro-dni" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                DNI
+              </label>
+              <div className="relative">
+                <IdentificationIcon className={inputIconClass} />
+                <input
+                  id="filtro-dni"
+                  type="text"
+                  value={filtros.dni}
+                  onChange={(e) => handleFiltroChange('dni', e.target.value)}
+                  placeholder="Buscar por DNI..."
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
@@ -183,11 +184,11 @@ export function FiltrosDocumentos({ onFiltrosChange }: FiltrosDocumentosProps) {
           </div>
         )}
 
-        {filtros.descripcion && (
+        {filtros.apellidos && (
           <div className="flex items-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-sm">
-            <span>Descripción: {filtros.descripcion}</span>
+            <span>Apellidos: {filtros.apellidos}</span>
             <button 
-              onClick={() => handleFiltroChange('descripcion', '')}
+              onClick={() => handleFiltroChange('apellidos', '')}
               className="ml-2 text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-500"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -197,11 +198,11 @@ export function FiltrosDocumentos({ onFiltrosChange }: FiltrosDocumentosProps) {
           </div>
         )}
 
-        {filtros.usuario && (
+        {filtros.email && (
           <div className="flex items-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-sm">
-            <span>Usuario: {filtros.usuario}</span>
+            <span>Email: {filtros.email}</span>
             <button 
-              onClick={() => handleFiltroChange('usuario', '')}
+              onClick={() => handleFiltroChange('email', '')}
               className="ml-2 text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-500"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -211,18 +212,11 @@ export function FiltrosDocumentos({ onFiltrosChange }: FiltrosDocumentosProps) {
           </div>
         )}
 
-        {(filtros.fechaDesde || filtros.fechaHasta) && (
+        {filtros.movil && (
           <div className="flex items-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-sm">
-            <span>
-              Fecha: 
-              {filtros.fechaDesde ? ` desde ${new Date(filtros.fechaDesde).toLocaleDateString('es-ES')}` : ''}
-              {filtros.fechaHasta ? ` hasta ${new Date(filtros.fechaHasta).toLocaleDateString('es-ES')}` : ''}
-            </span>
+            <span>Móvil: {filtros.movil}</span>
             <button 
-              onClick={() => {
-                handleFiltroChange('fechaDesde', '');
-                handleFiltroChange('fechaHasta', '');
-              }}
+              onClick={() => handleFiltroChange('movil', '')}
               className="ml-2 text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-500"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -232,7 +226,21 @@ export function FiltrosDocumentos({ onFiltrosChange }: FiltrosDocumentosProps) {
           </div>
         )}
 
-        {(filtros.nombre || filtros.descripcion || filtros.usuario || filtros.fechaDesde || filtros.fechaHasta) && (
+        {filtros.dni && (
+          <div className="flex items-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-sm">
+            <span>DNI: {filtros.dni}</span>
+            <button 
+              onClick={() => handleFiltroChange('dni', '')}
+              className="ml-2 text-blue-500 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-500"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {(filtros.nombre || filtros.apellidos || filtros.email || filtros.movil || filtros.dni) && (
           <button 
             onClick={limpiarFiltros}
             className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"

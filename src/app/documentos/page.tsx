@@ -2,12 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Button } from '@/shared/components';
+import { DocumentIcon } from '@heroicons/react/24/outline';
 import { SubirDocumentoModal } from '@/components/Documentos/SubirDocumentoModal';
 import { useDocumentos, Documento } from '@/hooks/useDocumentos';
 import { toast } from 'react-hot-toast';
 import ProtectedRoute from '@/components/Layout/ProtectedRoute';
 import { useUserData } from '@/hooks/useUserData';
 import { FiltrosDocumentos, type FiltrosDocumentoState } from '@/components/Documentos/FiltrosDocumentos';
+import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
+import TableSkeleton from '@/components/shared/TableSkeleton';
 
 export default function DocumentosPage() {
   const [filtros, setFiltros] = useState<FiltrosDocumentoState>({
@@ -18,9 +21,11 @@ export default function DocumentosPage() {
     fechaHasta: ''
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
+  const [documentoAEliminar, setDocumentoAEliminar] = useState<Documento | null>(null);
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { obtenerDocumentos, eliminarDocumento } = useDocumentos();
   const { usuario, loading: userLoading } = useUserData();
   
@@ -41,7 +46,6 @@ export default function DocumentosPage() {
 
   const cargarDocumentos = useCallback(async () => {
     try {
-      setIsLoading(true);
       const result = await obtenerDocumentos();
       
       if (result.success && result.data) {
@@ -53,28 +57,47 @@ export default function DocumentosPage() {
     } catch (error) {
       console.error('Error al cargar documentos:', error);
       toast.error('Error al cargar los documentos');
-    } finally {
-      setIsLoading(false);
     }
   }, [obtenerDocumentos]);
 
   useEffect(() => {
-    if (!userLoading && usuario) {
-      cargarDocumentos();
-    }
-  }, [userLoading, usuario, cargarDocumentos]);
+    const inicializarDatos = async () => {
+      if (!userLoading && usuario) {
+        try {
+          const result = await obtenerDocumentos();
+          if (result.success && result.data) {
+            setDocumentos(result.data);
+          } else {
+            console.error('Error al cargar documentos:', result.error);
+            toast.error('Error al cargar los documentos');
+          }
+        } catch (error) {
+          console.error('Error al cargar documentos:', error);
+          toast.error('Error al cargar los documentos');
+        } finally {
+          setIsInitialLoading(false);
+        }
+      }
+    };
 
-  const handleEliminarDocumento = async (documento: Documento) => {
-    const confirmacion = window.confirm('¿Estás seguro de que quieres eliminar este documento?');
-    if (!confirmacion) return;
+    inicializarDatos();
+  }, [userLoading, usuario, obtenerDocumentos]);
+
+  const handleEliminarDocumento = (documento: Documento) => {
+    setDocumentoAEliminar(documento);
+    setIsModalConfirmacionOpen(true);
+  };
+
+  const handleConfirmarEliminacion = async () => {
+    if (!documentoAEliminar) return;
 
     try {
       setIsDeleting(true);
-      const result = await eliminarDocumento(documento);
+      const result = await eliminarDocumento(documentoAEliminar);
       
       if (result.success) {
+        setDocumentos(docs => docs.filter(doc => doc.id !== documentoAEliminar.id));
         toast.success('Documento eliminado correctamente');
-        await cargarDocumentos();
       } else {
         toast.error(result.error || 'Error al eliminar el documento');
       }
@@ -83,6 +106,8 @@ export default function DocumentosPage() {
       toast.error('Error inesperado al eliminar el documento');
     } finally {
       setIsDeleting(false);
+      setIsModalConfirmacionOpen(false);
+      setDocumentoAEliminar(null);
     }
   };
 
@@ -97,9 +122,11 @@ export default function DocumentosPage() {
           <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Documentos</h1>
           <Button 
             variant="primary" 
-            className="cursor-pointer"
+            className="cursor-pointer flex items-center gap-2"
             onClick={() => setIsModalOpen(true)}
+            disabled={isInitialLoading}
           >
+            <DocumentIcon className="h-5 w-5" />
             Subir Documento
           </Button>
         </div>
@@ -110,9 +137,11 @@ export default function DocumentosPage() {
           </div>
           
           <div className="overflow-x-auto">
-            {isLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            {isInitialLoading || userLoading ? (
+              <TableSkeleton columns={5} rows={5} />
+            ) : documentosFiltrados.length === 0 ? (
+              <div className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                No se encontraron documentos que coincidan con los filtros aplicados
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -161,7 +190,10 @@ export default function DocumentosPage() {
                             </svg>
                           </a>
                           <button 
-                            onClick={() => handleEliminarDocumento(documento)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEliminarDocumento(documento);
+                            }}
                             className="p-1.5 rounded-full text-red-600 dark:text-red-500 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 cursor-pointer" 
                             title="Eliminar"
                             disabled={isDeleting}
@@ -174,14 +206,6 @@ export default function DocumentosPage() {
                       </td>
                     </tr>
                   ))}
-                  
-                  {documentosFiltrados.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                        No se encontraron documentos que coincidan con los filtros aplicados
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             )}
@@ -191,7 +215,23 @@ export default function DocumentosPage() {
         <SubirDocumentoModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          onSuccess={cargarDocumentos}
+          onSuccess={() => {
+            setIsModalOpen(false);
+            cargarDocumentos();
+          }}
+        />
+
+        <ModalConfirmacion
+          isOpen={isModalConfirmacionOpen}
+          onClose={() => {
+            setIsModalConfirmacionOpen(false);
+            setDocumentoAEliminar(null);
+          }}
+          onConfirm={handleConfirmarEliminacion}
+          titulo="Eliminar Documento"
+          mensaje={`¿Estás seguro de que quieres eliminar el documento "${documentoAEliminar?.nombre}"? Esta acción no se puede deshacer.`}
+          textoConfirmar="Eliminar"
+          textoCancelar="Cancelar"
         />
       </div>
     </ProtectedRoute>
