@@ -255,6 +255,22 @@ export function useClientes() {
     }
   };
 
+  const getCliente = useCallback(async (id: string) => {
+    try {
+      const { data, error } = await supabaseClient
+        .from('cliente')
+        .select('nombre, apellidos')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error('Error al obtener el cliente:', err);
+      return null;
+    }
+  }, []);
+
   return {
     clientes,
     loading,
@@ -262,6 +278,7 @@ export function useClientes() {
     crearCliente,
     actualizarCliente,
     eliminarCliente,
-    refreshClientes
+    refreshClientes,
+    getCliente
   };
 } 
