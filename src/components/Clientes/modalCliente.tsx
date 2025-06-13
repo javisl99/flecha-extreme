@@ -320,7 +320,7 @@ export default function ModalCliente({ isOpen, onClose, onSuccess, modo, cliente
       <Toast
         message={toast.message}
         type={toast.type}
-        show={toast.visible}
+        visible={toast.visible}
         onClose={() => setToast(prev => ({ ...prev, visible: false }))}
       />
     </>
