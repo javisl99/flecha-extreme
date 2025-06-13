@@ -4,9 +4,7 @@ import { useState } from 'react';
 import { Card } from '@/shared/components';
 import ResumenDiario from '@/components/Dashboard/ResumenDiario';
 import ReservasHoy from '@/components/Dashboard/ReservasHoy';
-import PagosRecientes from '@/components/Dashboard/PagosRecientes';
 import { reservasMock } from '@/components/Reservas/data';
-import { pagosMock } from '@/components/Pagos/data';
 import { movimientosCajaMock } from '@/components/Contabilidad/data';
 
 // Componentes de iconos SVG para el dashboard
@@ -39,7 +37,6 @@ export default function DashboardPage() {
   
   // Filtrar datos para la fecha actual
   const reservasHoy = reservasMock.filter(r => r.fecha === fecha);
-  const pagosRecientes = pagosMock.filter(p => p.fechaPago === fecha);
   
   // Calcular KPIs
   const reservasPendientes = reservasMock.filter(r => r.estado === 'Pendiente').length;
@@ -93,10 +90,6 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ResumenDiario fecha={fecha} />
         <ReservasHoy reservas={reservasHoy} />
-      </div>
-      
-      <div className="mt-6">
-        <PagosRecientes pagos={pagosRecientes} />
       </div>
     </div>
   );
