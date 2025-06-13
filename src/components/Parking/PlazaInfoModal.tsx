@@ -2,7 +2,6 @@ import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import ReservaForm from './ReservaForm';
-import { useClientes } from '@/hooks/useClientes';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
@@ -71,7 +70,6 @@ export default function PlazaInfoModal({
   onCrearReserva 
 }: PlazaInfoModalProps) {
   const [showReservaForm, setShowReservaForm] = useState(false);
-  const { clientes } = useClientes();
 
   const formatearFecha = (fecha: string) => {
     return new Date(fecha).toLocaleString('es-ES', {
@@ -149,11 +147,6 @@ export default function PlazaInfoModal({
   const getTarifaInfo = () => {
     if (!reservaInfo?.id_tarifa) return null;
     return tarifas.find(t => t.id === reservaInfo.id_tarifa);
-  };
-
-  const getClienteInfo = () => {
-    if (!reservaInfo?.id_cliente) return null;
-    return clientes.find(c => c.id === reservaInfo.id_cliente);
   };
 
   return (
