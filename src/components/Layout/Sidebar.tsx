@@ -69,15 +69,21 @@ const LogoutIcon = () => (
   </svg>
 );
 
+const BetaBadge = () => (
+  <span className="ml-2 px-2 py-0.5 text-[10px] font-semibold bg-white text-primary-dark rounded-full">
+    Beta
+  </span>
+);
+
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: DashboardIcon },
   { name: 'Reservas', href: '/reservas', icon: ReservasIcon },
-  { name: 'Clientes', href: '/clientes', icon: ClientesIcon },
-  { name: 'Pagos', href: '/pagos', icon: PagosIcon },
-  { name: 'Parking', href: '/parking', icon: ParkingIcon },
-  { name: 'Documentos', href: '/documentos', icon: DocumentosIcon },
+  { name: 'Clientes', href: '/clientes', icon: ClientesIcon, isBeta: true },
+  { name: 'Pagos', href: '/pagos', icon: PagosIcon, isBeta: true },
+  { name: 'Parking', href: '/parking', icon: ParkingIcon, isBeta: true },
+  { name: 'Documentos', href: '/documentos', icon: DocumentosIcon, isBeta: true },
   { name: 'Contabilidad', href: '/contabilidad', icon: ContabilidadIcon, roles: ['admin', 'fl-admin'] },
-  { name: 'Empleados', href: '/empleados', icon: EmpleadosIcon, roles: ['admin', 'fl-admin'] },
+  { name: 'Empleados', href: '/empleados', icon: EmpleadosIcon, roles: ['admin', 'fl-admin'], isBeta: true },
   { name: 'Configuración', href: '/configuracion', icon: ConfiguracionIcon },
 ];
 
@@ -171,6 +177,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
                       <item.icon />
                     </span>
                     {item.name}
+                    {item.isBeta && <BetaBadge />}
                   </Link>
                 </li>
               );

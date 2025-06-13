@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import ReservaForm from './ReservaForm';
+import { useClientes } from '@/hooks/useClientes';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
@@ -42,12 +43,14 @@ interface PlazaInfoModalProps {
     fecha_fin: string;
   };
   pagoInfo?: PagoParking;
+  clienteInfo?: { nombre: string; apellidos: string } | null;
   tarifas: TarifaParking[];
   onEliminarReserva?: () => void;
   onCrearReserva?: (data: {
     fecha_inicio: string;
     fecha_fin: string;
     id_tarifa: string;
+    id_cliente: string | null;
     pago?: {
       concepto: string;
       metodo: MetodoPago;
@@ -62,11 +65,13 @@ export default function PlazaInfoModal({
   plaza, 
   reservaInfo,
   pagoInfo,
+  clienteInfo,
   tarifas,
   onEliminarReserva,
   onCrearReserva 
 }: PlazaInfoModalProps) {
   const [showReservaForm, setShowReservaForm] = useState(false);
+  const { clientes } = useClientes();
 
   const formatearFecha = (fecha: string) => {
     return new Date(fecha).toLocaleString('es-ES', {
@@ -130,6 +135,12 @@ export default function PlazaInfoModal({
     fecha_inicio: string;
     fecha_fin: string;
     id_tarifa: string;
+    id_cliente: string | null;
+    pago?: {
+      concepto: string;
+      metodo: MetodoPago;
+      estado: EstadoPago;
+    };
   }) => {
     onCrearReserva?.(data);
     setShowReservaForm(false);
@@ -138,6 +149,11 @@ export default function PlazaInfoModal({
   const getTarifaInfo = () => {
     if (!reservaInfo?.id_tarifa) return null;
     return tarifas.find(t => t.id === reservaInfo.id_tarifa);
+  };
+
+  const getClienteInfo = () => {
+    if (!reservaInfo?.id_cliente) return null;
+    return clientes.find(c => c.id === reservaInfo.id_cliente);
   };
 
   return (
@@ -212,6 +228,22 @@ export default function PlazaInfoModal({
                             Información de la Reserva
                           </h4>
                           <div className="space-y-4">
+                            {clienteInfo && (
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                  Cliente
+                                </p>
+                                <div className="flex items-center">
+                                  <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary-light text-white flex items-center justify-center text-sm">
+                                    {clienteInfo.nombre.charAt(0)}{clienteInfo.apellidos.charAt(0)}
+                                  </div>
+                                  <p className="ml-3 text-sm text-gray-900 dark:text-gray-100">
+                                    {clienteInfo.nombre} {clienteInfo.apellidos}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1">
                                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
