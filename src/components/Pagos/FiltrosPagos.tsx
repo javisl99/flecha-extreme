@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CurrencyDollarIcon, UserIcon, DocumentTextIcon, CreditCardIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { UserIcon, DocumentTextIcon, CreditCardIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { Pago } from '@/hooks/usePagos';
 
 export interface FiltrosPagoState {
