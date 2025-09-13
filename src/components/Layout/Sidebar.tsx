@@ -63,6 +63,13 @@ const ParkingIcon = () => (
   </svg>
 );
 
+// Icono de cesta de compra (shopping basket)
+const TiendaIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l1 9a2 2 0 002 2h8a2 2 0 002-2l1-9M9 11V7a3 3 0 116 0v4M3 11h18" />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -81,6 +88,7 @@ const navigation = [
   { name: 'Clientes', href: '/clientes', icon: ClientesIcon, isBeta: true },
   { name: 'Pagos', href: '/pagos', icon: PagosIcon, isBeta: true },
   { name: 'Parking', href: '/parking', icon: ParkingIcon, isBeta: true },
+  { name: 'Tienda', href: '/tienda', icon: TiendaIcon, isBeta: true },
   { name: 'Documentos', href: '/documentos', icon: DocumentosIcon, isBeta: true },
   { name: 'Contabilidad', href: '/contabilidad', icon: ContabilidadIcon, roles: ['admin', 'fl-admin'] },
   { name: 'Empleados', href: '/empleados', icon: EmpleadosIcon, roles: ['admin', 'fl-admin'], isBeta: true },
