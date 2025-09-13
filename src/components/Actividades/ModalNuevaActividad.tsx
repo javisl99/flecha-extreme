@@ -1,17 +1,23 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { useActividades } from '@/hooks/useActividades';
+import { useActividades, ActividadDB, TarifaActividad } from '@/hooks/useActividades';
 import { Toast } from '@/shared/components';
+import { SelectorCliente } from './SelectorCliente';
 
 interface ModalNuevaActividadProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: {
     nombre: string;
-    tipo: 'alquiler' | 'curso' | 'ruta' | 'campamento';
+    tipo: 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros';
+    numeroPersonas: number;
+    fecha: string;
+    horaInicio: string;
+    horaFin: string;
     requiereReserva: boolean;
     precioReserva?: number;
+    clienteId?: string | null;
   }) => void;
   onToast: (toast: { visible: boolean; message: string; type: 'success' | 'error' }) => void;
 }
@@ -22,14 +28,22 @@ export default function ModalNuevaActividad({
   onSubmit,
   onToast
 }: ModalNuevaActividadProps) {
-  const { crearActividad, loading } = useActividades();
+  const { crearActividad, obtenerActividadesPorTipo, obtenerTarifasActividad, loading, loadingActividades, error: errorActividades } = useActividades();
   const [formData, setFormData] = useState({
     nombre: '',
-    tipo: 'alquiler' as 'alquiler' | 'curso' | 'ruta' | 'campamento',
-    requiereReserva: false,
-    precioReserva: 0
+    tipo: 'alquiler' as 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros',
+    numeroPersonas: 1,
+    duracion: '',
+    fecha: '',
+    horaInicio: '09:00',
+    horaFin: ''
   });
 
+  const [actividadesExistentes, setActividadesExistentes] = useState<ActividadDB[]>([]);
+  const [tipoCargado, setTipoCargado] = useState<string>('');
+  const [tarifasActividad, setTarifasActividad] = useState<TarifaActividad[]>([]);
+  const [actividadSeleccionada, setActividadSeleccionada] = useState<ActividadDB | null>(null);
+  const [clienteId, setClienteId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
     visible: false,
@@ -37,11 +51,107 @@ export default function ModalNuevaActividad({
     type: 'success'
   });
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  // Cargar actividades cuando cambie el tipo
+  useEffect(() => {
+    const cargarActividades = async () => {
+      if (formData.tipo && isOpen && formData.tipo !== tipoCargado) {
+        try {
+          const actividades = await obtenerActividadesPorTipo(formData.tipo);
+          setActividadesExistentes(actividades);
+          setTipoCargado(formData.tipo);
+        } catch (error) {
+          setActividadesExistentes([]);
+        }
+      }
+    };
+
+    cargarActividades();
+  }, [formData.tipo, isOpen, obtenerActividadesPorTipo, tipoCargado]);
+
+  // Función para calcular la hora de fin basándose en la duración
+  const calcularHoraFin = (horaInicio: string, duracion: string): string => {
+    if (!horaInicio || !duracion) return '';
+
+    const [duracionValor, duracionUnidad] = duracion.split('-');
+    const valor = parseInt(duracionValor);
+    const unidad = duracionUnidad.toLowerCase();
+
+    // Convertir hora de inicio a minutos desde medianoche
+    const [horas, minutos] = horaInicio.split(':').map(Number);
+    const minutosInicio = horas * 60 + minutos;
+
+    // Calcular duración en minutos
+    let duracionMinutos = 0;
+    if (unidad === 'hora' || unidad === 'horas') {
+      duracionMinutos = valor * 60;
+    } else if (unidad === 'minuto' || unidad === 'minutos') {
+      duracionMinutos = valor;
+    }
+
+    // Calcular hora de fin
+    const minutosFin = minutosInicio + duracionMinutos;
+    const horasFin = Math.floor(minutosFin / 60);
+    const minutosRestantes = minutosFin % 60;
+
+    // Formatear la hora de fin
+    const horaFormateada = horasFin.toString().padStart(2, '0');
+    const minutosFormateados = minutosRestantes.toString().padStart(2, '0');
+
+    return `${horaFormateada}:${minutosFormateados}`;
+  };
+
+  const handleInputChange = async (field: string, value: any) => {
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Calcular hora de fin si cambia la duración o la hora de inicio
+      if ((field === 'duracion' || field === 'horaInicio') && newData.duracion && newData.horaInicio) {
+        newData.horaFin = calcularHoraFin(newData.horaInicio, newData.duracion);
+      } else if (field === 'duracion' && !newData.duracion) {
+        newData.horaFin = '';
+      }
+      
+      return newData;
+    });
+    
     // Limpiar error cuando el usuario empiece a escribir
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    
+    // Si cambia el tipo, limpiar el nombre seleccionado y resetear el tipo cargado
+    if (field === 'tipo') {
+      setFormData(prev => ({ ...prev, nombre: '', duracion: '', horaFin: '' }));
+      setTipoCargado('');
+      setTarifasActividad([]);
+      setActividadSeleccionada(null);
+    }
+    
+    // Si cambia el nombre de la actividad, cargar las tarifas
+    if (field === 'nombre' && value) {
+      const actividad = actividadesExistentes.find(a => a.nombre === value);
+      if (actividad) {
+        setActividadSeleccionada(actividad);
+        const tarifas = await obtenerTarifasActividad(actividad.id);
+        setTarifasActividad(tarifas);
+        
+        // Si solo hay una tarifa, establecerla automáticamente
+        if (tarifas.length === 1) {
+          const duracion = `${tarifas[0].duracion_valor}-${tarifas[0].duracion_unidad}`;
+          setFormData(prev => {
+            const newData = { ...prev, duracion };
+            // Calcular hora de fin si ya hay hora de inicio
+            if (newData.horaInicio) {
+              newData.horaFin = calcularHoraFin(newData.horaInicio, duracion);
+            }
+            return newData;
+          });
+        }
+      }
+    } else if (field === 'nombre' && !value) {
+      setTarifasActividad([]);
+      setActividadSeleccionada(null);
+      setFormData(prev => ({ ...prev, duracion: '', horaFin: '' }));
     }
   };
 
@@ -52,8 +162,30 @@ export default function ModalNuevaActividad({
       newErrors.nombre = 'El nombre es obligatorio';
     }
 
-    if (formData.requiereReserva && (!formData.precioReserva || formData.precioReserva <= 0)) {
-      newErrors.precioReserva = 'El precio de reserva debe ser mayor a 0';
+    if (!formData.numeroPersonas || formData.numeroPersonas < 1) {
+      newErrors.numeroPersonas = 'El número de personas debe ser al menos 1';
+    }
+
+    if (formData.numeroPersonas > 15) {
+      newErrors.numeroPersonas = 'El número máximo de personas es 15';
+    }
+
+    if (tarifasActividad.length > 1 && !formData.duracion) {
+      newErrors.duracion = 'La duración es obligatoria';
+    } else if (tarifasActividad.length === 1 && !formData.duracion) {
+      newErrors.duracion = 'Error al cargar la duración de la actividad';
+    }
+
+    if (!formData.fecha) {
+      newErrors.fecha = 'La fecha es obligatoria';
+    }
+
+    if (!formData.horaInicio) {
+      newErrors.horaInicio = 'La hora de inicio es obligatoria';
+    }
+
+    if (!formData.horaFin) {
+      newErrors.horaFin = 'La hora de fin es obligatoria';
     }
 
     setErrors(newErrors);
@@ -71,8 +203,11 @@ export default function ModalNuevaActividad({
     const actividadData = {
       nombre: formData.nombre,
       tipo: formData.tipo,
-      reserva: formData.requiereReserva,
-      precio_reserva: formData.requiereReserva ? formData.precioReserva : undefined
+      numeroPersonas: formData.numeroPersonas,
+      fecha: formData.fecha,
+      horaInicio: formData.horaInicio,
+      horaFin: formData.horaFin,
+      clienteId: clienteId
     };
 
     // Crear actividad en la base de datos
@@ -92,17 +227,30 @@ export default function ModalNuevaActividad({
       setFormData({
         nombre: '',
         tipo: 'alquiler',
-        requiereReserva: false,
-        precioReserva: 0
+        numeroPersonas: 1,
+        duracion: '',
+        fecha: '',
+        horaInicio: '09:00',
+        horaFin: ''
       });
+      setActividadesExistentes([]);
+      setTipoCargado('');
+      setTarifasActividad([]);
+      setActividadSeleccionada(null);
+      setClienteId(null);
       setErrors({});
       
       // Llamar al callback del componente padre
       onSubmit({
         nombre: formData.nombre,
         tipo: formData.tipo,
-        requiereReserva: formData.requiereReserva,
-        precioReserva: formData.requiereReserva ? formData.precioReserva : undefined
+        numeroPersonas: formData.numeroPersonas,
+        fecha: formData.fecha,
+        horaInicio: formData.horaInicio,
+        horaFin: formData.horaFin,
+        requiereReserva: false,
+        precioReserva: undefined,
+        clienteId: clienteId
       });
       
       // Cerrar modal inmediatamente
@@ -114,9 +262,17 @@ export default function ModalNuevaActividad({
     setFormData({
       nombre: '',
       tipo: 'alquiler',
-      requiereReserva: false,
-      precioReserva: 0
+      numeroPersonas: 1,
+      duracion: '',
+      fecha: '',
+      horaInicio: '09:00',
+      horaFin: ''
     });
+    setActividadesExistentes([]);
+    setTipoCargado('');
+    setTarifasActividad([]);
+    setActividadSeleccionada(null);
+    setClienteId(null);
     setErrors({});
     onClose();
   };
@@ -147,17 +303,18 @@ export default function ModalNuevaActividad({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all">
-                <div className="flex items-center justify-between mb-6">
+              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all">
+                {/* Header azul */}
+                <div className="bg-primary px-6 py-4 flex items-center justify-between">
                   <Dialog.Title
                     as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
+                    className="text-lg font-medium leading-6 text-white"
                   >
                     Nueva Actividad
                   </Dialog.Title>
                   <button
                     type="button"
-                    className="rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                    className="rounded-md text-white hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 cursor-pointer"
                     onClick={handleClose}
                   >
                     <span className="sr-only">Cerrar</span>
@@ -165,27 +322,20 @@ export default function ModalNuevaActividad({
                   </button>
                 </div>
 
+                {/* Contenido del modal */}
+                <div className="p-6">
+
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Nombre */}
+                  {/* Selector de Cliente */}
                   <div>
-                    <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Nombre de la Actividad *
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Cliente *
                     </label>
-                    <input
-                      type="text"
-                      id="nombre"
-                      value={formData.nombre}
-                      onChange={(e) => handleInputChange('nombre', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                        errors.nombre 
-                          ? 'border-red-300 dark:border-red-600' 
-                          : 'border-gray-300 dark:border-gray-600'
-                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
-                      placeholder="Ej: Kayak"
+                    <SelectorCliente
+                      selectedClienteId={clienteId}
+                      onClienteChange={setClienteId}
+                      placeholder="Seleccionar cliente (opcional)"
                     />
-                    {errors.nombre && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.nombre}</p>
-                    )}
                   </div>
 
                   {/* Tipo */}
@@ -203,59 +353,182 @@ export default function ModalNuevaActividad({
                       <option value="curso">Curso</option>
                       <option value="ruta">Ruta</option>
                       <option value="campamento">Campamento</option>
+                      <option value="sport">Sport</option>
+                      <option value="parking">Parking</option>
+                      <option value="otros">Otros</option>
                     </select>
                   </div>
-
-                  {/* Requiere Reserva */}
+                  
+                  {/* Nombre */}
                   <div>
-                    <div className="flex items-center justify-between">
-                      <label htmlFor="requiereReserva" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Requiere Reserva
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => handleInputChange('requiereReserva', !formData.requiereReserva)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer ${
-                          formData.requiereReserva ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-600'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            formData.requiereReserva ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      Activar si esta actividad requiere reserva previa
-                    </p>
+                    <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Actividad *
+                    </label>
+                    <select
+                      id="nombre"
+                      value={formData.nombre}
+                      onChange={(e) => handleInputChange('nombre', e.target.value)}
+                      disabled={loadingActividades}
+                      className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                        errors.nombre 
+                          ? 'border-red-300 dark:border-red-600' 
+                          : 'border-gray-300 dark:border-gray-600'
+                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      <option value="">
+                        {loadingActividades 
+                          ? 'Cargando actividades...' 
+                          : actividadesExistentes.length === 0 
+                            ? 'No hay actividades de este tipo' 
+                            : 'Selecciona una actividad'
+                        }
+                      </option>
+                      {actividadesExistentes.map((actividad) => (
+                        <option key={actividad.id} value={actividad.nombre}>
+                          {actividad.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.nombre && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.nombre}</p>
+                    )}
+                    {errorActividades && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        Error al cargar actividades: {errorActividades}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Precio de Reserva (solo si requiere reserva) */}
-                  {formData.requiereReserva && (
+                  {/* Número de Personas */}
+                  <div>
+                    <label htmlFor="numeroPersonas" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Número de Personas *
+                    </label>
+                    <input
+                      type="number"
+                      id="numeroPersonas"
+                      min="1"
+                      max="15"
+                      value={formData.numeroPersonas}
+                      onChange={(e) => handleInputChange('numeroPersonas', parseInt(e.target.value) || 1)}
+                      className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                        errors.numeroPersonas 
+                          ? 'border-red-300 dark:border-red-600' 
+                          : 'border-gray-300 dark:border-gray-600'
+                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                      placeholder="1"
+                    />
+                    {errors.numeroPersonas && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.numeroPersonas}</p>
+                    )}
+                  </div>
+
+                  {/* Duración */}
+                  {tarifasActividad.length > 1 && (
                     <div>
-                      <label htmlFor="precioReserva" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Precio de Reserva (€) *
+                      <label htmlFor="duracion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Duración *
                       </label>
-                      <input
-                        type="number"
-                        id="precioReserva"
-                        min="0"
-                        step="0.01"
-                        value={formData.precioReserva}
-                        onChange={(e) => handleInputChange('precioReserva', parseFloat(e.target.value) || 0)}
-                        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                          errors.precioReserva 
+                      <select
+                        id="duracion"
+                        value={formData.duracion || ''}
+                        onChange={(e) => handleInputChange('duracion', e.target.value)}
+                        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer ${
+                          errors.duracion 
                             ? 'border-red-300 dark:border-red-600' 
                             : 'border-gray-300 dark:border-gray-600'
                         } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
-                        placeholder="0.00"
-                      />
-                      {errors.precioReserva && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.precioReserva}</p>
+                      >
+                        <option value="">Selecciona una duración</option>
+                        {tarifasActividad.map((tarifa, index) => {
+                          const unidad = tarifa.duracion_valor > 1 
+                            ? tarifa.duracion_unidad + 's' 
+                            : tarifa.duracion_unidad;
+                          return (
+                            <option key={index} value={`${tarifa.duracion_valor}-${tarifa.duracion_unidad}`}>
+                              {tarifa.duracion_valor} {unidad} - €{tarifa.precio}
+                              {tarifa.descuento && ` (Descuento: ${tarifa.descuento}%)`}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      {errors.duracion && (
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.duracion}</p>
                       )}
                     </div>
                   )}
+
+                  {/* Fecha */}
+                  <div>
+                    <label htmlFor="fecha" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Fecha *
+                    </label>
+                    <input
+                      type="date"
+                      id="fecha"
+                      value={formData.fecha}
+                      onChange={(e) => handleInputChange('fecha', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                        errors.fecha 
+                          ? 'border-red-300 dark:border-red-600' 
+                          : 'border-gray-300 dark:border-gray-600'
+                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                    />
+                    {errors.fecha && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.fecha}</p>
+                    )}
+                  </div>
+
+                  {/* Horas */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Hora de Inicio */}
+                    <div>
+                      <label htmlFor="horaInicio" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Hora de Inicio *
+                      </label>
+                      <input
+                        type="time"
+                        id="horaInicio"
+                        value={formData.horaInicio}
+                        onChange={(e) => handleInputChange('horaInicio', e.target.value)}
+                        disabled={!formData.fecha}
+                        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                          !formData.fecha 
+                            ? 'cursor-not-allowed opacity-50' 
+                            : 'cursor-pointer'
+                        } ${
+                          errors.horaInicio 
+                            ? 'border-red-300 dark:border-red-600' 
+                            : 'border-gray-300 dark:border-gray-600'
+                        } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      />
+                      {errors.horaInicio && (
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.horaInicio}</p>
+                      )}
+                    </div>
+
+                     {/* Hora de Fin */}
+                     <div>
+                       <label htmlFor="horaFin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                         Hora de Fin *
+                       </label>
+                       <input
+                         type="text"
+                         id="horaFin"
+                         value={formData.horaFin || '09:00'}
+                         disabled
+                         className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                           errors.horaFin 
+                             ? 'border-red-300 dark:border-red-600' 
+                             : 'border-gray-300 dark:border-gray-600'
+                         } bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed`}
+                         placeholder="Se calcula automáticamente"
+                       />
+                       {errors.horaFin && (
+                         <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.horaFin}</p>
+                       )}
+                     </div>
+                  </div>
 
                   {/* Botones */}
                   <div className="flex justify-end space-x-3 pt-4">
@@ -275,6 +548,7 @@ export default function ModalNuevaActividad({
                     </button>
                   </div>
                 </form>
+                </div>
               </Dialog.Panel>
             </Transition.Child>
           </div>

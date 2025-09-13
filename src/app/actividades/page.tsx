@@ -83,7 +83,7 @@ export default function ReservasPage() {
 
   const handleNuevaActividad = (data: {
     nombre: string;
-    tipo: 'alquiler' | 'curso' | 'ruta' | 'campamento';
+    tipo: 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros';
     requiereReserva: boolean;
     precioReserva?: number;
   }) => {
