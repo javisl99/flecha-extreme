@@ -1,3 +1,3 @@
-import { Actividad } from '@/shared/types';
+import { Reserva } from '@/shared/types';
 
-export const actividadesMock: Actividad[] = []; 
+export const reservasMock: Reserva[] = []; 

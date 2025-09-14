@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, SurfSpinner } from '@/shared/components';
 import ResumenDiario from '@/components/Dashboard/ResumenDiario';
 import ReservasHoy from '@/components/Dashboard/ReservasHoy';
-import { reservasMock } from '@/components/Reservas/data';
+import { reservasMock } from '@/components/Actividades/data';
 import { movimientosCajaMock } from '@/components/Contabilidad/data';
 
 // Componentes de iconos SVG para el dashboard
