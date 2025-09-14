@@ -14,7 +14,7 @@ export default function AddProductButton({ onAddProduct }: AddProductButtonProps
       onClick={onAddProduct}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="fixed top-2 right-6 z-10 bg-primary-dark hover:bg-primary text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 group cursor-pointer"
+      className="bg-primary-dark hover:bg-primary text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 group cursor-pointer"
       title="Añadir nuevo producto"
     >
       <div className="relative">

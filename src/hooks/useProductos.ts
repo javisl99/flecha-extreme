@@ -91,6 +91,120 @@ export function useProductos() {
     }
   };
 
+  const subtractStockFromProduct = async (productId: string, stockToSubtract: number) => {
+    try {
+      // Primero obtener el stock actual
+      const { data: currentProduct, error: fetchError } = await supabase
+        .from('producto')
+        .select('stock')
+        .eq('id', productId)
+        .single();
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      // Verificar que hay suficiente stock
+      if (currentProduct.stock < stockToSubtract) {
+        throw new Error(`Stock insuficiente. Disponible: ${currentProduct.stock}, Solicitado: ${stockToSubtract}`);
+      }
+
+      const newStock = currentProduct.stock - stockToSubtract;
+
+      // Actualizar con el nuevo stock
+      const { error } = await supabase
+        .from('producto')
+        .update({ stock: newStock })
+        .eq('id', productId);
+
+      if (error) {
+        throw error;
+      }
+
+      // Actualizar el estado local
+      setProductos(prev => 
+        prev.map(product => 
+          product.id === productId 
+            ? { ...product, stock: newStock }
+            : product
+        )
+      );
+
+      return { success: true };
+    } catch (err) {
+      console.error('Error al restar stock:', err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Error desconocido' 
+      };
+    }
+  };
+
+  const subtractStockFromMultipleProducts = async (items: { id: string; quantity: number }[]) => {
+    try {
+      // Verificar stock disponible para todos los productos antes de hacer cambios
+      for (const item of items) {
+        const { data: currentProduct, error: fetchError } = await supabase
+          .from('producto')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+
+        if (fetchError) {
+          throw new Error(`Error al verificar stock del producto ${item.id}: ${fetchError.message}`);
+        }
+
+        if (currentProduct.stock < item.quantity) {
+          throw new Error(`Stock insuficiente para el producto ${item.id}. Disponible: ${currentProduct.stock}, Solicitado: ${item.quantity}`);
+        }
+      }
+
+      // Si todos los productos tienen stock suficiente, proceder a restar
+      const updatePromises = items.map(async (item) => {
+        const { data: currentProduct, error: fetchError } = await supabase
+          .from('producto')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+
+        if (fetchError) {
+          throw fetchError;
+        }
+
+        const newStock = currentProduct.stock - item.quantity;
+
+        const { error } = await supabase
+          .from('producto')
+          .update({ stock: newStock })
+          .eq('id', item.id);
+
+        if (error) {
+          throw error;
+        }
+
+        return { productId: item.id, newStock };
+      });
+
+      const results = await Promise.all(updatePromises);
+
+      // Actualizar el estado local
+      setProductos(prev => 
+        prev.map(product => {
+          const result = results.find(r => r.productId === product.id);
+          return result ? { ...product, stock: result.newStock } : product;
+        })
+      );
+
+      return { success: true };
+    } catch (err) {
+      console.error('Error al restar stock de múltiples productos:', err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Error desconocido' 
+      };
+    }
+  };
+
   const addNewProduct = async (productData: Omit<Product, 'id'>, imageFile?: File) => {
     try {
       let imageUrl = '';
@@ -231,13 +345,75 @@ export function useProductos() {
     }
   };
 
+  const deleteProduct = async (productId: string) => {
+    try {
+      // Primero obtener la información del producto para acceder a la URL de la imagen
+      const { data: productData, error: fetchError } = await supabase
+        .from('producto')
+        .select('url_foto')
+        .eq('id', productId)
+        .single();
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      // Si el producto tiene una imagen, eliminarla del bucket
+      if (productData.url_foto && productData.url_foto.trim() !== '') {
+        try {
+          // Extraer el nombre del archivo de la URL
+          const urlParts = productData.url_foto.split('/');
+          const fileName = urlParts[urlParts.length - 1];
+          const filePath = `productos/${fileName}`;
+
+          // Eliminar el archivo del bucket 'fotos_productos'
+          const { error: deleteImageError } = await supabase.storage
+            .from('fotos_productos')
+            .remove([filePath]);
+
+          if (deleteImageError) {
+            console.warn('Error al eliminar imagen del storage:', deleteImageError);
+            // No lanzamos error aquí porque queremos continuar con la eliminación del producto
+          }
+        } catch (imageError) {
+          console.warn('Error al procesar eliminación de imagen:', imageError);
+          // Continuamos con la eliminación del producto aunque falle la eliminación de la imagen
+        }
+      }
+
+      // Eliminar el producto de la base de datos
+      const { error } = await supabase
+        .from('producto')
+        .delete()
+        .eq('id', productId);
+
+      if (error) {
+        throw error;
+      }
+
+      // Actualizar el estado local eliminando el producto
+      setProductos(prev => prev.filter(product => product.id !== productId));
+
+      return { success: true };
+    } catch (err) {
+      console.error('Error al eliminar producto:', err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Error desconocido' 
+      };
+    }
+  };
+
   return {
     productos,
     loading,
     error,
     refetch: fetchProductos,
     addStockToProduct,
+    subtractStockFromProduct,
+    subtractStockFromMultipleProducts,
     addNewProduct,
-    updateProduct
+    updateProduct,
+    deleteProduct
   };
 }

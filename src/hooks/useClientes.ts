@@ -4,7 +4,18 @@ import { useUserData } from '@/hooks/useUserData';
 import supabaseClient from '@/lib/supabaseClient';
 import { Cliente } from '@/shared/types';
 
-export function useClientes() {
+interface UseClientesReturn {
+  clientes: Cliente[];
+  loading: boolean;
+  error: string | null;
+  crearCliente: (nuevoCliente: Omit<Cliente, 'id'>) => Promise<{ data: Cliente | null; error: any }>;
+  actualizarCliente: (id: string, datosActualizados: Partial<Cliente>) => Promise<{ data: Cliente | null; error: any }>;
+  eliminarCliente: (id: string) => Promise<{ error: any }>;
+  refreshClientes: () => Promise<void>;
+  getCliente: (id: string) => Promise<any>;
+}
+
+export function useClientes(): UseClientesReturn {
   const { user } = useUserContext();
   const { usuario } = useUserData();
   const [clientes, setClientes] = useState<Cliente[]>([]);
