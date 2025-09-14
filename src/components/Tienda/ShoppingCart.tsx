@@ -18,6 +18,7 @@ interface ShoppingCartProps {
   onRemoveItem: (id: string) => void;
   onClearCart: () => void;
   onCheckout: () => void;
+  onProceedToPayment: (discountPercentage: number) => void;
 }
 
 export default function ShoppingCart({ 
@@ -25,7 +26,8 @@ export default function ShoppingCart({
   onUpdateQuantity, 
   onRemoveItem, 
   onClearCart, 
-  onCheckout 
+  onCheckout,
+  onProceedToPayment 
 }: ShoppingCartProps) {
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -136,22 +138,10 @@ export default function ShoppingCart({
           {/* Botones de acción */}
           <div className="space-y-2">
             <button
-              onClick={handleCheckout}
-              disabled={isCheckingOut}
-              className={`w-full py-3 px-4 rounded-lg font-semibold transition-all duration-200 ${
-                isCheckingOut
-                  ? 'bg-gray-400 text-white cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700 text-white hover:shadow-lg'
-              } cursor-pointer`}
+              onClick={() => onProceedToPayment(discountPercentage)}
+              className="w-full py-3 px-4 rounded-lg font-semibold transition-all duration-200 bg-green-600 hover:bg-green-700 text-white hover:shadow-lg cursor-pointer"
             >
-              {isCheckingOut ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Procesando...
-                </div>
-              ) : (
-                'Proceder al Pago'
-              )}
+              Proceder al Pago
             </button>
             
             <button

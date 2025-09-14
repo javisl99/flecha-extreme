@@ -1,194 +1,280 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useUserContext } from '@/context/UserContext';
-import { useUserData } from '@/hooks/useUserData';
-import supabaseClient from '@/lib/supabaseClient';
+import { useState, useEffect } from 'react';
+import { useSupabase } from './useSupabase';
+import { useProductos } from './useProductos';
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image: string;
+}
+
+interface PagoData {
+  id_cliente: string | null;
+  items: CartItem[];
+  subtotal: number;
+  descuento: number;
+  descuentoPorcentaje: number;
+  iva: number;
+  total: number;
+  concepto: string;
+  pago: {
+    metodo: string;
+    estado: string;
+  };
+}
+
+interface PagoResult {
+  success: boolean;
+  message: string;
+  data?: {
+    pedidoId: string;
+    pagoId: string;
+  };
+  error?: string;
+}
 
 export interface Pago {
   id: string;
-  id_cliente: string;
-  origen_tipo: 'parking' | 'reserva' | 'pedido';
+  id_cliente: string | null;
+  origen_tipo: 'actividad' | 'pedido' | 'parking';
+  origen_id: string | null;
   concepto: string;
   importe: number;
   metodo: 'efectivo' | 'tpv' | 'tpv_online' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
   estado: 'completado' | 'pendiente' | 'cancelado';
-  created_at?: string;
-  updated_at?: string;
+  created_at: string;
+  updated_at: string;
   cliente?: {
+    id: string;
     nombre: string;
     apellidos: string;
   };
 }
 
 export function usePagos() {
-  const { user } = useUserContext();
-  const { usuario } = useUserData();
-  const [pagos, setPagos] = useState<Pago[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { supabase } = useSupabase();
+  const { subtractStockFromMultipleProducts } = useProductos();
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pagos, setPagos] = useState<Pago[]>([]);
 
-  // Función para refrescar los pagos
-  const refreshPagos = useCallback(async () => {
-    if (!user || !usuario) return;
+  // Cargar pagos al inicializar
+  useEffect(() => {
+    cargarPagos();
+  }, []);
 
+  const cargarPagos = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabaseClient
+      const { data, error: fetchError } = await supabase
         .from('pago')
         .select(`
           *,
-          cliente:id_cliente (
-            nombre,
-            apellidos
-          )
+          cliente:cliente(id, nombre, apellidos)
         `)
-        .throwOnError();
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (fetchError) {
+        throw new Error(fetchError.message);
+      }
 
       setPagos(data || []);
     } catch (err) {
-      console.error('Error al refrescar pagos:', err);
-      setError('Error al cargar los pagos');
-    } finally {
-      setLoading(false);
-    }
-  }, [user, usuario]);
-
-  // Cargar pagos inicialmente
-  useEffect(() => {
-    let isMounted = true;
-    let timeoutId: NodeJS.Timeout;
-
-    const fetchPagos = async () => {
-      if (!user || !usuario) {
-        if (isMounted) {
-          setLoading(false);
-        }
-        return;
-      }
-
-      try {
-        if (isMounted) {
-          setLoading(true);
-          setError(null);
-        }
-
-        // Añadir un pequeño retraso para evitar problemas de conexión
-        await new Promise(resolve => {
-          timeoutId = setTimeout(resolve, 100);
-        });
-
-        const { data, error } = await supabaseClient
-          .from('pago')
-          .select(`
-            *,
-            cliente:id_cliente (
-              nombre,
-              apellidos
-            )
-          `)
-          .throwOnError();
-
-        if (error) throw error;
-
-        if (isMounted) {
-          setPagos(data || []);
-        }
-      } catch (err) {
-        console.error('Error al obtener pagos:', err);
-        if (isMounted) {
-          setError('Error al cargar los pagos');
-          setPagos([]);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchPagos();
-
-    return () => {
-      isMounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [user, usuario]);
-
-  const eliminarPago = async (id: string) => {
-    if (!usuario) {
-      throw new Error('No hay usuario autenticado');
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { error } = await supabaseClient
-        .from('pago')
-        .delete()
-        .eq('id', id)
-        .throwOnError();
-
-      if (error) throw error;
-
-      // Actualizar la lista de pagos localmente
-      setPagos(prevPagos => prevPagos.filter(pago => pago.id !== id));
-      
-      return { error: null };
-    } catch (err) {
-      console.error('Error al eliminar el pago:', err);
-      setError('Error al eliminar el pago');
-      return { error: err };
+      console.error('Error cargando pagos:', err);
+      setError(err instanceof Error ? err.message : 'Error al cargar pagos');
     } finally {
       setLoading(false);
     }
   };
 
-  const actualizarPago = async (id: string, datosActualizados: Partial<Pago>) => {
-    if (!usuario) {
-      throw new Error('No hay usuario autenticado');
+  const refreshPagos = async () => {
+    await cargarPagos();
+  };
+
+  const actualizarPago = async (id: string, updates: Partial<Pago>) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { error: updateError } = await supabase
+        .from('pago')
+        .update(updates)
+        .eq('id', id);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+
+      return { error: null };
+    } catch (err) {
+      console.error('Error actualizando pago:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al actualizar pago';
+      setError(errorMessage);
+      return { error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eliminarPago = async (id: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { error: deleteError } = await supabase
+        .from('pago')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) {
+        throw new Error(deleteError.message);
+      }
+
+      return { error: null };
+    } catch (err) {
+      console.error('Error eliminando pago:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al eliminar pago';
+      setError(errorMessage);
+      return { error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const procesarPago = async (data: PagoData): Promise<PagoResult> => {
+    if (!data.id_cliente) {
+      return {
+        success: false,
+        message: 'Debe seleccionar un cliente',
+        error: 'Cliente no seleccionado'
+      };
     }
 
     try {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabaseClient
-        .from('pago')
-        .update({
-          ...datosActualizados,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select(`
-          *,
-          cliente:id_cliente (
-            nombre,
-            apellidos
-          )
-        `)
-        .single()
-        .throwOnError();
+      // 1. Crear el pedido
+      const { data: pedidoData, error: pedidoError } = await supabase
+        .from('pedido')
+        .insert([{
+          id_cliente: data.id_cliente,
+          fecha: new Date().toISOString(),
+          estado: 'pagado',
+          descuento: data.descuentoPorcentaje,
+          total: data.total,
+          iva: data.iva
+        }])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (pedidoError) {
+        throw new Error(`Error al crear el pedido: ${pedidoError.message}`);
+      }
 
-      // Actualizar la lista de pagos localmente
-      setPagos(prevPagos => 
-        prevPagos.map(pago => 
-          pago.id === id ? data : pago
-        )
-      );
+      const pedidoId = pedidoData.id;
+
+      // 2. Crear los items del pedido
+      const pedidoItems = data.items.map(item => ({
+        id_pedido: pedidoId,
+        id_producto: item.id,
+        cantidad: item.quantity,
+        precio_item: item.price * item.quantity
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('pedido_item')
+        .insert(pedidoItems);
+
+      if (itemsError) {
+        // Si hay error en los items, eliminar el pedido creado
+        await supabase
+          .from('pedido')
+          .delete()
+          .eq('id', pedidoId);
+        
+        throw new Error(`Error al crear los items del pedido: ${itemsError.message}`);
+      }
+
+      // 3. Restar stock de los productos
+      const stockItems = data.items.map(item => ({
+        id: item.id,
+        quantity: item.quantity
+      }));
+
+      const stockResult = await subtractStockFromMultipleProducts(stockItems);
       
-      return { data, error: null };
+      if (!stockResult.success) {
+        // Si hay error al restar stock, eliminar el pedido y sus items
+        await supabase
+          .from('pedido_item')
+          .delete()
+          .eq('id_pedido', pedidoId);
+        
+        await supabase
+          .from('pedido')
+          .delete()
+          .eq('id', pedidoId);
+        
+        throw new Error(`Error al restar stock: ${stockResult.error}`);
+      }
+
+      // 4. Crear el registro de pago
+      const { data: pagoData, error: pagoError } = await supabase
+        .from('pago')
+        .insert([{
+          id_cliente: data.id_cliente,
+          origen_tipo: 'pedido',
+          origen_id: pedidoId,
+          concepto: data.concepto,
+          importe: data.total,
+          metodo: data.pago.metodo,
+          estado: 'completado'
+        }])
+        .select()
+        .single();
+
+      if (pagoError) {
+        // Si hay error en el pago, intentar revertir el stock (esto es complejo, por ahora solo mostramos el error)
+        console.error('Error al crear el registro de pago después de restar stock:', pagoError);
+        
+        // Eliminar el pedido y sus items
+        await supabase
+          .from('pedido_item')
+          .delete()
+          .eq('id_pedido', pedidoId);
+        
+        await supabase
+          .from('pedido')
+          .delete()
+          .eq('id', pedidoId);
+        
+        throw new Error(`Error al crear el registro de pago: ${pagoError.message}. Nota: El stock ya fue restado.`);
+      }
+
+      return {
+        success: true,
+        message: 'Pago procesado exitosamente y stock actualizado',
+        data: {
+          pedidoId: pedidoId,
+          pagoId: pagoData.id
+        }
+      };
+
     } catch (err) {
-      console.error('Error al actualizar el pago:', err);
-      setError('Error al actualizar el pago');
-      return { data: null, error: err };
+      console.error('Error procesando pago:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido al procesar el pago';
+      setError(errorMessage);
+      
+      return {
+        success: false,
+        message: 'Error al procesar el pago',
+        error: errorMessage
+      };
     } finally {
       setLoading(false);
     }
@@ -198,8 +284,9 @@ export function usePagos() {
     pagos,
     loading,
     error,
-    eliminarPago,
+    procesarPago,
+    refreshPagos,
     actualizarPago,
-    refreshPagos
+    eliminarPago
   };
-} 
+}
