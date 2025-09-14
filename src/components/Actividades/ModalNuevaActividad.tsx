@@ -158,10 +158,16 @@ export default function ModalNuevaActividad({
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
+    // Validación del cliente seleccionado
+    if (!clienteId) {
+      newErrors.cliente = 'Debe seleccionar un cliente';
+    }
+
     if (!formData.nombre.trim()) {
       newErrors.nombre = 'El nombre es obligatorio';
     }
 
+    // Validación del número de personas
     if (!formData.numeroPersonas || formData.numeroPersonas < 1) {
       newErrors.numeroPersonas = 'El número de personas debe ser al menos 1';
     }
@@ -182,10 +188,6 @@ export default function ModalNuevaActividad({
 
     if (!formData.horaInicio) {
       newErrors.horaInicio = 'La hora de inicio es obligatoria';
-    }
-
-    if (!formData.horaFin) {
-      newErrors.horaFin = 'La hora de fin es obligatoria';
     }
 
     setErrors(newErrors);
@@ -334,8 +336,11 @@ export default function ModalNuevaActividad({
                     <SelectorCliente
                       selectedClienteId={clienteId}
                       onClienteChange={setClienteId}
-                      placeholder="Seleccionar cliente (opcional)"
+                      placeholder="Seleccionar cliente"
                     />
+                    {errors.cliente && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.cliente}</p>
+                    )}
                   </div>
 
                   {/* Tipo */}
@@ -510,23 +515,16 @@ export default function ModalNuevaActividad({
                      {/* Hora de Fin */}
                      <div>
                        <label htmlFor="horaFin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                         Hora de Fin *
+                         Hora de Fin
                        </label>
                        <input
                          type="text"
                          id="horaFin"
-                         value={formData.horaFin || '09:00'}
+                         value={formData.horaFin || ''}
                          disabled
-                         className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                           errors.horaFin 
-                             ? 'border-red-300 dark:border-red-600' 
-                             : 'border-gray-300 dark:border-gray-600'
-                         } bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed`}
+                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                          placeholder="Se calcula automáticamente"
                        />
-                       {errors.horaFin && (
-                         <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.horaFin}</p>
-                       )}
                      </div>
                   </div>
 
