@@ -364,8 +364,14 @@ export default function PagosPage() {
           // No hacer nada, solo mostrar los datos del pedido
           toast.success('Este es un pedido existente, no se puede modificar');
         }}
-        cartItems={pedidoSeleccionado ? procesarItemsPedido(pedidoSeleccionado) : []}
-        discountPercentage={pedidoSeleccionado?.descuento || 0}
+        cartItems={(() => {
+          const items = pedidoSeleccionado ? procesarItemsPedido(pedidoSeleccionado) : [];
+          return items;
+        })()}
+        discountPercentage={(() => {
+          const discount = pedidoSeleccionado?.descuento || 0;
+          return discount;
+        })()}
         readOnly={true}
         pedidoData={pedidoSeleccionado ? {
           clienteId: pedidoSeleccionado.id_cliente,

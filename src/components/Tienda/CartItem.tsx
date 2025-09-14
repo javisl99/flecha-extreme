@@ -9,6 +9,7 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  stock: number;
 }
 
 interface CartItemProps {
@@ -23,9 +24,10 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity <= 0) {
       onRemove(item.id);
-    } else {
+    } else if (newQuantity <= item.stock) {
       onUpdateQuantity(item.id, newQuantity);
     }
+    // Si newQuantity > item.stock, no hacer nada (no permitir exceder stock)
   };
 
   return (
@@ -67,7 +69,13 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
         
         <button
           onClick={() => handleQuantityChange(item.quantity + 1)}
-          className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center transition-colors cursor-pointer"
+          disabled={item.quantity >= item.stock}
+          className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+            item.quantity >= item.stock
+              ? 'bg-gray-200 dark:bg-gray-600 text-gray-400 cursor-not-allowed'
+              : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer'
+          }`}
+          title={item.quantity >= item.stock ? `Stock máximo: ${item.stock}` : 'Aumentar cantidad'}
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

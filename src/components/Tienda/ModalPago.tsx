@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
 import { SelectorClienteCompacto } from './SelectorClienteCompacto';
@@ -8,6 +8,7 @@ import { formatPrice, formatNumber } from '@/lib/formatUtils';
 import { useClientes } from '@/hooks/useClientes';
 import { useProductos } from '@/hooks/useProductos';
 import SurfSpinner from '@/components/shared/SurfSpinner';
+import TicketCompra from './TicketCompra';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
@@ -18,6 +19,7 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  stock: number;
 }
 
 interface ModalPagoProps {
@@ -36,7 +38,7 @@ interface ModalPagoProps {
       metodo: MetodoPago;
       estado: EstadoPago;
     };
-  }) => void;
+  }) => Promise<{ pedidoId?: string } | void>;
   cartItems: CartItem[];
   discountPercentage: number;
   readOnly?: boolean;
@@ -65,7 +67,19 @@ export default function ModalPago({
   const [concepto, setConcepto] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
   const [stockValidationError, setStockValidationError] = useState<string | null>(null);
+  const [processedPaymentData, setProcessedPaymentData] = useState<{
+    cartItems: CartItem[];
+    subtotal: number;
+    descuento: number;
+    discountPercentage: number;
+    iva: number;
+    total: number;
+    metodoPago: string;
+    fecha: Date;
+    pedidoId?: string;
+  } | null>(null);
 
   // Inicializar valores cuando se proporcionen datos del pedido
   useEffect(() => {
@@ -82,22 +96,6 @@ export default function ModalPago({
     setStockValidationError(null);
   }, [cartItems]);
 
-  // Obtener el cliente seleccionado
-  const selectedCliente = clientes.find(c => c.id === selectedClienteId);
-
-  // Cálculos de precios
-  const subtotal = cartItems.reduce((total, item) => {
-    // Para el producto desconocido, usar directamente el precio (ya que quantity es 0)
-    if (item.id === 'producto-desconocido') {
-      return total + item.price;
-    }
-    return total + (item.price * item.quantity);
-  }, 0);
-  const descuento = (subtotal * discountPercentage) / 100;
-  const subtotalConDescuento = subtotal - descuento;
-  const iva = subtotalConDescuento * 0.21; // 21% de IVA (informativo)
-  const total = subtotalConDescuento; // El total es el subtotal con descuento, el IVA ya está incluido
-
   const metodosPago: { value: MetodoPago; label: string }[] = [
     { value: 'efectivo', label: 'Efectivo' },
     { value: 'tpv', label: 'Tarjeta (TPV)' },
@@ -108,6 +106,35 @@ export default function ModalPago({
     { value: 'bizum_jm', label: 'Bizum JM' },
     { value: 'angeles', label: 'Ángeles' }
   ];
+
+  // Obtener el cliente seleccionado y método de pago optimizados
+  const selectedCliente = useMemo(() => 
+    clientes.find(c => c.id === selectedClienteId), 
+    [clientes, selectedClienteId]
+  );
+  
+  const selectedMetodoPago = useMemo(() => 
+    metodosPago.find(m => m.value === metodoPago), 
+    [metodoPago, metodosPago]
+  );
+
+  // Cálculos de precios optimizados con useMemo
+  const { subtotal, descuento, subtotalConDescuento, iva, total } = useMemo(() => {
+    
+    const subtotal = cartItems.reduce((total, item) => {
+      // Para el producto desconocido, usar directamente el precio (ya que quantity es 0)
+      if (item.id === 'producto-desconocido') {
+        return total + item.price;
+      }
+      return total + (item.price * item.quantity);
+    }, 0);
+    const descuento = (subtotal * discountPercentage) / 100;
+    const subtotalConDescuento = subtotal - descuento;
+    const iva = subtotalConDescuento * 0.21; // 21% de IVA (informativo)
+    const total = subtotalConDescuento; // El total es el subtotal con descuento, el IVA ya está incluido
+    
+    return { subtotal, descuento, subtotalConDescuento, iva, total };
+  }, [cartItems, discountPercentage]);
 
   const estadosPago: { value: EstadoPago; label: string }[] = [
     { value: 'completado', label: 'Completado' },
@@ -158,31 +185,61 @@ export default function ModalPago({
   };
 
   const handleConfirmPayment = async () => {
+    
     setIsProcessing(true);
     
     try {
-      await onSubmit({
-        id_cliente: selectedClienteId,
-        items: cartItems,
+      // Preservar los datos del pago antes de ejecutar onSubmit
+      const paymentData = {
+        cartItems: [...cartItems], // Crear una copia del array
         subtotal,
         descuento,
-        descuentoPorcentaje: discountPercentage,
+        discountPercentage,
         iva,
         total,
-        concepto,
-        pago: {
-          metodo: metodoPago,
-          estado: estadoPago
-        }
-      });
+        metodoPago: (() => {
+          const metodo = selectedMetodoPago?.label || 'Efectivo';
+          if (metodo.includes('Bizum')) return 'Bizum';
+          if (metodo.includes('Tarjeta')) return 'Tarjeta';
+          return 'Efectivo';
+        })(),
+        fecha: new Date()
+      };
       
-      // Limpiar formulario
-      setSelectedClienteId(null);
-      setMetodoPago('efectivo');
-      setEstadoPago('pendiente');
-      setConcepto('');
+      setProcessedPaymentData(paymentData);
+      
+      // Ejecutar onSubmit si no es readOnly
+      let pedidoId: string | undefined;
+      if (!readOnly) {
+        const result = await onSubmit({
+          id_cliente: selectedClienteId,
+          items: cartItems,
+          subtotal,
+          descuento,
+          descuentoPorcentaje: discountPercentage,
+          iva,
+          total,
+          concepto,
+          pago: {
+            metodo: metodoPago,
+            estado: estadoPago
+          }
+        });
+        
+        // Si el resultado incluye el ID del pedido, lo guardamos
+        if (result && typeof result === 'object' && 'pedidoId' in result) {
+          pedidoId = result.pedidoId;
+        }
+      }
+      
+      // Actualizar los datos con el ID del pedido si está disponible
+      if (pedidoId) {
+        setProcessedPaymentData(prev => prev ? { ...prev, pedidoId } : null);
+      }
+      
+      // Cerrar modal de confirmación y abrir modal del ticket
       setShowConfirmationModal(false);
-      onClose();
+      setShowTicketModal(true);
     } catch (error) {
       console.error('Error procesando pago:', error);
     } finally {
@@ -194,33 +251,54 @@ export default function ModalPago({
     setShowConfirmationModal(false);
   };
 
+  const handleGenerarQR = () => {
+    // TODO: Implementar generación de QR
+  };
+
+  const handleGuardarTicket = () => {
+    // TODO: Implementar guardado del ticket
+  };
+
+  const handleCloseTicket = () => {
+    setShowTicketModal(false);
+    setProcessedPaymentData(null); // Limpiar los datos procesados
+    // Solo limpiar formulario si no es readOnly
+    if (!readOnly) {
+      setSelectedClienteId(null);
+      setMetodoPago('efectivo');
+      setEstadoPago('pendiente');
+      setConcepto('');
+      onClose();
+    }
+  };
+
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-[60]" onClose={onClose}>
         <Transition.Child
           as={Fragment}
-          enter="ease-out duration-300"
+          enter="ease-out duration-150"
           enterFrom="opacity-0"
           enterTo="opacity-100"
-          leave="ease-in duration-200"
+          leave="ease-in duration-100"
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm transition-opacity" />
+            <div className="fixed inset-0 bg-gray-500/75 transition-opacity" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 flex items-center justify-center">
           <div className="flex min-h-full w-full items-center justify-center p-4">
             <Transition.Child
               as={Fragment}
-              enter="ease-out duration-300"
+              enter="ease-out duration-150"
               enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
               enterTo="opacity-100 translate-y-0 sm:scale-100"
-              leave="ease-in duration-200"
+              leave="ease-in duration-100"
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative w-full max-w-4xl max-h-[90vh] transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-2xl transition-all">
+              <Dialog.Panel className="relative w-full max-w-4xl max-h-[90vh] transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-lg transition-transform">
                 <form onSubmit={handleSubmit}>
                   {/* Header */}
                   <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -424,7 +502,7 @@ export default function ModalPago({
                     <div className="flex justify-end space-x-3">
                       <button
                         type="button"
-                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-md transition-colors cursor-pointer"
+                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-md transition-colors duration-75 cursor-pointer"
                         onClick={onClose}
                         disabled={isProcessing}
                       >
@@ -434,11 +512,11 @@ export default function ModalPago({
                         <button
                           type="submit"
                           disabled={cartItems.length === 0 || !selectedClienteId || isProcessing}
-                          className="px-6 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          className="px-6 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                           {isProcessing ? (
                             <div className="flex items-center gap-2">
-                              <SurfSpinner size="sm" />
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                               <span className="font-bold">Procesando...</span>
                             </div>
                           ) : (
@@ -460,28 +538,28 @@ export default function ModalPago({
         <Dialog as="div" className="relative z-[70]" onClose={handleCancelPayment}>
           <Transition.Child
             as={Fragment}
-            enter="ease-out duration-300"
+            enter="ease-out duration-150"
             enterFrom="opacity-0"
             enterTo="opacity-100"
-            leave="ease-in duration-200"
+            leave="ease-in duration-100"
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm transition-opacity" />
+            <div className="fixed inset-0 bg-gray-500/75 transition-opacity" />
           </Transition.Child>
 
           <div className="fixed inset-0 z-10 flex items-center justify-center">
             <div className="flex min-h-full w-full items-center justify-center p-4">
               <Transition.Child
                 as={Fragment}
-                enter="ease-out duration-300"
+                enter="ease-out duration-150"
                 enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                 enterTo="opacity-100 translate-y-0 sm:scale-100"
-                leave="ease-in duration-200"
+                leave="ease-in duration-100"
                 leaveFrom="opacity-100 translate-y-0 sm:scale-100"
                 leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
               >
-                <Dialog.Panel className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-2xl transition-all">
+                <Dialog.Panel className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-lg transition-transform">
                   <div className="px-6 py-8">
                     <div className="text-center">
                       {/* Spinner de carga */}
@@ -505,7 +583,7 @@ export default function ModalPago({
                           <div className="flex justify-between">
                             <span>Método:</span>
                             <span className="font-medium text-gray-900 dark:text-gray-100">
-                              {metodosPago.find(m => m.value === metodoPago)?.label}
+                              {selectedMetodoPago?.label}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -521,7 +599,7 @@ export default function ModalPago({
                       <div className="flex space-x-3">
                         <button
                           type="button"
-                          className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md transition-colors cursor-pointer"
+                          className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md transition-colors duration-75 cursor-pointer"
                           onClick={handleCancelPayment}
                           disabled={isProcessing}
                         >
@@ -529,7 +607,7 @@ export default function ModalPago({
                         </button>
                         <button
                           type="button"
-                          className="flex-1 px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          className="flex-1 px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                           onClick={handleConfirmPayment}
                           disabled={isProcessing}
                         >
@@ -551,6 +629,25 @@ export default function ModalPago({
           </div>
         </Dialog>
       </Transition.Root>
+
+      {/* Modal del ticket de compra */}
+      {processedPaymentData && (
+        <TicketCompra
+          isOpen={showTicketModal}
+          onClose={handleCloseTicket}
+          onGenerarQR={handleGenerarQR}
+          onGuardar={handleGuardarTicket}
+          cartItems={processedPaymentData.cartItems}
+          subtotal={processedPaymentData.subtotal}
+          descuento={processedPaymentData.descuento}
+          discountPercentage={processedPaymentData.discountPercentage}
+          iva={processedPaymentData.iva}
+          total={processedPaymentData.total}
+          metodoPago={processedPaymentData.metodoPago}
+          fecha={processedPaymentData.fecha}
+          pedidoId={processedPaymentData.pedidoId}
+        />
+      )}
     </Transition.Root>
   );
 }
