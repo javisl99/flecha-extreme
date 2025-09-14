@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSupabase } from './useSupabase';
+import { useTickets } from './useTickets';
 
 export interface PedidoItem {
   id: string;
@@ -12,6 +13,7 @@ export interface PedidoItem {
     nombre: string;
     precio: number;
     url_foto?: string;
+    stock: number;
   };
 }
 
@@ -24,6 +26,7 @@ export interface Pedido {
   total: number;
   iva: number;
   concepto?: string;
+  ticket_url?: string;
   created_at: string;
   updated_at: string;
   cliente?: {
@@ -36,6 +39,7 @@ export interface Pedido {
 
 export function usePedidos() {
   const { supabase } = useSupabase();
+  const { deleteTicket } = useTickets();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -133,7 +137,18 @@ export function usePedidos() {
       setLoading(true);
       setError(null);
 
-      // 1. PRIMERO: Eliminar las filas de 'pedido_item' que referencien al pedido
+      // 0. PRIMERO: Obtener el pedido para verificar si tiene ticket_url
+      const pedidoAEliminar = pedidos.find(p => p.id === pedidoId);
+      
+      // 1. SEGUNDO: Si el pedido tiene un ticket_url, eliminar el ticket del bucket PRIMERO
+      if (pedidoAEliminar?.ticket_url) {
+        const ticketEliminado = await deleteTicket(pedidoAEliminar.ticket_url);
+        if (!ticketEliminado) {
+          console.warn('No se pudo eliminar el ticket del bucket, pero continuando con la eliminación del pedido');
+        }
+      }
+      
+      // 2. TERCERO: Eliminar las filas de 'pedido_item' que referencien al pedido
       const { error: itemsError } = await supabase
         .from('pedido_item')
         .delete()
@@ -143,7 +158,7 @@ export function usePedidos() {
         throw new Error(`Error eliminando items del pedido: ${itemsError.message}`);
       }
 
-      // 2. SEGUNDO: Eliminar la fila en la tabla 'pago' que referencia al pedido en 'origen_id'
+      // 3. CUARTO: Eliminar la fila en la tabla 'pago' que referencia al pedido en 'origen_id'
       const { error: pagoError } = await supabase
         .from('pago')
         .delete()
@@ -154,7 +169,7 @@ export function usePedidos() {
         throw new Error(`Error eliminando pago asociado: ${pagoError.message}`);
       }
 
-      // 3. TERCERO: Borrar el pedido de la tabla 'pedido'
+      // 4. QUINTO: Borrar el pedido de la tabla 'pedido'
       const { error: pedidoError } = await supabase
         .from('pedido')
         .delete()

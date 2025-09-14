@@ -57,18 +57,30 @@ export default function TiendaPage() {
       const existingItem = prevItems.find(item => item.id === product.id);
       
       if (existingItem) {
-        return prevItems.map(item =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        );
+        // Verificar que no se exceda el stock al sumar la cantidad
+        const newQuantity = existingItem.quantity + quantity;
+        if (newQuantity <= product.stock) {
+          return prevItems.map(item =>
+            item.id === product.id
+              ? { ...item, quantity: newQuantity, stock: product.stock }
+              : item
+          );
+        } else {
+          // Si excede el stock, ajustar al máximo disponible
+          return prevItems.map(item =>
+            item.id === product.id
+              ? { ...item, quantity: product.stock, stock: product.stock }
+              : item
+          );
+        }
       } else {
         return [...prevItems, {
           id: product.id,
           name: product.name,
           price: product.price,
           quantity,
-          image: product.image
+          image: product.image,
+          stock: product.stock
         }];
       }
     });
@@ -76,9 +88,14 @@ export default function TiendaPage() {
 
   const handleUpdateQuantity = (id: string, quantity: number) => {
     setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === id ? { ...item, quantity } : item
-      )
+      prevItems.map(item => {
+        if (item.id === id) {
+          // Verificar que la cantidad no exceda el stock disponible
+          const maxQuantity = Math.min(quantity, item.stock);
+          return { ...item, quantity: maxQuantity };
+        }
+        return item;
+      })
     );
   };
 
@@ -125,12 +142,17 @@ export default function TiendaPage() {
         setDiscountPercentage(0);
         // Refrescar los productos para actualizar el stock
         await refetch();
+        
+        // Retornar el resultado con el ID del pedido
+        return { pedidoId: result.data?.pedidoId };
       } else {
         showToast(result.message || 'Error al procesar el pago', 'error');
+        return;
       }
     } catch (error) {
       console.error('Error procesando pago:', error);
       showToast('Error al procesar el pago', 'error');
+      return;
     }
   };
 

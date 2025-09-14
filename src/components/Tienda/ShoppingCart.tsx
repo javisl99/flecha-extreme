@@ -10,6 +10,7 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  stock: number;
 }
 
 interface ShoppingCartProps {
@@ -101,8 +102,15 @@ export default function ShoppingCart({
                 type="number"
                 min="0"
                 max="100"
-                value={discountPercentage}
-                onChange={(e) => setDiscountPercentage(Number(e.target.value))}
+                value={discountPercentage === 0 ? '' : discountPercentage}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '') {
+                    setDiscountPercentage(0);
+                  } else {
+                    setDiscountPercentage(Number(value));
+                  }
+                }}
                 className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="0"
               />
