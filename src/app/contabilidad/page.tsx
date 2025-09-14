@@ -87,7 +87,7 @@ export default function ContabilidadPage() {
   
   return (
     <ProtectedRoute allowedRoles={['admin', 'fl-admin']}>
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Contabilidad</h1>
           <div className="flex space-x-2">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card } from '@/shared/components';
+import { Card, SurfSpinner } from '@/shared/components';
 import ResumenDiario from '@/components/Dashboard/ResumenDiario';
 import ReservasHoy from '@/components/Dashboard/ReservasHoy';
 import { reservasMock } from '@/components/Actividades/data';
@@ -53,7 +53,7 @@ export default function DashboardPage() {
   const balanceDiario = ingresosDiarios - gastosDiarios;
   
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Dashboard</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -90,6 +90,30 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ResumenDiario fecha={fecha} />
         <ReservasHoy reservas={reservasHoy} />
+      </div>
+      
+      {/* Ejemplo del SurfSpinner */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold text-primary-dark dark:text-primary-light mb-4">
+          Ejemplo del SurfSpinner
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card title="Tamaño Pequeño" className="bg-card-bg">
+            <SurfSpinner size="sm" />
+          </Card>
+          
+          <Card title="Tamaño Mediano" className="bg-card-bg">
+            <SurfSpinner size="md" />
+          </Card>
+          
+          <Card title="Tamaño Grande" className="bg-card-bg">
+            <SurfSpinner size="lg" />
+          </Card>
+          
+          <Card title="Con Texto" className="bg-card-bg">
+            <SurfSpinner size="md" showText={true} text="Cargando datos..." />
+          </Card>
+        </div>
       </div>
     </div>
   );
