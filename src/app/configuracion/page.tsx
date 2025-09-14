@@ -54,7 +54,7 @@ export default function ConfiguracionPage() {
 
   return (
     <>
-      <div className={`space-y-6 ${isModalOpen ? 'blur-sm pointer-events-none' : ''}`}>
+      <div className={`p-6 space-y-6 ${isModalOpen ? 'blur-sm pointer-events-none' : ''}`}>
         <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Configuración</h1>
         
         <div>

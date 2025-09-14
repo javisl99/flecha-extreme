@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import { UserProvider, useUserContext } from "@/context/UserContext";
+import { SurfSpinner } from "@/shared/components";
 
 // Componente protegido que verifica la autenticación
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -27,13 +28,17 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   
   // Solo mostrar cargando en otras páginas, no en login
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Cargando...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen-safe bg-background">
+        <SurfSpinner size="xl" showText={true} text="Cargando aplicación..." />
+      </div>
+    );
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen-safe min-h-screen-safe max-h-screen-safe overflow-hidden">
       <Sidebar isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <main className={`flex-1 overflow-auto p-6 transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : ''}`}>
+      <main className={`flex-1 overflow-auto transition-all duration-300 min-h-0 ${isSidebarOpen ? 'md:ml-64' : ''}`}>
         <div className="md:hidden mb-4">
           <button
             onClick={() => setIsSidebarOpen(true)}
@@ -44,7 +49,9 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
             </svg>
           </button>
         </div>
-        {children}
+        <div className="min-h-full">
+          {children}
+        </div>
       </main>
     </div>
   );
