@@ -84,7 +84,7 @@ const BetaBadge = () => (
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: DashboardIcon },
-  { name: 'Actividades', href: '/actividades', icon: ReservasIcon },
+  { name: 'Actividades', href: '/actividades', icon: ReservasIcon, isBeta: true },
   { name: 'Clientes', href: '/clientes', icon: ClientesIcon, isBeta: true },
   { name: 'Pagos', href: '/pagos', icon: PagosIcon, isBeta: true },
   { name: 'Parking', href: '/parking', icon: ParkingIcon, isBeta: true },
