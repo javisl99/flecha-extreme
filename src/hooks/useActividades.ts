@@ -244,6 +244,231 @@ export function useActividades() {
     }
   };
 
+  const crearReserva = async (datosReserva: {
+    id_cliente: string | null;
+    id_actividad: string;
+    id_empresa: string;
+    cantidad_reservada: number;
+    precio: number;
+    fecha_inicio: string;
+    fecha_fin: string;
+    estado: 'confirmada' | 'pendiente' | 'completada' | 'cancelada';
+    nota?: string;
+  }): Promise<{ success: boolean; message: string; reservaId?: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('reserva')
+        .insert([datosReserva])
+        .select('id')
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return { 
+        success: true, 
+        message: 'Reserva creada correctamente',
+        reservaId: data.id
+      };
+    } catch (error: any) {
+      console.error('Error al crear reserva:', error);
+      setError(error.message || 'Error al crear la reserva');
+      return { success: false, message: error.message || 'Error al crear la reserva' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const crearPago = async (datosPago: {
+    id_cliente: string | null;
+    origen_tipo: 'reserva';
+    origen_id: string;
+    concepto: string;
+    importe: number;
+    metodo: 'efectivo' | 'tpv' | 'tpv_online' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
+    estado: 'completado' | 'pendiente' | 'cancelado';
+  }): Promise<{ success: boolean; message: string; pagoId?: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('pago')
+        .insert([datosPago])
+        .select('id')
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return { 
+        success: true, 
+        message: 'Pago creado correctamente',
+        pagoId: data.id
+      };
+    } catch (error: any) {
+      console.error('Error al crear pago:', error);
+      setError(error.message || 'Error al crear el pago');
+      return { success: false, message: error.message || 'Error al crear el pago' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const obtenerIdEmpresa = async (nombreEmpresa: string): Promise<{ success: boolean; empresaId?: string; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('empresa')
+        .select('id')
+        .eq('nombre', nombreEmpresa)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return { 
+        success: true, 
+        empresaId: data.id,
+        message: 'ID de empresa obtenido correctamente'
+      };
+    } catch (error: any) {
+      console.error('Error al obtener ID de empresa:', error);
+      setError(error.message || 'Error al obtener ID de empresa');
+      return { success: false, message: error.message || 'Error al obtener ID de empresa' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const obtenerIdCliente = async (nombreCliente: string, apellidosCliente: string): Promise<{ success: boolean; clienteId?: string; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('cliente')
+        .select('id')
+        .eq('nombre', nombreCliente)
+        .eq('apellidos', apellidosCliente)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return { 
+        success: true, 
+        clienteId: data.id,
+        message: 'ID de cliente obtenido correctamente'
+      };
+    } catch (error: any) {
+      console.error('Error al obtener ID de cliente:', error);
+      setError(error.message || 'Error al obtener ID de cliente');
+      return { success: false, message: error.message || 'Error al obtener ID de cliente' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const obtenerReservas = async (): Promise<{ success: boolean; reservas?: any[]; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('reserva')
+        .select(`
+          *,
+          cliente:cliente(id, nombre, apellidos, movil),
+          actividad:actividad(id, nombre, tipo),
+          empresa:empresa(id, nombre)
+        `)
+        .order('fecha_inicio', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      return { 
+        success: true, 
+        reservas: data || [],
+        message: 'Reservas obtenidas correctamente'
+      };
+    } catch (error: any) {
+      console.error('Error al obtener reservas:', error);
+      setError(error.message || 'Error al obtener reservas');
+      return { success: false, message: error.message || 'Error al obtener reservas' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const actualizarReserva = async (id: string, datosReserva: {
+    estado?: 'confirmada' | 'pendiente' | 'completada' | 'cancelada';
+    nota?: string;
+  }): Promise<{ success: boolean; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { error } = await supabase
+        .from('reserva')
+        .update(datosReserva)
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      return { 
+        success: true, 
+        message: 'Reserva actualizada correctamente'
+      };
+    } catch (error: any) {
+      console.error('Error al actualizar reserva:', error);
+      setError(error.message || 'Error al actualizar reserva');
+      return { success: false, message: error.message || 'Error al actualizar reserva' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eliminarReserva = async (id: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { error } = await supabase
+        .from('reserva')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      return { 
+        success: true, 
+        message: 'Reserva eliminada correctamente'
+      };
+    } catch (error: any) {
+      console.error('Error al eliminar reserva:', error);
+      setError(error.message || 'Error al eliminar reserva');
+      return { success: false, message: error.message || 'Error al eliminar reserva' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     loading,
     loadingActividades,
@@ -253,6 +478,13 @@ export function useActividades() {
     obtenerActividadesPorTipo,
     obtenerTarifasActividad,
     actualizarActividad,
-    eliminarActividad
+    eliminarActividad,
+    crearReserva,
+    crearPago,
+    obtenerIdEmpresa,
+    obtenerIdCliente,
+    obtenerReservas,
+    actualizarReserva,
+    eliminarReserva
   };
 }

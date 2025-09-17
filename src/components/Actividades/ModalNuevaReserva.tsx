@@ -1,8 +1,8 @@
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { Toast } from '@/shared/components';
 import { useActividades, ActividadDB, TarifaActividad } from '@/hooks/useActividades';
+import PagoReservaModal from './PagoReservaModal';
 
 interface ModalNuevaReservaProps {
   isOpen: boolean;
@@ -52,6 +52,25 @@ export default function ModalNuevaReserva({
   const [actividadSeleccionada, setActividadSeleccionada] = useState<ActividadDB | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [showModalPago, setShowModalPago] = useState(false);
+
+  // Función para generar datos de actividad para PagoReservaModal
+  const generarDatosActividad = () => {
+    return {
+      id: actividadSeleccionada?.id || `actividad-${Date.now()}`,
+      nombre: formData.actividad,
+      precio: formData.precio,
+      cantidad: formData.cantidadReservada,
+      duracion: formData.duracion,
+      empresa: formData.empresa,
+      numeroPersonas: formData.numeroPersonas,
+      fechaInicio: formData.fechaInicio,
+      fechaFin: formData.fechaFin,
+      horaInicio: formData.horaInicio,
+      horaFin: formData.horaFin,
+      nota: formData.nota
+    };
+  };
 
   // Función para calcular la hora de fin basándose en la duración
   const calcularHoraFin = (horaInicio: string, duracion: string): string => {
@@ -230,9 +249,9 @@ export default function ModalNuevaReserva({
       newErrors.horaInicio = 'La hora de inicio es obligatoria';
     }
 
-    // Validar que la fecha de fin sea posterior a la fecha de inicio
-    if (formData.fechaInicio && formData.fechaFin && formData.fechaFin <= formData.fechaInicio) {
-      newErrors.fechaFin = 'La fecha de fin debe ser posterior a la fecha de inicio';
+    // Validar que la fecha de fin sea posterior o igual a la fecha de inicio
+    if (formData.fechaInicio && formData.fechaFin && formData.fechaFin < formData.fechaInicio) {
+      newErrors.fechaFin = 'La fecha de fin debe ser igual o posterior a la fecha de inicio';
     }
 
     setErrors(newErrors);
@@ -246,16 +265,45 @@ export default function ModalNuevaReserva({
       return;
     }
 
-    setLoading(true);
+    // Abrir modal de pago
+    setShowModalPago(true);
+  };
 
+  // Función para manejar el envío del pago desde PagoReservaModal
+  const handlePagoSubmit = async (data: {
+    actividad: {
+      id: string;
+      nombre: string;
+      precio: number;
+      cantidad: number;
+      duracion: string;
+      empresa: string;
+      numeroPersonas: number;
+      fechaInicio: string;
+      fechaFin: string;
+      horaInicio: string;
+      horaFin: string;
+      nota?: string;
+    };
+    subtotal: number;
+    descuento: number;
+    descuentoPorcentaje: number;
+    iva: number;
+    total: number;
+    concepto: string;
+    pago: {
+      metodo: string;
+      estado: string;
+    };
+  }) => {
     try {
-      // Simular creación de reserva (aquí iría la lógica real)
+      // Aquí iría la lógica para crear la reserva y el pago en la base de datos
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Mostrar notificación de éxito
       const toastData = {
         visible: true,
-        message: 'Reserva creada exitosamente',
+        message: 'Reserva y pago creados exitosamente',
         type: 'success' as const
       };
       onToast(toastData);
@@ -296,18 +344,11 @@ export default function ModalNuevaReserva({
       setActividadSeleccionada(null);
       setErrors({});
       
-      // Cerrar modal
-      onClose();
+      // No cerrar automáticamente - dejar que el usuario cierre el ticket manualmente
+      // setShowModalPago(false);
+      // onClose();
     } catch (error) {
-      // Mostrar notificación de error
-      const toastData = {
-        visible: true,
-        message: 'Error al crear la reserva',
-        type: 'error' as const
-      };
-      onToast(toastData);
-    } finally {
-      setLoading(false);
+      console.error('Error al procesar el pago:', error);
     }
   };
 
@@ -558,7 +599,7 @@ export default function ModalNuevaReserva({
                           id="fechaFin"
                           value={formData.fechaFin}
                           onChange={(e) => handleInputChange('fechaFin', e.target.value)}
-                          min={formData.fechaInicio}
+                          min={formData.fechaInicio || undefined}
                           className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                             errors.fechaFin 
                               ? 'border-red-300 dark:border-red-600' 
@@ -724,6 +765,14 @@ export default function ModalNuevaReserva({
           </div>
         </div>
       </Dialog>
+
+      {/* Modal de Pago de Reserva */}
+      <PagoReservaModal
+        isOpen={showModalPago}
+        onClose={() => setShowModalPago(false)}
+        onSubmit={handlePagoSubmit}
+        actividad={generarDatosActividad()}
+      />
     </Transition>
   );
 }
