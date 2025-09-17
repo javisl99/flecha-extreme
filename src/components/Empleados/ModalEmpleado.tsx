@@ -70,6 +70,35 @@ export default function ModalEmpleado({ isOpen, onClose, onSuccess, modo, emplea
     }, 300);
   };
 
+  const handleInputChange = (field: string, value: string) => {
+    // Limitar el campo móvil a 9 dígitos
+    if (field === 'movil') {
+      // Solo permitir números y limitar a 9 caracteres
+      const numericValue = value.replace(/\D/g, '').slice(0, 9);
+      setFormData(prev => ({ ...prev, [field]: numericValue }));
+    } else if (field === 'dni') {
+      // Limitar DNI a 8 números + 1 letra
+      const upperValue = value.toUpperCase();
+      // Permitir solo números y letras, limitar a 9 caracteres
+      const cleanValue = upperValue.replace(/[^0-9A-Z]/g, '');
+      // Si tiene más de 8 caracteres, asegurar que el último sea letra
+      let finalValue = cleanValue;
+      if (cleanValue.length > 8) {
+        const numbers = cleanValue.slice(0, 8);
+        const letter = cleanValue.slice(8, 9).replace(/[^A-Z]/g, '');
+        finalValue = numbers + letter;
+      }
+      setFormData(prev => ({ ...prev, [field]: finalValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
+    
+    // Limpiar error del campo cuando se modifica
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -243,7 +272,7 @@ export default function ModalEmpleado({ isOpen, onClose, onSuccess, modo, emplea
                       type="tel"
                       id="movil"
                       value={formData.movil}
-                      onChange={(e) => setFormData({ ...formData, movil: e.target.value })}
+                      onChange={(e) => handleInputChange('movil', e.target.value)}
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                         errors.movil
                           ? 'border-red-300 focus:ring-red-500'
@@ -262,7 +291,7 @@ export default function ModalEmpleado({ isOpen, onClose, onSuccess, modo, emplea
                       type="text"
                       id="dni"
                       value={formData.dni}
-                      onChange={(e) => setFormData({ ...formData, dni: e.target.value })}
+                      onChange={(e) => handleInputChange('dni', e.target.value)}
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                         errors.dni
                           ? 'border-red-300 focus:ring-red-500'

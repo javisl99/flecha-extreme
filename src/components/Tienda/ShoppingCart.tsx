@@ -10,6 +10,7 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  stock: number;
 }
 
 interface ShoppingCartProps {
@@ -18,6 +19,7 @@ interface ShoppingCartProps {
   onRemoveItem: (id: string) => void;
   onClearCart: () => void;
   onCheckout: () => void;
+  onProceedToPayment: (discountPercentage: number) => void;
 }
 
 export default function ShoppingCart({ 
@@ -25,7 +27,8 @@ export default function ShoppingCart({
   onUpdateQuantity, 
   onRemoveItem, 
   onClearCart, 
-  onCheckout 
+  onCheckout,
+  onProceedToPayment 
 }: ShoppingCartProps) {
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -99,8 +102,15 @@ export default function ShoppingCart({
                 type="number"
                 min="0"
                 max="100"
-                value={discountPercentage}
-                onChange={(e) => setDiscountPercentage(Number(e.target.value))}
+                value={discountPercentage === 0 ? '' : discountPercentage}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '') {
+                    setDiscountPercentage(0);
+                  } else {
+                    setDiscountPercentage(Number(value));
+                  }
+                }}
                 className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="0"
               />
@@ -136,22 +146,10 @@ export default function ShoppingCart({
           {/* Botones de acción */}
           <div className="space-y-2">
             <button
-              onClick={handleCheckout}
-              disabled={isCheckingOut}
-              className={`w-full py-3 px-4 rounded-lg font-semibold transition-all duration-200 ${
-                isCheckingOut
-                  ? 'bg-gray-400 text-white cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700 text-white hover:shadow-lg'
-              } cursor-pointer`}
+              onClick={() => onProceedToPayment(discountPercentage)}
+              className="w-full py-3 px-4 rounded-lg font-semibold transition-all duration-200 bg-green-600 hover:bg-green-700 text-white hover:shadow-lg cursor-pointer"
             >
-              {isCheckingOut ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Procesando...
-                </div>
-              ) : (
-                'Proceder al Pago'
-              )}
+              Proceder al Pago
             </button>
             
             <button

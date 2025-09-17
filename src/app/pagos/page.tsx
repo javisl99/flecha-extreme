@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { Card } from '@/shared/components';
 import { usePagos, type Pago } from '@/hooks/usePagos';
+import { usePedidos, type Pedido } from '@/hooks/usePedidos';
 import { toast } from 'react-hot-toast';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 import TableSkeleton from '@/components/shared/TableSkeleton';
 import DetallePagoModal from '@/components/Pagos/DetallePagoModal';
+import ModalPago from '@/components/Tienda/ModalPago';
 import { FiltrosPagos, type FiltrosPagoState } from '@/components/Pagos/FiltrosPagos';
 
 export default function PagosPage() {
@@ -21,7 +23,10 @@ export default function PagosPage() {
   const [pagoAEliminar, setPagoAEliminar] = useState<Pago | null>(null);
   const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
   const [isDetallePagoModalOpen, setIsDetallePagoModalOpen] = useState(false);
+  const [isModalPagoOpen, setIsModalPagoOpen] = useState(false);
+  const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
   const { pagos, loading, error, eliminarPago, refreshPagos, actualizarPago } = usePagos();
+  const { obtenerPedidoPorId } = usePedidos();
   
   const pagosFiltrados = pagos.filter(pago => {
     const cumpleCliente = !filtros.cliente || (
@@ -98,9 +103,26 @@ export default function PagosPage() {
     }
   };
 
-  const handleVerPago = (pago: Pago) => {
-    setPagoSeleccionado(pago);
-    setIsDetallePagoModalOpen(true);
+  const handleVerPago = async (pago: Pago) => {
+    if (pago.origen_tipo === 'pedido' && pago.origen_id) {
+      // Si es un pago de pedido, cargar los datos del pedido y abrir ModalPago
+      try {
+        const pedido = await obtenerPedidoPorId(pago.origen_id);
+        if (pedido) {
+          setPedidoSeleccionado(pedido);
+          setIsModalPagoOpen(true);
+        } else {
+          toast.error('No se pudo cargar la información del pedido');
+        }
+      } catch (error) {
+        console.error('Error cargando pedido:', error);
+        toast.error('Error al cargar la información del pedido');
+      }
+    } else {
+      // Para otros tipos de pago, usar el modal de detalle normal
+      setPagoSeleccionado(pago);
+      setIsDetallePagoModalOpen(true);
+    }
   };
 
   const handleFilaClick = (pago: Pago) => {
@@ -141,6 +163,49 @@ export default function PagosPage() {
       console.error('Error al cancelar el pago:', error);
       throw error;
     }
+  };
+
+  // Función para procesar los items del pedido y agregar producto desconocido si es necesario
+  const procesarItemsPedido = (pedido: Pedido) => {
+    if (!pedido.items) return [];
+
+    // Calcular el total de los productos disponibles (sin descuento)
+    const totalProductosDisponibles = pedido.items.reduce((total, item) => {
+      const precio = item.producto?.precio || 0;
+      return total + (precio * item.cantidad);
+    }, 0);
+
+    // El total almacenado en BD ya tiene aplicado el descuento
+    const totalConDescuento = pedido.total;
+    const descuento = pedido.descuento || 0;
+    
+    // Calcular el total original (antes del descuento) para comparar
+    const totalOriginal = descuento > 0 ? totalConDescuento / (1 - descuento / 100) : totalConDescuento;
+
+    // Calcular la diferencia entre el total original y los productos disponibles
+    const diferencia = totalOriginal - totalProductosDisponibles;
+
+    // Mapear los items existentes
+    const itemsMapeados = pedido.items.map(item => ({
+      id: item.id_producto,
+      name: item.producto?.nombre || 'Producto no encontrado',
+      price: item.producto?.precio || 0,
+      quantity: item.cantidad,
+      image: item.producto?.url_foto || ''
+    }));
+
+    // Si hay diferencia significativa (más de 0.01€ para evitar errores de redondeo), agregar producto desconocido
+    if (Math.abs(diferencia) > 0.01) {
+      itemsMapeados.push({
+        id: 'producto-desconocido',
+        name: 'Producto Desconocido',
+        price: diferencia,
+        quantity: 0, // No mostrar cantidad ya que no sabemos cuántas unidades había
+        image: ''
+      });
+    }
+
+    return itemsMapeados;
   };
 
   if (error) {
@@ -287,6 +352,33 @@ export default function PagosPage() {
         pago={pagoSeleccionado}
         onCompletarPago={handleCompletarPago}
         onCancelarPago={handleCancelarPago}
+      />
+
+      <ModalPago
+        isOpen={isModalPagoOpen}
+        onClose={() => {
+          setIsModalPagoOpen(false);
+          setPedidoSeleccionado(null);
+        }}
+        onSubmit={async () => {
+          // No hacer nada, solo mostrar los datos del pedido
+          toast.success('Este es un pedido existente, no se puede modificar');
+        }}
+        cartItems={(() => {
+          const items = pedidoSeleccionado ? procesarItemsPedido(pedidoSeleccionado) : [];
+          return items;
+        })()}
+        discountPercentage={(() => {
+          const discount = pedidoSeleccionado?.descuento || 0;
+          return discount;
+        })()}
+        readOnly={true}
+        pedidoData={pedidoSeleccionado ? {
+          clienteId: pedidoSeleccionado.id_cliente,
+          metodo: 'efectivo', // Valor por defecto, se puede obtener del pago asociado
+          estado: 'completado', // Valor por defecto
+          concepto: 'Pedido de tienda'
+        } : undefined}
       />
     </div>
   );
