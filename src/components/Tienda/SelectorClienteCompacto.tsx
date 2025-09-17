@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useClientes } from '@/hooks/useClientes';
 
-interface SelectorClienteProps {
+interface SelectorClienteCompactoProps {
   selectedClienteId: string | null;
   onClienteChange: (clienteId: string | null) => void;
   placeholder?: string;
@@ -11,13 +11,13 @@ interface SelectorClienteProps {
   disabled?: boolean;
 }
 
-export function SelectorCliente({ 
+export function SelectorClienteCompacto({ 
   selectedClienteId, 
   onClienteChange, 
   placeholder = "Seleccionar cliente",
   className = "",
   disabled = false 
-}: SelectorClienteProps) {
+}: SelectorClienteCompactoProps) {
   const { clientes, loading, crearCliente } = useClientes();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -203,10 +203,10 @@ export function SelectorCliente({
         )}
       </div>
 
-      {/* Dropdown */}
+      {/* Dropdown compacto */}
       {isOpen && !disabled && (
-        <div className={`absolute z-[60] w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg overflow-y-auto ${
-          showCreateForm ? 'max-h-96' : 'max-h-48'
+        <div className={`absolute z-[70] w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg overflow-y-auto ${
+          showCreateForm ? 'max-h-80' : 'max-h-32'
         }`}>
           {/* Lista de clientes */}
           <div className="py-1">
@@ -214,7 +214,7 @@ export function SelectorCliente({
             <button
               type="button"
               onClick={() => handleClienteSelect(null)}
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer ${
+              className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer ${
                 selectedClienteId === null ? 'bg-primary/10 text-primary' : 'text-gray-900 dark:text-gray-100'
               }`}
             >
@@ -222,20 +222,20 @@ export function SelectorCliente({
             </button>
 
             {loading ? (
-              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                Cargando clientes...
+              <div className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400">
+                Cargando...
               </div>
             ) : clientes.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                No hay clientes disponibles
+              <div className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400">
+                No hay clientes
               </div>
             ) : (
-              clientes.map((cliente) => (
+              clientes.slice(0, 5).map((cliente) => (
                 <button
                   key={cliente.id}
                   type="button"
                   onClick={() => handleClienteSelect(cliente.id)}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer ${
+                  className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer ${
                     selectedClienteId === cliente.id ? 'bg-primary/10 text-primary' : 'text-gray-900 dark:text-gray-100'
                   }`}
                 >
@@ -249,124 +249,109 @@ export function SelectorCliente({
           <div className="border-t border-gray-200 dark:border-gray-600"></div>
 
           {/* Botón para crear nuevo cliente */}
-          <div className="p-2">
+          <div className="p-1">
             <button
               type="button"
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded-md border-2 border-dashed border-primary/30 hover:border-primary/50 transition-colors cursor-pointer"
+              className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs text-primary hover:bg-primary/10 rounded-md border border-dashed border-primary/30 hover:border-primary/50 transition-colors cursor-pointer"
             >
-               <span className="text-sm">+</span>
-               Crear nuevo cliente
+               <span className="text-xs">+</span>
+               Crear cliente
             </button>
           </div>
 
-          {/* Formulario para crear nuevo cliente */}
+          {/* Formulario compacto para crear nuevo cliente */}
           {showCreateForm && (
-            <div className="p-3 bg-primary/5 border-t border-primary/20">
-              <div className="space-y-3">
-                {/* Nombre */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Nombre *
-                  </label>
-                  <input
-                    type="text"
-                    value={newCliente.nombre}
-                    onChange={(e) => handleInputChange('nombre', e.target.value)}
-                    placeholder="Nombre del cliente"
-                    className={`w-full px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                      errors.nombre 
-                        ? 'border-red-300 dark:border-red-600' 
-                        : 'border-gray-300 dark:border-gray-600'
-                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
-                  />
-                  {errors.nombre && (
-                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.nombre}</p>
-                  )}
-                </div>
-
-                {/* Apellidos */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Apellidos *
-                  </label>
-                  <input
-                    type="text"
-                    value={newCliente.apellidos}
-                    onChange={(e) => handleInputChange('apellidos', e.target.value)}
-                    placeholder="Apellidos del cliente"
-                    className={`w-full px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                      errors.apellidos 
-                        ? 'border-red-300 dark:border-red-600' 
-                        : 'border-gray-300 dark:border-gray-600'
-                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
-                  />
-                  {errors.apellidos && (
-                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.apellidos}</p>
-                  )}
+            <div className="p-2 bg-primary/5 border-t border-primary/20">
+              <div className="space-y-2">
+                {/* Nombre y Apellidos en una fila */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <input
+                      type="text"
+                      value={newCliente.nombre}
+                      onChange={(e) => handleInputChange('nombre', e.target.value)}
+                      placeholder="Nombre"
+                      className={`w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary ${
+                        errors.nombre 
+                          ? 'border-red-300 dark:border-red-600' 
+                          : 'border-gray-300 dark:border-gray-600'
+                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                    />
+                    {errors.nombre && (
+                      <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{errors.nombre}</p>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={newCliente.apellidos}
+                      onChange={(e) => handleInputChange('apellidos', e.target.value)}
+                      placeholder="Apellidos"
+                      className={`w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary ${
+                        errors.apellidos 
+                          ? 'border-red-300 dark:border-red-600' 
+                          : 'border-gray-300 dark:border-gray-600'
+                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                    />
+                    {errors.apellidos && (
+                      <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{errors.apellidos}</p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Email *
-                  </label>
                   <input
                     type="email"
                     value={newCliente.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     placeholder="email@ejemplo.com"
-                    className={`w-full px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                    className={`w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary ${
                       errors.email 
                         ? 'border-red-300 dark:border-red-600' 
                         : 'border-gray-300 dark:border-gray-600'
                     } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
                   />
                   {errors.email && (
-                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.email}</p>
+                    <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{errors.email}</p>
                   )}
                 </div>
 
-                {/* Móvil */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Móvil *
-                  </label>
-                  <input
-                    type="tel"
-                    value={newCliente.movil}
-                    onChange={(e) => handleInputChange('movil', e.target.value)}
-                    placeholder="654237888"
-                    className={`w-full px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                      errors.movil 
-                        ? 'border-red-300 dark:border-red-600' 
-                        : 'border-gray-300 dark:border-gray-600'
-                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
-                  />
-                  {errors.movil && (
-                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.movil}</p>
-                  )}
-                </div>
-
-                {/* DNI */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    DNI/NIF
-                  </label>
-                  <input
-                    type="text"
-                    value={newCliente.dni}
-                    onChange={(e) => handleInputChange('dni', e.target.value.toUpperCase())}
-                    placeholder="12345678A"
-                    className={`w-full px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                      errors.dni 
-                        ? 'border-red-300 dark:border-red-600' 
-                        : 'border-gray-300 dark:border-gray-600'
-                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
-                  />
-                  {errors.dni && (
-                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.dni}</p>
-                  )}
+                {/* Móvil y DNI en una fila */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <input
+                      type="tel"
+                      value={newCliente.movil}
+                      onChange={(e) => handleInputChange('movil', e.target.value)}
+                      placeholder="654237888"
+                      className={`w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary ${
+                        errors.movil 
+                          ? 'border-red-300 dark:border-red-600' 
+                          : 'border-gray-300 dark:border-gray-600'
+                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                    />
+                    {errors.movil && (
+                      <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{errors.movil}</p>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={newCliente.dni}
+                      onChange={(e) => handleInputChange('dni', e.target.value.toUpperCase())}
+                      placeholder="12345678A"
+                      className={`w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary ${
+                        errors.dni 
+                          ? 'border-red-300 dark:border-red-600' 
+                          : 'border-gray-300 dark:border-gray-600'
+                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                    />
+                    {errors.dni && (
+                      <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{errors.dni}</p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Error general */}
@@ -374,15 +359,15 @@ export function SelectorCliente({
                   <p className="text-xs text-red-600 dark:text-red-400">{errors.general}</p>
                 )}
 
-                {/* Botones */}
-                <div className="flex gap-2">
+                {/* Botones compactos */}
+                <div className="flex gap-1">
                   <button
                     type="button"
                     onClick={handleCreateCliente}
                     disabled={creatingCliente}
-                    className="flex-1 px-3 py-1.5 bg-primary text-white text-sm rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    className="flex-1 px-2 py-1 bg-primary text-white text-xs rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
-                    {creatingCliente ? 'Creando...' : 'Crear cliente'}
+                    {creatingCliente ? 'Creando...' : 'Crear'}
                   </button>
                   <button
                     type="button"
@@ -398,7 +383,7 @@ export function SelectorCliente({
                       setErrors({});
                     }}
                     disabled={creatingCliente}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancelar
                   </button>
