@@ -73,7 +73,7 @@ export default function ProductCard({ product, onAddToCart, onEditProduct }: Pro
             </span>
           </div>
         )}
-        {product.stock > 0 && product.stock <= 5 && (
+        {product.stock > 0 && product.stock <= 3 && (
           <div className="absolute top-2 right-2 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
             ¡Últimas unidades!
           </div>
@@ -97,49 +97,80 @@ export default function ProductCard({ product, onAddToCart, onEditProduct }: Pro
 
         {/* Contenido inferior fijo */}
         <div className="mt-auto">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-2xl font-bold text-primary-dark dark:text-primary-light">
-              {formatPrice(product.price)}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${
-                product.stock === 0 
-                  ? 'bg-red-500' 
-                  : product.stock <= 3 
-                    ? 'bg-orange-500' 
-                    : 'bg-green-500'
-              }`}></div>
-              <span className={`text-xs font-medium ${
-                product.stock === 0 
-                  ? 'text-red-600 dark:text-red-400' 
-                  : product.stock <= 3 
-                    ? 'text-orange-600 dark:text-orange-400' 
-                    : 'text-green-600 dark:text-green-400'
-              }`}>
-                {product.stock} unidades
+          {/* Precio y stock - responsive layout */}
+          <div className="mb-3">
+            {/* En pantallas grandes: precio y stock en la misma línea */}
+            <div className="hidden sm:flex items-center justify-between gap-2">
+              <span className="text-2xl font-bold text-primary-dark dark:text-primary-light flex-shrink-0">
+                {formatPrice(product.price)}
               </span>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div className={`w-2 h-2 rounded-full ${
+                  product.stock === 0 
+                    ? 'bg-red-500' 
+                    : product.stock <= 3 
+                      ? 'bg-orange-500' 
+                      : 'bg-green-500'
+                }`}></div>
+                <span className={`text-xs font-medium whitespace-nowrap ${
+                  product.stock === 0 
+                    ? 'text-red-600 dark:text-red-400' 
+                    : product.stock <= 3 
+                      ? 'text-orange-600 dark:text-orange-400' 
+                      : 'text-green-600 dark:text-green-400'
+                }`}>
+                  {product.stock} unds.
+                </span>
+              </div>
+            </div>
+            
+            {/* En pantallas pequeñas: precio debajo del stock */}
+            <div className="sm:hidden space-y-2">
+              <div className="flex items-center justify-center gap-1.5">
+                <div className={`w-2 h-2 rounded-full ${
+                  product.stock === 0 
+                    ? 'bg-red-500' 
+                    : product.stock <= 3 
+                      ? 'bg-orange-500' 
+                      : 'bg-green-500'
+                }`}></div>
+                <span className={`text-xs font-medium ${
+                  product.stock === 0 
+                    ? 'text-red-600 dark:text-red-400' 
+                    : product.stock <= 3 
+                      ? 'text-orange-600 dark:text-orange-400' 
+                      : 'text-green-600 dark:text-green-400'
+                }`}>
+                  {product.stock} unds.
+                </span>
+              </div>
+              <div className="text-center">
+                <span className="text-2xl font-bold text-primary-dark dark:text-primary-light">
+                  {formatPrice(product.price)}
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Selector de cantidad y botón añadir */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg flex-shrink-0">
+            <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg flex-1 justify-center">
               <button
                 onClick={decrementQuantity}
                 disabled={quantity <= 1 || isOutOfStock}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                 </svg>
               </button>
-              <span className="px-2 py-1.5 text-sm font-medium min-w-[2rem] text-center">
+              <span className="px-1.5 py-1.5 text-sm font-medium min-w-[1.5rem] text-center">
                 {quantity}
               </span>
               <button
                 onClick={incrementQuantity}
                 disabled={quantity >= product.stock || isOutOfStock}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

@@ -2,19 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import { Product } from './data';
+import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 
 interface ModalEditProductProps {
   isOpen: boolean;
   onClose: () => void;
   product: Product | null;
   onUpdateProduct: (productId: string, updatedProduct: Partial<Product>, imageFile?: File) => void;
+  onDeleteProduct: (productId: string) => void;
 }
 
 export default function ModalEditProduct({ 
   isOpen, 
   onClose, 
   product,
-  onUpdateProduct 
+  onUpdateProduct,
+  onDeleteProduct 
 }: ModalEditProductProps) {
   const [editedProduct, setEditedProduct] = useState({
     name: '',
@@ -26,6 +29,7 @@ export default function ModalEditProduct({
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Inicializar datos cuando se abre la modal
   useEffect(() => {
@@ -99,6 +103,17 @@ export default function ModalEditProduct({
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleDeleteProduct = () => {
+    if (!product) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!product) return;
+    onDeleteProduct(product.id);
+    onClose();
   };
 
   if (!isOpen || !product) return null;
@@ -233,35 +248,61 @@ export default function ModalEditProduct({
           </div>
 
           {/* Botones */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
-              onClick={handleClose}
-              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors cursor-pointer bg-gray-200 dark:bg-gray-800 rounded-lg"
+              onClick={handleDeleteProduct}
+              className="px-4 py-2 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors cursor-pointer bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-800"
             >
-              Cancelar
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Eliminar
+              </div>
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                isSubmitting
-                  ? 'bg-gray-400 text-white cursor-not-allowed'
-                  : 'bg-primary-dark hover:bg-primary text-white hover:shadow-lg'
-              } cursor-pointer`}
-            >
-              {isSubmitting ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Guardando...
-                </div>
-              ) : (
-                'Guardar Cambios'
-              )}
-            </button>
+            
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors cursor-pointer bg-gray-200 dark:bg-gray-800 rounded-lg"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                  isSubmitting
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-primary-dark hover:bg-primary text-white hover:shadow-lg'
+                } cursor-pointer`}
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Guardando...
+                  </div>
+                ) : (
+                  'Guardar Cambios'
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
+
+      {/* Modal de confirmación para eliminar */}
+      <ModalConfirmacion
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        titulo="Eliminar Producto"
+        mensaje={`¿Estás seguro de que quieres eliminar el producto "${product?.name}"? Esta acción no se puede deshacer.`}
+        textoConfirmar="Eliminar"
+        textoCancelar="Cancelar"
+      />
     </div>
   );
 }

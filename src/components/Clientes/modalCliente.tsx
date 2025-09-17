@@ -100,7 +100,28 @@ export default function ModalCliente({ isOpen, onClose, onSuccess, modo, cliente
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Limitar el campo móvil a 9 dígitos
+    if (name === 'movil') {
+      // Solo permitir números y limitar a 9 caracteres
+      const numericValue = value.replace(/\D/g, '').slice(0, 9);
+      setFormData(prev => ({ ...prev, [name]: numericValue }));
+    } else if (name === 'dni') {
+      // Limitar DNI a 8 números + 1 letra
+      const upperValue = value.toUpperCase();
+      // Permitir solo números y letras, limitar a 9 caracteres
+      const cleanValue = upperValue.replace(/[^0-9A-Z]/g, '');
+      // Si tiene más de 8 caracteres, asegurar que el último sea letra
+      let finalValue = cleanValue;
+      if (cleanValue.length > 8) {
+        const numbers = cleanValue.slice(0, 8);
+        const letter = cleanValue.slice(8, 9).replace(/[^A-Z]/g, '');
+        finalValue = numbers + letter;
+      }
+      setFormData(prev => ({ ...prev, [name]: finalValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     
     // Limpiar error del campo cuando se modifica
     if (errors[name]) {
