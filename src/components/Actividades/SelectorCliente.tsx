@@ -133,7 +133,7 @@ export function SelectorCliente({
       });
 
       // Seleccionar automáticamente el nuevo cliente
-      onClienteChange(nuevoCliente.data?.id);
+      onClienteChange(nuevoCliente.data?.id ?? null);
       
       // Limpiar formulario
       setNewCliente({
@@ -177,7 +177,6 @@ export function SelectorCliente({
     }
     
     setNewCliente(prev => ({ ...prev, [field]: processedValue }));
-    
     // Limpiar error cuando el usuario empiece a escribir
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
