@@ -2,23 +2,11 @@ import { useState } from 'react';
 import QRCode from 'qrcode';
 import jsPDF from 'jspdf';
 import supabaseClient from '@/lib/supabaseClient';
+import { useEmailAPI } from './useEmailAPI';
+import { generatePurchaseEmailHTML, generatePurchaseEmailText, Cliente, TicketData } from '@/lib/emailTemplates';
 
-interface TicketData {
-  cartItems: Array<{
-    id: string;
-    name: string;
-    price: number;
-    quantity: number;
-    image: string;
-  }>;
-  subtotal: number;
-  descuento: number;
-  discountPercentage: number;
-  iva: number;
-  total: number;
-  metodoPago: string;
-  fecha: Date;
-  pedidoId?: string;
+interface TicketDataWithCliente extends TicketData {
+  clienteId?: string; // Agregamos el ID del cliente para poder obtener su email
 }
 
 interface TicketResult {
@@ -31,6 +19,57 @@ interface TicketResult {
 export function useTickets() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { sendEmail, sendTicketEmail } = useEmailAPI();
+
+  // Función para obtener la información del cliente
+  const getClienteInfo = async (clienteId: string) => {
+    try {
+      const { data, error } = await supabaseClient
+        .from('cliente')
+        .select('id, nombre, apellidos, email')
+        .eq('id', clienteId)
+        .single();
+
+      if (error) {
+        throw new Error(`Error al obtener información del cliente: ${error.message}`);
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Error obteniendo información del cliente:', err);
+      throw err;
+    }
+  };
+
+  // Función para enviar email al cliente usando la nueva plantilla React
+  const sendPurchaseEmail = async (clienteId: string, ticketData: TicketData, ticketUrl: string) => {
+    try {
+      // Obtener información del cliente
+      const cliente = await getClienteInfo(clienteId);
+      
+      if (!cliente.email) {
+        console.warn('El cliente no tiene email configurado, no se enviará el email');
+        return { success: true, message: 'Cliente sin email configurado' };
+      }
+
+      // Usar la nueva función sendTicketEmail que usa React Email
+      const emailResult = await sendTicketEmail(cliente, ticketData, ticketUrl);
+
+      if (emailResult.success) {
+        console.log('Email enviado exitosamente al cliente:', cliente.email);
+        return { success: true, message: 'Email enviado exitosamente' };
+      } else {
+        console.error('Error enviando email:', emailResult.error);
+        return { success: false, error: emailResult.error };
+      }
+    } catch (err) {
+      console.error('Error enviando email al cliente:', err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Error desconocido enviando email' 
+      };
+    }
+  };
 
   // Función para generar el PDF del ticket
   const generateTicketPDF = async (data: TicketData): Promise<jsPDF> => {
@@ -252,7 +291,7 @@ export function useTickets() {
   };
 
   // Función para guardar el ticket en Supabase Storage
-  const saveTicket = async (data: TicketData): Promise<TicketResult> => {
+  const saveTicket = async (data: TicketDataWithCliente): Promise<TicketResult> => {
     try {
       setLoading(true);
       setError(null);
@@ -308,6 +347,22 @@ export function useTickets() {
         }
       }
 
+      // Enviar email al cliente si tenemos el clienteId
+      if (data.clienteId) {
+        try {
+          const emailResult = await sendPurchaseEmail(data.clienteId, data, publicUrl);
+          if (emailResult.success) {
+            console.log('Email enviado exitosamente al cliente');
+          } else {
+            console.warn('Error enviando email al cliente:', emailResult.error);
+            // No lanzamos error aquí porque el ticket ya se guardó correctamente
+          }
+        } catch (err) {
+          console.warn('Error enviando email al cliente:', err);
+          // No lanzamos error aquí porque el ticket ya se guardó correctamente
+        }
+      }
+
       return {
         success: true,
         url: publicUrl
@@ -328,7 +383,7 @@ export function useTickets() {
   };
 
   // Función para generar QR del ticket
-  const generateTicketQR = async (data: TicketData): Promise<TicketResult> => {
+  const generateTicketQR = async (data: TicketDataWithCliente): Promise<TicketResult> => {
     try {
       setLoading(true);
       setError(null);

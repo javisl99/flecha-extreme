@@ -96,7 +96,7 @@ export default function ModalPago({
     setStockValidationError(null);
   }, [cartItems]);
 
-  const metodosPago: { value: MetodoPago; label: string }[] = [
+  const metodosPago: { value: MetodoPago; label: string }[] = useMemo(() => [
     { value: 'efectivo', label: 'Efectivo' },
     { value: 'tpv', label: 'Tarjeta (TPV)' },
     { value: 'bizum_alfonso', label: 'Bizum Alfonso' },
@@ -105,7 +105,7 @@ export default function ModalPago({
     { value: 'bizum_maria', label: 'Bizum María' },
     { value: 'bizum_jm', label: 'Bizum JM' },
     { value: 'angeles', label: 'Ángeles' }
-  ];
+  ], []);
 
   // Obtener el cliente seleccionado y método de pago optimizados
   const selectedCliente = useMemo(() => 
@@ -119,7 +119,7 @@ export default function ModalPago({
   );
 
   // Cálculos de precios optimizados con useMemo
-  const { subtotal, descuento, subtotalConDescuento, iva, total } = useMemo(() => {
+  const { subtotal, descuento, iva, total } = useMemo(() => {
     
     const subtotal = cartItems.reduce((total, item) => {
       // Para el producto desconocido, usar directamente el precio (ya que quantity es 0)
@@ -133,13 +133,9 @@ export default function ModalPago({
     const iva = subtotalConDescuento * 0.21; // 21% de IVA (informativo)
     const total = subtotalConDescuento; // El total es el subtotal con descuento, el IVA ya está incluido
     
-    return { subtotal, descuento, subtotalConDescuento, iva, total };
+    return { subtotal, descuento, iva, total };
   }, [cartItems, discountPercentage]);
 
-  const estadosPago: { value: EstadoPago; label: string }[] = [
-    { value: 'completado', label: 'Completado' },
-    { value: 'pendiente', label: 'Pendiente' }
-  ];
 
   // Función para validar stock disponible
   const validateStock = () => {
@@ -646,6 +642,7 @@ export default function ModalPago({
           metodoPago={processedPaymentData.metodoPago}
           fecha={processedPaymentData.fecha}
           pedidoId={processedPaymentData.pedidoId}
+          clienteId={selectedClienteId || undefined} // Pasar el ID del cliente seleccionado
         />
       )}
     </Transition.Root>
