@@ -30,13 +30,12 @@ interface TicketCompraProps {
   metodoPago: string;
   fecha: Date;
   pedidoId?: string;
+  clienteId?: string; // Agregamos el ID del cliente
 }
 
 export default function TicketCompra({
   isOpen,
   onClose,
-  onGenerarQR,
-  onGuardar,
   cartItems,
   subtotal,
   descuento,
@@ -45,12 +44,12 @@ export default function TicketCompra({
   total,
   metodoPago,
   fecha,
-  pedidoId
+  pedidoId,
+  clienteId
 }: TicketCompraProps) {
   const { loading, error, saveTicket, generateTicketQR } = useTickets();
   const [showQR, setShowQR] = useState(false);
   const [qrCode, setQrCode] = useState<string>('');
-  const [ticketUrl, setTicketUrl] = useState<string>('');
 
   const handleGuardar = async () => {
     const ticketData = {
@@ -62,14 +61,14 @@ export default function TicketCompra({
       total,
       metodoPago,
       fecha,
-      pedidoId
+      pedidoId,
+      clienteId // Incluimos el clienteId para el envío de email
     };
 
     const result = await saveTicket(ticketData);
     
     if (result.success && result.url) {
-      setTicketUrl(result.url);
-      toast.success('Ticket PDF guardado exitosamente');
+      toast.success('Ticket PDF guardado exitosamente y email enviado al cliente');
       onClose(); // Cerrar el modal después de guardar exitosamente
     } else {
       toast.error(`Error al guardar el ticket: ${result.error}`);
@@ -86,16 +85,16 @@ export default function TicketCompra({
       total,
       metodoPago,
       fecha,
-      pedidoId
+      pedidoId,
+      clienteId // Incluimos el clienteId para el envío de email
     };
 
     const result = await generateTicketQR(ticketData);
     
     if (result.success && result.qrCode && result.url) {
       setQrCode(result.qrCode);
-      setTicketUrl(result.url);
       setShowQR(true);
-      toast.success('Código QR generado exitosamente');
+      toast.success('Código QR generado exitosamente y email enviado al cliente');
     } else {
       toast.error(`Error al generar el QR: ${result.error}`);
     }
