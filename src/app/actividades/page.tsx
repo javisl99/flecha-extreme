@@ -6,6 +6,7 @@ import { reservasMock } from '@/components/Actividades/data';
 import { Reserva } from '@/shared/types';
 import { FiltrosReserva } from '@/components/Actividades/types';
 import ModalNuevaActividad from '@/components/Actividades/ModalNuevaActividad';
+import ModalNuevaReserva from '@/components/Actividades/ModalNuevaReserva';
 
 // Icono para nueva reserva
 const NewReservationIcon = () => (
@@ -25,6 +26,7 @@ export default function ReservasPage() {
   const [reservaSeleccionada, setReservaSeleccionada] = useState<Reserva | null>(null);
   const [showNuevoMenu, setShowNuevoMenu] = useState(false);
   const [showModalActividad, setShowModalActividad] = useState(false);
+  const [showModalReserva, setShowModalReserva] = useState(false);
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
     visible: false,
     message: '',
@@ -91,6 +93,24 @@ export default function ReservasPage() {
     // Aquí podrías actualizar la lista de actividades si fuera necesario
   };
 
+  const handleNuevaReserva = (data: {
+    empresa: 'Flecha Extreme' | 'Rober';
+    tipoActividad: 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros';
+    actividad: string;
+    cantidadReservada: number;
+    numeroPersonas: number;
+    precio: number;
+    fechaInicio: string;
+    fechaFin: string;
+    horaInicio: string;
+    horaFin: string;
+    nota?: string;
+  }) => {
+    console.log('Nueva reserva creada:', data);
+    // Aquí iría la lógica para guardar la reserva en la base de datos
+    // y actualizar la lista de reservas
+  };
+
   const handleToast = (toastData: { visible: boolean; message: string; type: 'success' | 'error' }) => {
     setToast(toastData);
   };
@@ -132,7 +152,7 @@ export default function ReservasPage() {
                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                      onClick={() => {
                        setShowNuevoMenu(false);
-                       // Aquí iría la lógica para crear nueva reserva
+                       setShowModalReserva(true);
                      }}
                    >
                      Reserva
@@ -353,6 +373,14 @@ export default function ReservasPage() {
          isOpen={showModalActividad}
          onClose={() => setShowModalActividad(false)}
          onSubmit={handleNuevaActividad}
+         onToast={handleToast}
+       />
+
+       {/* Modal Nueva Reserva */}
+       <ModalNuevaReserva
+         isOpen={showModalReserva}
+         onClose={() => setShowModalReserva(false)}
+         onSubmit={handleNuevaReserva}
          onToast={handleToast}
        />
 
