@@ -191,7 +191,8 @@ export default function PagosPage() {
       name: item.producto?.nombre || 'Producto no encontrado',
       price: item.producto?.precio || 0,
       quantity: item.cantidad,
-      image: item.producto?.url_foto || ''
+      image: item.producto?.url_foto || '',
+      stock: item.producto?.stock || 0
     }));
 
     // Si hay diferencia significativa (más de 0.01€ para evitar errores de redondeo), agregar producto desconocido
@@ -201,7 +202,8 @@ export default function PagosPage() {
         name: 'Producto Desconocido',
         price: diferencia,
         quantity: 0, // No mostrar cantidad ya que no sabemos cuántas unidades había
-        image: ''
+        image: '',
+        stock: 0
       });
     }
 

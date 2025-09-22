@@ -4,7 +4,7 @@ import { Resend } from 'resend';
 const isDevelopment = process.env.NODE_ENV === 'development';
 const resendApiKey = process.env.RESEND_API_KEY || '';
 
-let resend;
+let resend: Resend | { emails: { send: () => Promise<{ data: { id: string }; error: null }> } };
 
 if (isDevelopment && !resendApiKey) {
   console.warn('Resend: Usando modo mock para desarrollo local');

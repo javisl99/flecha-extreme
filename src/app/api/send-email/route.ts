@@ -14,7 +14,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let emailOptions: any = {
+    const emailOptions: {
+      to: string;
+      subject: string;
+      html?: string;
+      text?: string;
+      react?: React.ReactElement;
+    } = {
       to,
       subject,
     };

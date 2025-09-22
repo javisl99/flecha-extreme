@@ -68,10 +68,19 @@ export default function TicketCompra({
     const result = await saveTicket(ticketData);
     
     if (result.success && result.url) {
-      toast.success('Ticket PDF guardado exitosamente y email enviado al cliente');
+      // Mostrar Toast específico sobre el envío del email
+      if (result.emailSent) {
+        toast.success(`✅ Ticket PDF guardado exitosamente\n📧 ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      } else {
+        toast.success(`✅ Ticket PDF guardado exitosamente\n⚠️ ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      }
       onClose(); // Cerrar el modal después de guardar exitosamente
     } else {
-      toast.error(`Error al guardar el ticket: ${result.error}`);
+      toast.error(`❌ Error al guardar el ticket: ${result.error}`);
     }
   };
 
@@ -94,9 +103,19 @@ export default function TicketCompra({
     if (result.success && result.qrCode && result.url) {
       setQrCode(result.qrCode);
       setShowQR(true);
-      toast.success('Código QR generado exitosamente y email enviado al cliente');
+      
+      // Mostrar Toast específico sobre el envío del email
+      if (result.emailSent) {
+        toast.success(`✅ Código QR generado exitosamente\n📧 ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      } else {
+        toast.success(`✅ Código QR generado exitosamente\n⚠️ ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      }
     } else {
-      toast.error(`Error al generar el QR: ${result.error}`);
+      toast.error(`❌ Error al generar el QR: ${result.error}`);
     }
   };
   

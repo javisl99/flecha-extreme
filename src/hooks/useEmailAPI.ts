@@ -13,7 +13,7 @@ interface EmailOptions {
   html?: string;
   text?: string;
   type?: string;
-  data?: any;
+  data?: unknown;
 }
 
 export function useEmailAPI() {
