@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import jsPDF from 'jspdf';
 import supabaseClient from '@/lib/supabaseClient';
 import { useEmailAPI } from './useEmailAPI';
-import { generatePurchaseEmailHTML, generatePurchaseEmailText, Cliente, TicketData } from '@/lib/emailTemplates';
+import { TicketData } from '@/lib/emailTemplates';
 
 interface TicketDataWithCliente extends TicketData {
   clienteId?: string; // Agregamos el ID del cliente para poder obtener su email
@@ -14,12 +14,14 @@ interface TicketResult {
   url?: string;
   qrCode?: string;
   error?: string;
+  emailSent?: boolean;
+  emailMessage?: string;
 }
 
 export function useTickets() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { sendEmail, sendTicketEmail } = useEmailAPI();
+  const { sendTicketEmail } = useEmailAPI();
 
   // Función para obtener la información del cliente
   const getClienteInfo = async (clienteId: string) => {
@@ -56,7 +58,6 @@ export function useTickets() {
       const emailResult = await sendTicketEmail(cliente, ticketData, ticketUrl);
 
       if (emailResult.success) {
-        console.log('Email enviado exitosamente al cliente:', cliente.email);
         return { success: true, message: 'Email enviado exitosamente' };
       } else {
         console.error('Error enviando email:', emailResult.error);
@@ -348,24 +349,36 @@ export function useTickets() {
       }
 
       // Enviar email al cliente si tenemos el clienteId
+      let emailSent = false;
+      let emailMessage = '';
+      
       if (data.clienteId) {
         try {
           const emailResult = await sendPurchaseEmail(data.clienteId, data, publicUrl);
           if (emailResult.success) {
-            console.log('Email enviado exitosamente al cliente');
+            emailSent = true;
+            emailMessage = emailResult.message || 'Email enviado exitosamente';
           } else {
+            emailSent = false;
+            emailMessage = emailResult.error || 'Error al enviar el email';
             console.warn('Error enviando email al cliente:', emailResult.error);
             // No lanzamos error aquí porque el ticket ya se guardó correctamente
           }
         } catch (err) {
+          emailSent = false;
+          emailMessage = 'Error al enviar el email';
           console.warn('Error enviando email al cliente:', err);
           // No lanzamos error aquí porque el ticket ya se guardó correctamente
         }
+      } else {
+        emailMessage = 'No se especificó cliente para envío de email';
       }
 
       return {
         success: true,
-        url: publicUrl
+        url: publicUrl,
+        emailSent,
+        emailMessage
       };
 
     } catch (err) {
@@ -408,7 +421,9 @@ export function useTickets() {
       return {
         success: true,
         url: saveResult.url,
-        qrCode: qrCodeDataURL
+        qrCode: qrCodeDataURL,
+        emailSent: saveResult.emailSent,
+        emailMessage: saveResult.emailMessage
       };
 
     } catch (err) {

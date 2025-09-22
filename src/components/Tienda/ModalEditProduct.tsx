@@ -151,7 +151,7 @@ export default function ModalEditProduct({
                     alt="Preview"
                     className="object-cover w-full h-full transition-all duration-300 bg-white"
                     style={{ display: 'block' }}
-                    onError={(e) => {
+                    onError={() => {
                       console.error('Error loading image:', imagePreview);
                       setImagePreview('');
                     }}

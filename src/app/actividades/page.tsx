@@ -87,7 +87,6 @@ export default function ReservasPage() {
     requiereReserva: boolean;
     precioReserva?: number;
   }) => {
-    console.log('Nueva actividad creada:', data);
     // La actividad ya se ha guardado en la base de datos desde el modal
     // Aquí podrías actualizar la lista de actividades si fuera necesario
   };
@@ -134,7 +133,6 @@ export default function ReservasPage() {
                      onClick={() => {
                        setShowNuevoMenu(false);
                        // Aquí iría la lógica para crear nueva reserva
-                       console.log('Crear nueva reserva');
                      }}
                    >
                      Reserva

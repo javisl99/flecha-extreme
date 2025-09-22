@@ -28,8 +28,9 @@ export function generatePurchaseEmailHTML(cliente: Cliente, ticketData: TicketDa
     return price.toFixed(2).replace('.', ',') + '€';
   };
 
-  const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('es-ES', {
+  const formatDate = (date: Date | string): string => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -262,8 +263,9 @@ export function generatePurchaseEmailText(cliente: Cliente, ticketData: TicketDa
     return price.toFixed(2).replace('.', ',') + '€';
   };
 
-  const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('es-ES', {
+  const formatDate = (date: Date | string): string => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

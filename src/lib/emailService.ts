@@ -15,6 +15,7 @@ export interface EmailOptions {
 // Función principal para enviar emails
 export async function sendEmail(options: EmailOptions) {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const emailData: any = {
       from: FROM_EMAIL,
       to: options.to,
@@ -27,6 +28,10 @@ export async function sendEmail(options: EmailOptions) {
     } else {
       if (options.html) emailData.html = options.html;
       if (options.text) emailData.text = options.text;
+      // Asegurar que siempre hay texto o HTML
+      if (!emailData.html && !emailData.text) {
+        emailData.text = options.subject; // Usar el subject como texto por defecto
+      }
     }
 
     const { data, error } = await resend.emails.send(emailData);
@@ -36,7 +41,6 @@ export async function sendEmail(options: EmailOptions) {
       throw new Error(`Resend error: ${JSON.stringify(error)}`);
     }
 
-    console.log('Email enviado exitosamente:', data);
     return { success: true, data };
   } catch (error) {
     console.error('Error en sendEmail:', error);

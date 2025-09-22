@@ -2,7 +2,6 @@ import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useActividades, ActividadDB, TarifaActividad } from '@/hooks/useActividades';
-import { Toast } from '@/shared/components';
 import { SelectorCliente } from './SelectorCliente';
 
 interface ModalNuevaActividadProps {
@@ -42,10 +41,10 @@ export default function ModalNuevaActividad({
   const [actividadesExistentes, setActividadesExistentes] = useState<ActividadDB[]>([]);
   const [tipoCargado, setTipoCargado] = useState<string>('');
   const [tarifasActividad, setTarifasActividad] = useState<TarifaActividad[]>([]);
-  const [actividadSeleccionada, setActividadSeleccionada] = useState<ActividadDB | null>(null);
+  const [, setActividadSeleccionada] = useState<ActividadDB | null>(null);
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
+  const [, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
     visible: false,
     message: '',
     type: 'success'
@@ -59,7 +58,7 @@ export default function ModalNuevaActividad({
           const actividades = await obtenerActividadesPorTipo(formData.tipo);
           setActividadesExistentes(actividades);
           setTipoCargado(formData.tipo);
-        } catch (error) {
+        } catch {
           setActividadesExistentes([]);
         }
       }
@@ -100,7 +99,7 @@ export default function ModalNuevaActividad({
     return `${horaFormateada}:${minutosFormateados}`;
   };
 
-  const handleInputChange = async (field: string, value: any) => {
+  const handleInputChange = async (field: string, value: string | number) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       

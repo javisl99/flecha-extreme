@@ -23,7 +23,7 @@ export default function VistaPedidos() {
   const [mostrarModalEliminar, setMostrarModalEliminar] = useState(false);
   const [pedidoAEliminar, setPedidoAEliminar] = useState<Pedido | null>(null);
   
-  const { pedidos, loading, error, refreshPedidos, eliminarPedido } = usePedidos();
+  const { pedidos, loading, error, eliminarPedido } = usePedidos();
   
   const pedidosFiltrados = pedidos.filter(pedido => {
     const cumpleCliente = !filtros.cliente || (

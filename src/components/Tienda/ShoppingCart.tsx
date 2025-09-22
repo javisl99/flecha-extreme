@@ -18,7 +18,7 @@ interface ShoppingCartProps {
   onUpdateQuantity: (id: string, quantity: number) => void;
   onRemoveItem: (id: string) => void;
   onClearCart: () => void;
-  onCheckout: () => void;
+  onCheckout?: () => void;
   onProceedToPayment: (discountPercentage: number) => void;
 }
 
@@ -27,25 +27,24 @@ export default function ShoppingCart({
   onUpdateQuantity, 
   onRemoveItem, 
   onClearCart, 
-  onCheckout,
   onProceedToPayment 
 }: ShoppingCartProps) {
   const [discountPercentage, setDiscountPercentage] = useState(0);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [, ] = useState(false);
 
   const subtotal = items.reduce((total, item) => total + (item.price * item.quantity), 0);
   const discountAmount = (subtotal * discountPercentage) / 100;
   const total = subtotal - discountAmount;
 
-  const handleCheckout = async () => {
-    setIsCheckingOut(true);
-    
-    // Simular proceso de checkout
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    onCheckout();
-    setIsCheckingOut(false);
-  };
+  // const _handleCheckout = async () => {
+  //   setIsCheckingOut(true);
+  //   
+  //   // Simular proceso de checkout
+  //   await new Promise(resolve => setTimeout(resolve, 1500));
+  //   
+  //   onCheckout();
+  //   setIsCheckingOut(false);
+  // };
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">

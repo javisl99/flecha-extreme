@@ -81,7 +81,7 @@ export function useActividades() {
         };
       }
 
-    } catch (err) {
+    } catch {
       return {
         success: false,
         message: 'Error inesperado al crear la actividad'
@@ -108,7 +108,7 @@ export function useActividades() {
 
       return data || [];
 
-    } catch (err) {
+    } catch {
       setError('Error inesperado al obtener actividades');
       return [];
     } finally {
@@ -134,7 +134,7 @@ export function useActividades() {
 
       return data || [];
 
-    } catch (err) {
+    } catch {
       setError('Error inesperado al obtener actividades por tipo');
       return [];
     } finally {
@@ -160,7 +160,7 @@ export function useActividades() {
 
       return data || [];
 
-    } catch (err) {
+    } catch {
       setError('Error inesperado al obtener tarifas de la actividad');
       return [];
     } finally {
@@ -202,7 +202,7 @@ export function useActividades() {
         message: 'Actividad actualizada correctamente'
       };
 
-    } catch (err) {
+    } catch {
       return {
         success: false,
         message: 'Error inesperado al actualizar la actividad'
@@ -234,7 +234,7 @@ export function useActividades() {
         message: 'Actividad eliminada correctamente'
       };
 
-    } catch (err) {
+    } catch {
       return {
         success: false,
         message: 'Error inesperado al eliminar la actividad'
