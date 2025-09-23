@@ -22,6 +22,7 @@ export function SelectorClienteCompacto({
   
   const [isOpen, setIsOpen] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [newCliente, setNewCliente] = useState({
     nombre: '',
     apellidos: '',
@@ -36,12 +37,29 @@ export function SelectorClienteCompacto({
   // Obtener el cliente seleccionado
   const selectedCliente = clientes.find(c => c.id === selectedClienteId);
 
+  // Filtrar clientes basándose en el término de búsqueda
+  const filteredClientes = clientes.filter(cliente => {
+    if (!searchTerm.trim()) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    const nombreCompleto = `${cliente.nombre} ${cliente.apellidos}`.toLowerCase();
+    const email = cliente.email?.toLowerCase() || '';
+    const movil = cliente.movil?.toString() || '';
+    const dni = cliente.dni?.toLowerCase() || '';
+    
+    return nombreCompleto.includes(searchLower) || 
+           email.includes(searchLower) || 
+           movil.includes(searchTerm) || 
+           dni.includes(searchLower);
+  });
+
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         setShowCreateForm(false);
+        setSearchTerm(''); // Limpiar búsqueda al cerrar
       }
     };
 
@@ -158,12 +176,14 @@ export function SelectorClienteCompacto({
   const handleClienteSelect = (clienteId: string | null) => {
     onClienteChange(clienteId);
     setIsOpen(false);
+    setSearchTerm(''); // Limpiar búsqueda al seleccionar
   };
 
   // Función para limpiar selección
   const handleClearSelection = () => {
     onClienteChange(null);
     setIsOpen(false);
+    setSearchTerm(''); // Limpiar búsqueda al limpiar selección
   };
 
   return (
@@ -206,8 +226,37 @@ export function SelectorClienteCompacto({
       {/* Dropdown compacto */}
       {isOpen && !disabled && (
         <div className={`absolute z-[70] w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg overflow-y-auto ${
-          showCreateForm ? 'max-h-80' : 'max-h-32'
+          showCreateForm ? 'max-h-80' : 'max-h-40'
         }`}>
+          {/* Campo de búsqueda */}
+          <div className="p-2 border-b border-gray-200 dark:border-gray-600">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar cliente..."
+                className="w-full px-3 py-1.5 pl-7 text-xs border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              />
+              <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                <svg className="h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-2 flex items-center"
+                >
+                  <svg className="h-3 w-3 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Lista de clientes */}
           <div className="py-1">
             {/* Opción "Sin cliente" */}
@@ -225,12 +274,12 @@ export function SelectorClienteCompacto({
               <div className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400">
                 Cargando...
               </div>
-            ) : clientes.length === 0 ? (
+            ) : filteredClientes.length === 0 ? (
               <div className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400">
-                No hay clientes
+                {searchTerm ? 'No se encontraron clientes' : 'No hay clientes disponibles'}
               </div>
             ) : (
-              clientes.slice(0, 5).map((cliente) => (
+              filteredClientes.slice(0, 5).map((cliente) => (
                 <button
                   key={cliente.id}
                   type="button"
