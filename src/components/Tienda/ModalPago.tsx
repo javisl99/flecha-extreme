@@ -2,13 +2,16 @@
 
 import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ReceiptPercentIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { SelectorClienteCompacto } from './SelectorClienteCompacto';
 import { formatPrice, formatNumber } from '@/lib/formatUtils';
 import { useClientes } from '@/hooks/useClientes';
 import { useProductos } from '@/hooks/useProductos';
+import { usePagos } from '@/hooks/usePagos';
+import { useTickets } from '@/hooks/useTickets';
 import SurfSpinner from '@/components/shared/SurfSpinner';
 import TicketCompra from './TicketCompra';
+import { toast } from 'react-hot-toast';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
@@ -43,11 +46,13 @@ interface ModalPagoProps {
   discountPercentage: number;
   readOnly?: boolean;
   pedidoData?: {
+    pedidoId: string;
     clienteId: string;
     metodo: MetodoPago;
     estado: EstadoPago;
     concepto: string;
   };
+  onPedidoUpdated?: () => void;
 }
 
 export default function ModalPago({ 
@@ -57,18 +62,22 @@ export default function ModalPago({
   cartItems,
   discountPercentage,
   readOnly = false,
-  pedidoData
+  pedidoData,
+  onPedidoUpdated
 }: ModalPagoProps) {
   const { clientes } = useClientes();
   const { productos } = useProductos();
+  const { actualizarPago } = usePagos();
+  const { saveTicket } = useTickets();
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
-  const [estadoPago, setEstadoPago] = useState<EstadoPago>('pendiente');
+  const [estadoPago, setEstadoPago] = useState<EstadoPago>('completado');
   const [concepto, setConcepto] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [stockValidationError, setStockValidationError] = useState<string | null>(null);
+  const [isCompletingPayment, setIsCompletingPayment] = useState(false);
   const [processedPaymentData, setProcessedPaymentData] = useState<{
     cartItems: CartItem[];
     subtotal: number;
@@ -79,6 +88,7 @@ export default function ModalPago({
     metodoPago: string;
     fecha: Date;
     pedidoId?: string;
+    estadoPago: EstadoPago;
   } | null>(null);
 
   // Inicializar valores cuando se proporcionen datos del pedido
@@ -180,7 +190,7 @@ export default function ModalPago({
     setShowConfirmationModal(true);
   };
 
-  const handleConfirmPayment = async () => {
+  const handleConfirmPaymentWithState = async (estado: EstadoPago) => {
     
     setIsProcessing(true);
     
@@ -199,7 +209,8 @@ export default function ModalPago({
           if (metodo.includes('Tarjeta')) return 'Tarjeta';
           return 'Efectivo';
         })(),
-        fecha: new Date()
+        fecha: new Date(),
+        estadoPago: estado
       };
       
       setProcessedPaymentData(paymentData);
@@ -218,7 +229,7 @@ export default function ModalPago({
           concepto,
           pago: {
             metodo: metodoPago,
-            estado: estadoPago
+            estado: estado
           }
         });
         
@@ -243,6 +254,10 @@ export default function ModalPago({
     }
   };
 
+  const handleConfirmPayment = async () => {
+    await handleConfirmPaymentWithState(estadoPago);
+  };
+
   const handleCancelPayment = () => {
     setShowConfirmationModal(false);
   };
@@ -265,6 +280,82 @@ export default function ModalPago({
       setEstadoPago('pendiente');
       setConcepto('');
       onClose();
+    }
+  };
+
+  const handleCompletarPago = async () => {
+    if (!pedidoData) return;
+
+    setIsCompletingPayment(true);
+    
+    try {
+      const supabase = (await import('@/lib/supabaseClient')).default;
+      const pedidoId = pedidoData.pedidoId;
+
+      // 1. Actualizar el estado del pedido a 'pagado'
+      const { error: pedidoError } = await supabase
+        .from('pedido')
+        .update({ estado: 'pagado' })
+        .eq('id', pedidoId);
+
+      if (pedidoError) {
+        throw new Error(`Error al actualizar el pedido: ${pedidoError.message}`);
+      }
+
+      // 2. Actualizar el estado del pago a 'completado'
+      const { error: pagoError } = await supabase
+        .from('pago')
+        .update({ estado: 'completado' })
+        .eq('origen_id', pedidoId)
+        .eq('origen_tipo', 'pedido');
+
+      if (pagoError) {
+        throw new Error(`Error al actualizar el pago: ${pagoError.message}`);
+      }
+
+      // 3. Generar y enviar el ticket por email
+      const ticketData = {
+        cartItems,
+        subtotal,
+        descuento,
+        discountPercentage,
+        iva,
+        total,
+        metodoPago: (() => {
+          const metodo = selectedMetodoPago?.label || 'Efectivo';
+          if (metodo.includes('Bizum')) return 'Bizum';
+          if (metodo.includes('Tarjeta')) return 'Tarjeta';
+          return 'Efectivo';
+        })(),
+        fecha: new Date(),
+        pedidoId: pedidoId,
+        clienteId: pedidoData.clienteId,
+        estadoPago: 'completado' as const
+      };
+
+      const ticketResult = await saveTicket(ticketData);
+      
+      if (!ticketResult.success) {
+        console.warn('Error al generar/enviar ticket:', ticketResult.error);
+        // No lanzamos error aquí porque el pago ya se completó
+      }
+
+      toast.success('Pago completado exitosamente y email enviado al cliente');
+      
+      // Actualizar el estado local para reflejar el cambio
+      setEstadoPago('completado');
+
+      // Cerrar el modal y actualizar la tabla de pedidos
+      onClose();
+      if (onPedidoUpdated) {
+        onPedidoUpdated();
+      }
+
+    } catch (error) {
+      console.error('Error completando pago:', error);
+      toast.error(`Error al completar el pago: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    } finally {
+      setIsCompletingPayment(false);
     }
   };
 
@@ -500,7 +591,7 @@ export default function ModalPago({
                         type="button"
                         className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-md transition-colors duration-75 cursor-pointer"
                         onClick={onClose}
-                        disabled={isProcessing}
+                        disabled={isProcessing || isCompletingPayment}
                       >
                         {readOnly ? 'Cerrar' : 'Cancelar'}
                       </button>
@@ -517,6 +608,26 @@ export default function ModalPago({
                             </div>
                           ) : (
                             <span className="font-bold">{`Procesar Pago - ${formatPrice(total)}`}</span>
+                          )}
+                        </button>
+                      )}
+                      {readOnly && pedidoData && pedidoData.estado === 'pendiente' && (
+                        <button
+                          type="button"
+                          className="px-6 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          onClick={handleCompletarPago}
+                          disabled={isCompletingPayment}
+                        >
+                          {isCompletingPayment ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              <span className="font-bold">Completando...</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <CheckCircleIcon className="h-4 w-4" />
+                              <span className="font-bold">Completar Pago</span>
+                            </div>
                           )}
                         </button>
                       )}
@@ -555,7 +666,7 @@ export default function ModalPago({
                 leaveFrom="opacity-100 translate-y-0 sm:scale-100"
                 leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
               >
-                <Dialog.Panel className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-lg transition-transform">
+                <Dialog.Panel className="relative w-full max-w-lg transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-lg transition-transform">
                   <div className="px-6 py-8">
                     <div className="text-center">
                       {/* Spinner de carga */}
@@ -570,7 +681,7 @@ export default function ModalPago({
                       
                       {/* Descripción */}
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                        Por favor, confirme cuando haya recibido el pago de <span className="font-semibold text-primary">{formatPrice(total)}</span>
+                        Seleccione cómo desea procesar el pago de <span className="font-semibold text-primary">{formatPrice(total)}</span>
                       </p>
                       
                       {/* Información del pago */}
@@ -591,7 +702,10 @@ export default function ModalPago({
                         </div>
                       </div>
                       
+                      
+                      
                       {/* Botones */}
+                      <div className="flex flex-col space-y-3">
                       <div className="flex space-x-3">
                         <button
                           type="button"
@@ -603,8 +717,27 @@ export default function ModalPago({
                         </button>
                         <button
                           type="button"
-                          className="flex-1 px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          onClick={handleConfirmPayment}
+                            className="flex-1 px-4 py-2 text-sm font-bold text-white bg-yellow-600 hover:bg-yellow-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            onClick={() => handleConfirmPaymentWithState('pendiente')}
+                            disabled={isProcessing}
+                          >
+                            {isProcessing ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                <span>Procesando...</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-2">
+                                <ClockIcon className="h-4 w-4" />
+                                <span>Pendiente Pago</span>
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          onClick={() => handleConfirmPaymentWithState('completado')}
                           disabled={isProcessing}
                         >
                           {isProcessing ? (
@@ -613,7 +746,10 @@ export default function ModalPago({
                               <span>Procesando...</span>
                             </div>
                           ) : (
-                            'Confirmar Pago'
+                            <div className="flex items-center justify-center gap-2">
+                              <CheckCircleIcon className="h-4 w-4" />
+                              <span>Confirmar Pago</span>
+                            </div>
                           )}
                         </button>
                       </div>
@@ -643,6 +779,7 @@ export default function ModalPago({
           fecha={processedPaymentData.fecha}
           pedidoId={processedPaymentData.pedidoId}
           clienteId={selectedClienteId || undefined} // Pasar el ID del cliente seleccionado
+          estadoPago={processedPaymentData.estadoPago}
         />
       )}
     </Transition.Root>

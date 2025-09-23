@@ -52,7 +52,8 @@ export function useEmailAPI() {
   const sendTicketEmail = async (
     cliente: Cliente,
     ticketData: TicketData,
-    ticketUrl: string
+    ticketUrl: string,
+    estadoPago?: 'completado' | 'pendiente' | 'cancelado'
   ): Promise<EmailResponse> => {
     return sendEmail({
       to: cliente.email,
@@ -62,6 +63,7 @@ export function useEmailAPI() {
         cliente,
         ticketData,
         ticketUrl,
+        estadoPago,
       },
     });
   };

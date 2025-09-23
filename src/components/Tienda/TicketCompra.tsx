@@ -16,6 +16,8 @@ interface CartItem {
   image: string;
 }
 
+type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
+
 interface TicketCompraProps {
   isOpen: boolean;
   onClose: () => void;
@@ -31,6 +33,7 @@ interface TicketCompraProps {
   fecha: Date;
   pedidoId?: string;
   clienteId?: string; // Agregamos el ID del cliente
+  estadoPago: EstadoPago;
 }
 
 export default function TicketCompra({
@@ -45,7 +48,8 @@ export default function TicketCompra({
   metodoPago,
   fecha,
   pedidoId,
-  clienteId
+  clienteId,
+  estadoPago
 }: TicketCompraProps) {
   const { loading, error, saveTicket, generateTicketQR } = useTickets();
   const [showQR, setShowQR] = useState(false);
@@ -62,7 +66,8 @@ export default function TicketCompra({
       metodoPago,
       fecha,
       pedidoId,
-      clienteId // Incluimos el clienteId para el envío de email
+      clienteId, // Incluimos el clienteId para el envío de email
+      estadoPago // Incluimos el estado del pago
     };
 
     const result = await saveTicket(ticketData);
@@ -71,6 +76,10 @@ export default function TicketCompra({
       // Mostrar Toast específico sobre el envío del email
       if (result.emailSent) {
         toast.success(`✅ Ticket PDF guardado exitosamente\n📧 ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      } else if (estadoPago === 'pendiente') {
+        toast.success(`✅ Ticket PDF guardado exitosamente\n⏳ ${result.emailMessage}`, {
           duration: 4000,
         });
       } else {
@@ -95,7 +104,8 @@ export default function TicketCompra({
       metodoPago,
       fecha,
       pedidoId,
-      clienteId // Incluimos el clienteId para el envío de email
+      clienteId, // Incluimos el clienteId para el envío de email
+      estadoPago // Incluimos el estado del pago
     };
 
     const result = await generateTicketQR(ticketData);
@@ -107,6 +117,10 @@ export default function TicketCompra({
       // Mostrar Toast específico sobre el envío del email
       if (result.emailSent) {
         toast.success(`✅ Código QR generado exitosamente\n📧 ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      } else if (estadoPago === 'pendiente') {
+        toast.success(`✅ Código QR generado exitosamente\n⏳ ${result.emailMessage}`, {
           duration: 4000,
         });
       } else {

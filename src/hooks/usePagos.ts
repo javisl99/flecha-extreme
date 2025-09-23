@@ -165,7 +165,7 @@ export function usePagos() {
         .insert([{
           id_cliente: data.id_cliente,
           fecha: new Date().toISOString(),
-          estado: 'pagado',
+          estado: data.pago.estado === 'pendiente' ? 'pendiente' : 'pagado',
           descuento: data.descuentoPorcentaje,
           total: data.total,
           iva: data.iva
@@ -234,7 +234,7 @@ export function usePagos() {
           concepto: data.concepto,
           importe: data.total,
           metodo: data.pago.metodo,
-          estado: 'completado'
+          estado: data.pago.estado
         }])
         .select()
         .single();

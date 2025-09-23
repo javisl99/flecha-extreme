@@ -7,6 +7,7 @@ import { TicketData } from '@/lib/emailTemplates';
 
 interface TicketDataWithCliente extends TicketData {
   clienteId?: string; // Agregamos el ID del cliente para poder obtener su email
+  estadoPago?: 'completado' | 'pendiente' | 'cancelado';
 }
 
 interface TicketResult {
@@ -44,7 +45,7 @@ export function useTickets() {
   };
 
   // Función para enviar email al cliente usando la nueva plantilla React
-  const sendPurchaseEmail = async (clienteId: string, ticketData: TicketData, ticketUrl: string) => {
+  const sendPurchaseEmail = async (clienteId: string, ticketData: TicketData, ticketUrl: string, estadoPago?: 'completado' | 'pendiente' | 'cancelado') => {
     try {
       // Obtener información del cliente
       const cliente = await getClienteInfo(clienteId);
@@ -55,7 +56,7 @@ export function useTickets() {
       }
 
       // Usar la nueva función sendTicketEmail que usa React Email
-      const emailResult = await sendTicketEmail(cliente, ticketData, ticketUrl);
+      const emailResult = await sendTicketEmail(cliente, ticketData, ticketUrl, estadoPago);
 
       if (emailResult.success) {
         return { success: true, message: 'Email enviado exitosamente' };
@@ -348,13 +349,13 @@ export function useTickets() {
         }
       }
 
-      // Enviar email al cliente si tenemos el clienteId
+      // Enviar email al cliente solo si el pago está completado
       let emailSent = false;
       let emailMessage = '';
       
-      if (data.clienteId) {
+      if (data.clienteId && data.estadoPago === 'completado') {
         try {
-          const emailResult = await sendPurchaseEmail(data.clienteId, data, publicUrl);
+          const emailResult = await sendPurchaseEmail(data.clienteId, data, publicUrl, data.estadoPago);
           if (emailResult.success) {
             emailSent = true;
             emailMessage = emailResult.message || 'Email enviado exitosamente';
@@ -370,6 +371,8 @@ export function useTickets() {
           console.warn('Error enviando email al cliente:', err);
           // No lanzamos error aquí porque el ticket ya se guardó correctamente
         }
+      } else if (data.estadoPago === 'pendiente') {
+        emailMessage = 'Email no enviado - Pago pendiente';
       } else {
         emailMessage = 'No se especificó cliente para envío de email';
       }
