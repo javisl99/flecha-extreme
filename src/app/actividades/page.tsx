@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, Button, Toast } from '@/shared/components';
 import { useActividades } from '@/hooks/useActividades';
 import FiltrosReservas, { type FiltrosReservaState } from '@/components/Actividades/FiltrosReservas';
-import ModalNuevaActividad from '@/components/Actividades/ModalNuevaActividad';
 import ModalNuevaReserva from '@/components/Actividades/ModalNuevaReserva';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 import TableSkeleton from '@/components/shared/TableSkeleton';
@@ -33,8 +32,6 @@ export default function ReservasPage() {
   const [reservas, setReservas] = useState<any[]>([]);
   const [reservaSeleccionada, setReservaSeleccionada] = useState<any | null>(null);
   const [reservaAEliminar, setReservaAEliminar] = useState<any | null>(null);
-  const [showNuevoMenu, setShowNuevoMenu] = useState(false);
-  const [showModalActividad, setShowModalActividad] = useState(false);
   const [showModalReserva, setShowModalReserva] = useState(false);
   const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
@@ -42,7 +39,6 @@ export default function ReservasPage() {
     message: '',
     type: 'success'
   });
-  const menuRef = useRef<HTMLDivElement>(null);
   
   const { 
     loading, 
@@ -57,22 +53,6 @@ export default function ReservasPage() {
     cargarReservas();
   }, []);
 
-  // Cerrar menú al hacer clic fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowNuevoMenu(false);
-      }
-    };
-
-    if (showNuevoMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showNuevoMenu]);
 
   const cargarReservas = async () => {
     try {
@@ -232,16 +212,6 @@ export default function ReservasPage() {
     }
   };
 
-  const handleNuevaActividad = (data: {
-    nombre: string;
-    tipo: 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros';
-    requiereReserva: boolean;
-    precioReserva?: number;
-  }) => {
-    console.log('Nueva actividad creada:', data);
-    // La actividad ya se ha guardado en la base de datos desde el modal
-    // Aquí podrías actualizar la lista de actividades si fuera necesario
-  };
 
   const handleNuevaReserva = (data: {
     empresa: 'Flecha Extreme' | 'Rober';
@@ -281,41 +251,14 @@ export default function ReservasPage() {
           {/* Switch de vista */}
           <SwitchVistaActividades vistaActual={vistaActual} onVistaChange={setVistaActual} />
           
-          {/* Botón con menú desplegable */}
-          <div className="relative" ref={menuRef}>
-            <Button 
-              variant="primary" 
-              icon={<NewReservationIcon />}
-              onClick={() => setShowNuevoMenu(!showNuevoMenu)}
-            >
-              Nueva
-            </Button>
-            
-            {showNuevoMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
-                <div className="py-1">
-                  <button
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    onClick={() => {
-                      setShowNuevoMenu(false);
-                      setShowModalReserva(true);
-                    }}
-                  >
-                    Reserva
-                  </button>
-                  <button
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    onClick={() => {
-                      setShowNuevoMenu(false);
-                      setShowModalActividad(true);
-                    }}
-                  >
-                    Actividad
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Botón Nueva Reserva */}
+          <Button 
+            variant="primary" 
+            icon={<NewReservationIcon />}
+            onClick={() => setShowModalReserva(true)}
+          >
+            Nueva
+          </Button>
         </div>
       </div>
       
@@ -469,14 +412,6 @@ export default function ReservasPage() {
         reserva={reservaSeleccionada}
         onClose={() => setReservaSeleccionada(null)}
         onActualizarEstado={handleActualizarEstado}
-      />
-
-      {/* Modal Nueva Actividad */}
-      <ModalNuevaActividad
-        isOpen={showModalActividad}
-        onClose={() => setShowModalActividad(false)}
-        onSubmit={handleNuevaActividad}
-        onToast={handleToast}
       />
 
       {/* Modal Nueva Reserva */}

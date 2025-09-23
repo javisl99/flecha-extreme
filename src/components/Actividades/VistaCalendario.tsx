@@ -45,7 +45,7 @@ interface EventoCalendario {
 }
 
 export default function VistaCalendario({ reservas, onActualizarEstado }: VistaCalendarioProps) {
-  const [view, setView] = useState(Views.MONTH);
+  const [view, setView] = useState<any>(Views.MONTH);
   const [date, setDate] = useState(new Date());
   const [reservaSeleccionada, setReservaSeleccionada] = useState<Reserva | null>(null);
 
@@ -129,12 +129,15 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
     setView(newView);
   };
 
+  const handleSelectSlot = (slotInfo: { start: Date; end: Date; slots: Date[] }) => {
+    // Cambiar a vista de día cuando se hace clic en un día
+    setView(Views.DAY);
+    setDate(slotInfo.start);
+  };
+
   return (
     <div className="h-full">
       <div className="mb-4">
-        <h2 className="text-lg font-bold text-primary dark:text-primary-light mb-2">
-          Calendario de Reservas
-        </h2>
         <div className="flex flex-wrap gap-4 text-xs">
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-green-500 rounded"></div>
@@ -167,6 +170,8 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
           onNavigate={handleNavigate}
           onView={handleView}
           onSelectEvent={handleSelectEvent}
+          onSelectSlot={handleSelectSlot}
+          selectable
           eventPropGetter={getEventStyle}
           views={[Views.MONTH, Views.WEEK, Views.DAY]}
           messages={{
@@ -262,13 +267,22 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
           @apply border border-gray-200 dark:border-gray-600;
         }
         
+        /* Hacer clickeables todos los elementos de día */
+        .calendar-wrapper .rbc-month-view .rbc-date-cell,
+        .calendar-wrapper .rbc-month-view .rbc-day-bg,
+        .calendar-wrapper .rbc-time-view .rbc-time-slot {
+          cursor: pointer !important;
+        }
+        
         .calendar-wrapper .rbc-date-cell {
           @apply text-gray-700 dark:text-gray-300 font-medium;
+          cursor: pointer !important;
         }
         
         /* Días del mes */
         .calendar-wrapper .rbc-day-bg {
           @apply border border-gray-200 dark:border-gray-600;
+          cursor: pointer !important;
         }
         
         .calendar-wrapper .rbc-off-range-bg {
@@ -278,6 +292,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
         /* Eventos */
         .calendar-wrapper .rbc-event {
           @apply rounded border-0 text-xs font-medium px-1 py-0.5 cursor-pointer transition-all duration-200 hover:opacity-80 hover:-translate-y-0.5;
+          margin: 1px !important;
         }
         
         .calendar-wrapper .rbc-event-content {
@@ -340,6 +355,50 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
         /* Estilos para eventos en vista de mes */
         .calendar-wrapper .rbc-event-label {
           @apply text-xs font-medium;
+        }
+        
+        /* Separación entre eventos en vistas de semana y día */
+        .calendar-wrapper .rbc-time-view .rbc-event {
+          margin: 1px 0 !important;
+          border-radius: 3px !important;
+          border: 2px solid rgba(0, 0, 0, 0.3) !important;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+        }
+        
+        /* Separación adicional en vista de día */
+        .calendar-wrapper .rbc-time-view .rbc-events-container {
+          margin-right: 1px;
+        }
+        
+        /* Separación en vista de semana */
+        .calendar-wrapper .rbc-time-view .rbc-events-container .rbc-event {
+          margin-bottom: 1px !important;
+        }
+        
+        /* Bordes de colores para diferentes tipos de eventos */
+        .calendar-wrapper .rbc-time-view .rbc-event[style*="background-color: rgb(34, 197, 94)"] {
+          border-color: rgba(21, 128, 61, 0.8) !important;
+        }
+        
+        .calendar-wrapper .rbc-time-view .rbc-event[style*="background-color: rgb(59, 130, 246)"] {
+          border-color: rgba(37, 99, 235, 0.8) !important;
+        }
+        
+        .calendar-wrapper .rbc-time-view .rbc-event[style*="background-color: rgb(168, 85, 247)"] {
+          border-color: rgba(124, 58, 237, 0.8) !important;
+        }
+        
+        .calendar-wrapper .rbc-time-view .rbc-event[style*="background-color: rgb(245, 158, 11)"] {
+          border-color: rgba(180, 83, 9, 0.8) !important;
+        }
+        
+        .calendar-wrapper .rbc-time-view .rbc-event[style*="background-color: rgb(239, 68, 68)"] {
+          border-color: rgba(185, 28, 28, 0.8) !important;
+        }
+        
+        /* Borde por defecto para eventos sin color específico */
+        .calendar-wrapper .rbc-time-view .rbc-event:not([style*="background-color"]) {
+          border-color: rgba(75, 85, 99, 0.6) !important;
         }
         
         /* Estilos para la vista de agenda */

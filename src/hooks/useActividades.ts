@@ -22,6 +22,7 @@ export interface ActividadDB {
   hora_fin: string | null;
   reserva: boolean;
   precio_reserva: number | null;
+  uni_disponibles: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -469,6 +470,98 @@ export function useActividades() {
     }
   };
 
+  const consultarStockDisponible = async (idActividad: string, fecha: string, horaInicio?: string, horaFin?: string): Promise<{ 
+    success: boolean; 
+    stockDisponible?: number; 
+    stockTotal?: number; 
+    reservadas?: number; 
+    message: string 
+  }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Obtener información de la actividad (incluyendo uni_disponibles)
+      const { data: actividad, error: actividadError } = await supabase
+        .from('actividad')
+        .select('uni_disponibles')
+        .eq('id', idActividad)
+        .single();
+
+      if (actividadError) {
+        throw actividadError;
+      }
+
+      const stockTotal = actividad.uni_disponibles || 0;
+
+      // Consulta todas las reservas de la actividad
+      const { data: todasLasReservas, error: errorTodas } = await supabase
+        .from('reserva')
+        .select('cantidad_reservada, estado, fecha_inicio, fecha_fin')
+        .eq('id_actividad', idActividad);
+
+      // Filtrar por estado
+      const reservasActivas = todasLasReservas?.filter(r => 
+        r.estado === 'confirmada' || r.estado === 'pendiente'
+      ) || [];
+
+      // Si se proporciona hora, buscar reservas que se solapen con el horario
+      let reservas = reservasActivas;
+      if (horaInicio && horaFin) {
+        
+        // Filtrar reservas que se solapen
+        reservas = reservasActivas.filter(reserva => {
+          // Extraer solo la hora de las fechas para comparar
+          const reservaInicio = new Date(reserva.fecha_inicio);
+          const reservaFin = new Date(reserva.fecha_fin);
+          
+          // Obtener las horas en formato HH:MM
+          const reservaHoraInicio = reservaInicio.toTimeString().substring(0, 5);
+          const reservaHoraFin = reservaFin.toTimeString().substring(0, 5);
+          
+          // Comparar directamente las horas
+          const solapa = reservaHoraInicio < horaFin && reservaHoraFin > horaInicio;
+          return solapa;
+        });
+      } else {
+        // Si no hay hora, buscar por fecha completa
+        const fechaInicio = `${fecha}T00:00:00`;
+        const fechaFin = `${fecha}T23:59:59`;
+        reservas = reservasActivas.filter(reserva => 
+          reserva.fecha_inicio >= fechaInicio && reserva.fecha_inicio <= fechaFin
+        );
+      }
+
+      if (errorTodas) {
+        throw errorTodas;
+      }
+
+      // Calcular total de unidades reservadas
+      const reservadas = reservas?.reduce((total, reserva) => total + (reserva.cantidad_reservada || 0), 0) || 0;
+      
+      // Calcular stock disponible
+      const stockDisponible = Math.max(0, stockTotal - reservadas);
+
+      return {
+        success: true,
+        stockDisponible,
+        stockTotal,
+        reservadas,
+        message: 'Stock consultado correctamente'
+      };
+
+    } catch (error: any) {
+      console.error('Error al consultar stock:', error);
+      setError(error.message || 'Error al consultar stock disponible');
+      return { 
+        success: false, 
+        message: error.message || 'Error al consultar stock disponible' 
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     loading,
     loadingActividades,
@@ -485,6 +578,7 @@ export function useActividades() {
     obtenerIdCliente,
     obtenerReservas,
     actualizarReserva,
-    eliminarReserva
+    eliminarReserva,
+    consultarStockDisponible
   };
 }
