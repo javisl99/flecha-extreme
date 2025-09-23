@@ -29,7 +29,7 @@ export default function ModalNuevaReserva({
   onSubmit,
   onToast
 }: ModalNuevaReservaProps) {
-  const { obtenerActividadesPorTipo, obtenerTarifasActividad, loadingActividades, error: errorActividades } = useActividades();
+  const { obtenerActividadesPorTipo, obtenerTarifasActividad, consultarStockDisponible, loadingActividades, error: errorActividades } = useActividades();
   
   const [formData, setFormData] = useState({
     empresa: 'Flecha Extreme' as 'Flecha Extreme' | 'Rober',
@@ -53,6 +53,41 @@ export default function ModalNuevaReserva({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [showModalPago, setShowModalPago] = useState(false);
+  const [stockInfo, setStockInfo] = useState<{
+    stockDisponible: number;
+    stockTotal: number;
+    reservadas: number;
+  } | null>(null);
+  const [consultandoStock, setConsultandoStock] = useState(false);
+
+  // Función para consultar stock disponible
+  const consultarStock = async (actividadId: string, fecha: string, horaInicio?: string, horaFin?: string) => {
+    if (!actividadId || !fecha) {
+      setStockInfo(null);
+      return;
+    }
+
+    try {
+      setConsultandoStock(true);
+      const resultado = await consultarStockDisponible(actividadId, fecha, horaInicio, horaFin);
+      
+      if (resultado.success && resultado.stockDisponible !== undefined) {
+        setStockInfo({
+          stockDisponible: resultado.stockDisponible,
+          stockTotal: resultado.stockTotal || 0,
+          reservadas: resultado.reservadas || 0
+        });
+      } else {
+        setStockInfo(null);
+        console.error('Error al consultar stock:', resultado.message);
+      }
+    } catch (error) {
+      console.error('Error al consultar stock:', error);
+      setStockInfo(null);
+    } finally {
+      setConsultandoStock(false);
+    }
+  };
 
   // Función para generar datos de actividad para PagoReservaModal
   const generarDatosActividad = () => {
@@ -158,6 +193,7 @@ export default function ModalNuevaReserva({
       setTipoCargado('');
       setTarifasActividad([]);
       setActividadSeleccionada(null);
+      setStockInfo(null);
     }
     
     // Si cambia el nombre de la actividad, cargar las tarifas
@@ -167,6 +203,14 @@ export default function ModalNuevaReserva({
         setActividadSeleccionada(actividad);
         const tarifas = await obtenerTarifasActividad(actividad.id);
         setTarifasActividad(tarifas);
+        
+        // Consultar stock si ya hay fecha, hora de inicio y duración seleccionadas
+        if (formData.fechaInicio && formData.horaInicio && formData.duracion) {
+          const horaFinCalculada = calcularHoraFin(formData.horaInicio, formData.duracion);
+          if (horaFinCalculada) {
+            await consultarStock(actividad.id, formData.fechaInicio, formData.horaInicio, horaFinCalculada);
+          }
+        }
         
         // El precio se calculará cuando se seleccione una duración
         
@@ -187,7 +231,47 @@ export default function ModalNuevaReserva({
     } else if (field === 'actividad' && !value) {
       setTarifasActividad([]);
       setActividadSeleccionada(null);
+      setStockInfo(null);
       setFormData(prev => ({ ...prev, duracion: '', horaFin: '', precio: 0 }));
+    }
+    
+    // Si cambia la fecha de inicio, consultar stock si hay actividad, hora de inicio y duración seleccionadas
+    if (field === 'fechaInicio' && value && actividadSeleccionada) {
+      if (formData.horaInicio && formData.duracion) {
+        const horaFinCalculada = calcularHoraFin(formData.horaInicio, formData.duracion);
+        if (horaFinCalculada) {
+          await consultarStock(actividadSeleccionada.id, value, formData.horaInicio, horaFinCalculada);
+        }
+      }
+    } else if (field === 'fechaInicio' && !value) {
+      setStockInfo(null);
+    }
+    
+    // Si cambia la hora de inicio, consultar stock si hay actividad, fecha y duración seleccionadas
+    if (field === 'horaInicio' && value && actividadSeleccionada && formData.fechaInicio && formData.duracion) {
+      // Calcular la hora de fin basada en la duración y la nueva hora de inicio
+      const nuevaHoraFin = calcularHoraFin(value, formData.duracion);
+      if (nuevaHoraFin) {
+        await consultarStock(actividadSeleccionada.id, formData.fechaInicio, value, nuevaHoraFin);
+      }
+    }
+    
+    // Si cambia la hora de fin manualmente, consultar stock si hay actividad, fecha y duración seleccionadas
+    if (field === 'horaFin' && value && actividadSeleccionada && formData.fechaInicio && formData.duracion) {
+      if (formData.horaInicio && value) {
+        await consultarStock(actividadSeleccionada.id, formData.fechaInicio, formData.horaInicio, value);
+      }
+    }
+    
+    // Si cambia la duración, consultar stock si hay actividad, fecha y hora seleccionadas
+    if (field === 'duracion' && value && actividadSeleccionada && formData.fechaInicio && formData.horaInicio) {
+      // Calcular la nueva hora de fin basada en la duración
+      const nuevaHoraFin = calcularHoraFin(formData.horaInicio, value);
+      if (nuevaHoraFin) {
+        await consultarStock(actividadSeleccionada.id, formData.fechaInicio, formData.horaInicio, nuevaHoraFin);
+      }
+    } else if (field === 'duracion' && !value) {
+      setStockInfo(null);
     }
     
     // Si cambia el número de personas, recalcular precio
@@ -235,6 +319,15 @@ export default function ModalNuevaReserva({
       newErrors.numeroPersonas = 'El número máximo de personas es 15';
     }
 
+    // Validación de stock disponible
+    if (stockInfo && stockInfo.stockDisponible < formData.cantidadReservada) {
+      newErrors.cantidadReservada = `Solo hay ${stockInfo.stockDisponible} unidades disponibles. Stock total: ${stockInfo.stockTotal}, Reservadas: ${stockInfo.reservadas}`;
+    }
+
+    if (stockInfo && stockInfo.stockDisponible === 0) {
+      newErrors.actividad = 'No hay stock disponible para esta actividad en la fecha seleccionada';
+    }
+
     // El precio se calcula automáticamente, no necesita validación
 
     if (!formData.fechaInicio) {
@@ -247,6 +340,12 @@ export default function ModalNuevaReserva({
 
     if (!formData.horaInicio) {
       newErrors.horaInicio = 'La hora de inicio es obligatoria';
+    } else if (formData.fechaInicio === new Date().toISOString().split('T')[0]) {
+      // Si la fecha seleccionada es hoy, validar que la hora no sea anterior a la actual
+      const horaActual = new Date().toTimeString().substring(0, 5);
+      if (formData.horaInicio < horaActual) {
+        newErrors.horaInicio = 'No se puede seleccionar una hora anterior a la hora actual';
+      }
     }
 
     // Validar que la fecha de fin sea posterior o igual a la fecha de inicio
@@ -342,6 +441,7 @@ export default function ModalNuevaReserva({
       setTipoCargado('');
       setTarifasActividad([]);
       setActividadSeleccionada(null);
+      setStockInfo(null);
       setErrors({});
       
       // No cerrar automáticamente - dejar que el usuario cierre el ticket manualmente
@@ -371,6 +471,7 @@ export default function ModalNuevaReserva({
     setTipoCargado('');
     setTarifasActividad([]);
     setActividadSeleccionada(null);
+    setStockInfo(null);
     setErrors({});
     onClose();
   };
@@ -578,6 +679,7 @@ export default function ModalNuevaReserva({
                           id="fechaInicio"
                           value={formData.fechaInicio}
                           onChange={(e) => handleInputChange('fechaInicio', e.target.value)}
+                          min={new Date().toISOString().split('T')[0]}
                           className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                             errors.fechaInicio 
                               ? 'border-red-300 dark:border-red-600' 
@@ -625,6 +727,7 @@ export default function ModalNuevaReserva({
                           value={formData.horaInicio}
                           onChange={(e) => handleInputChange('horaInicio', e.target.value)}
                           disabled={!formData.fechaInicio}
+                          min={formData.fechaInicio === new Date().toISOString().split('T')[0] ? new Date().toTimeString().substring(0, 5) : undefined}
                           className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                             !formData.fechaInicio 
                               ? 'cursor-not-allowed opacity-50' 
@@ -678,6 +781,50 @@ export default function ModalNuevaReserva({
                         />
                         {errors.cantidadReservada && (
                           <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.cantidadReservada}</p>
+                        )}
+                        
+                        {/* Información de stock */}
+                        {stockInfo && (
+                          <div className={`mt-2 p-2 rounded-md ${
+                            stockInfo.stockDisponible > 0 
+                              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' 
+                              : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                          }`}>
+                            <div className={`text-xs ${
+                              stockInfo.stockDisponible > 0 
+                                ? 'text-green-700 dark:text-green-300' 
+                                : 'text-red-700 dark:text-red-300'
+                            }`}>
+                              <div className="flex justify-between">
+                                <span>Stock disponible:</span>
+                                <span className={`font-medium ${stockInfo.stockDisponible > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                  {stockInfo.stockDisponible}
+                                </span>
+                              </div>
+                              <div className={`flex justify-between ${
+                                stockInfo.stockDisponible > 0 
+                                  ? 'text-green-600 dark:text-green-400' 
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                <span>Total:</span>
+                                <span>{stockInfo.stockTotal}</span>
+                              </div>
+                              <div className={`flex justify-between ${
+                                stockInfo.stockDisponible > 0 
+                                  ? 'text-green-600 dark:text-green-400' 
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                <span>Reservadas:</span>
+                                <span>{stockInfo.reservadas}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {consultandoStock && (
+                          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            Consultando stock disponible...
+                          </div>
                         )}
                       </div>
 
