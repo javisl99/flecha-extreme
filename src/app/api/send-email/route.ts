@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Si es un email de tipo ticket de compra, usar la plantilla React
     if (type === 'ticket-compra' && data) {
-      const { cliente, ticketData, ticketUrl } = data;
+      const { cliente, ticketData, ticketUrl, estadoPago } = data;
       
       if (!cliente || !ticketData || !ticketUrl) {
         return NextResponse.json(
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
         cliente,
         ticketData,
         ticketUrl,
+        estadoPago,
       });
     } else {
       // Para emails tradicionales con HTML/texto

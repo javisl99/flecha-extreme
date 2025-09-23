@@ -16,12 +16,14 @@ interface TicketCompraProps {
   cliente: Cliente;
   ticketData: TicketData;
   ticketUrl: string;
+  estadoPago?: 'completado' | 'pendiente' | 'cancelado';
 }
 
 export default function TicketCompra({
   cliente,
   ticketData,
   ticketUrl,
+  estadoPago = 'completado',
 }: TicketCompraProps) {
   const formatPrice = (price: number): string => {
     return price.toFixed(2).replace('.', ',') + '€';
