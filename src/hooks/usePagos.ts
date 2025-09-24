@@ -39,7 +39,7 @@ interface PagoResult {
 export interface Pago {
   id: string;
   id_cliente: string | null;
-  origen_tipo: 'actividad' | 'pedido' | 'parking';
+  origen_tipo: 'reserva' | 'pedido' | 'parking';
   origen_id: string | null;
   concepto: string;
   importe: number;
