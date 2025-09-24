@@ -7,7 +7,7 @@ import { formatPrice, formatNumber } from '@/lib/formatUtils';
 import { useActividades, ActividadDB, TarifaActividad } from '@/hooks/useActividades';
 import SurfSpinner from '@/components/shared/SurfSpinner';
 import TicketCompra from '@/components/Tienda/TicketCompra';
-import { SelectorClienteCompacto } from '@/components/Tienda/SelectorClienteCompacto';
+import { SelectorCliente } from '@/components/Actividades/SelectorCliente';
 import { useClientes } from '@/hooks/useClientes';
 import { toast } from 'react-hot-toast';
 
@@ -69,6 +69,8 @@ export default function PagoReservaModal({
   const [estadoPago, setEstadoPago] = useState<EstadoPago>('pendiente');
   const [concepto, setConcepto] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [esReserva, setEsReserva] = useState(false);
+  const [precioReserva, setPrecioReserva] = useState<number>(0);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [processedPaymentData, setProcessedPaymentData] = useState<{
@@ -110,15 +112,19 @@ export default function PagoReservaModal({
   );
 
   // Cálculos de precios optimizados con useMemo
-  const { subtotal, descuento, subtotalConDescuento, iva, total } = useMemo(() => {
+  const { subtotal, descuento, subtotalConDescuento, iva, total, precioRestante } = useMemo(() => {
     const subtotal = actividad.precio;
     const descuento = 0; // Sin descuento por defecto para actividades
     const subtotalConDescuento = subtotal - descuento;
     const iva = subtotalConDescuento * 0.21; // 21% de IVA (informativo)
-    const total = subtotalConDescuento; // El total es el subtotal con descuento, el IVA ya está incluido
     
-    return { subtotal, descuento, subtotalConDescuento, iva, total };
-  }, [actividad.precio]);
+    // Si es reserva, el pago inmediato es el precio de reserva
+    // y se genera un pago pendiente con el precio restante
+    const total = esReserva ? precioReserva : subtotalConDescuento;
+    const precioRestante = esReserva ? subtotalConDescuento - precioReserva : 0;
+    
+    return { subtotal, descuento, subtotalConDescuento, iva, total, precioRestante };
+  }, [actividad.precio, esReserva, precioReserva]);
 
   const estadosPago: { value: EstadoPago; label: string }[] = [
     { value: 'completado', label: 'Completado' },
@@ -194,29 +200,66 @@ export default function PagoReservaModal({
         
         reservaId = resultadoReserva.reservaId;
         
-        // Crear el pago en la base de datos
-        const resultadoPago = await crearPago({
-          id_cliente: resultadoCliente.clienteId!,
-          origen_tipo: 'reserva',
-          origen_id: reservaId!, // Usar el ID de la reserva creada
-          concepto: concepto, // Usar el concepto del campo del formulario
-          importe: actividad.precio,
-          metodo: metodoPago,
-          estado: 'completado' // Siempre completado
-        });
-        
-        if (!resultadoPago.success) {
-          throw new Error(resultadoPago.message);
+        // Crear los pagos en la base de datos
+        if (esReserva && precioRestante > 0) {
+          // Crear pago inmediato (reserva)
+          const resultadoPagoReserva = await crearPago({
+            id_cliente: resultadoCliente.clienteId!,
+            origen_tipo: 'reserva',
+            origen_id: reservaId!,
+            concepto: `Reserva - ${concepto}`,
+            importe: precioReserva,
+            metodo: metodoPago,
+            estado: 'completado'
+          });
+          
+          if (!resultadoPagoReserva.success) {
+            throw new Error(resultadoPagoReserva.message);
+          }
+          
+          // Crear pago pendiente (resto)
+          const resultadoPagoPendiente = await crearPago({
+            id_cliente: resultadoCliente.clienteId!,
+            origen_tipo: 'reserva',
+            origen_id: reservaId!,
+            concepto: `Pago pendiente - ${concepto}`,
+            importe: precioRestante,
+            metodo: metodoPago,
+            estado: 'pendiente'
+          });
+          
+          if (!resultadoPagoPendiente.success) {
+            throw new Error(resultadoPagoPendiente.message);
+          }
+        } else {
+          // Crear pago normal (sin reserva)
+          const resultadoPago = await crearPago({
+            id_cliente: resultadoCliente.clienteId!,
+            origen_tipo: 'reserva',
+            origen_id: reservaId!,
+            concepto: concepto,
+            importe: actividad.precio,
+            metodo: metodoPago,
+            estado: 'completado'
+          });
+          
+          if (!resultadoPago.success) {
+            throw new Error(resultadoPago.message);
+          }
         }
       }
       
       // Preservar los datos del pago para el ticket
       const paymentData = {
-        actividad: { ...actividad },
-        subtotal,
+        actividad: { 
+          ...actividad,
+          // Si es reserva, modificar el precio para el ticket
+          precio: esReserva ? precioReserva : actividad.precio
+        },
+        subtotal: esReserva ? precioReserva : subtotal,
         descuento,
         discountPercentage: 0,
-        iva,
+        iva: esReserva ? precioReserva * 0.21 : iva,
         total,
         metodoPago: (() => {
           const metodo = selectedMetodoPago?.label || 'Efectivo';
@@ -346,13 +389,78 @@ export default function PagoReservaModal({
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Cliente *
                           </label>
-                          <SelectorClienteCompacto
+                          <SelectorCliente
                             selectedClienteId={selectedClienteId}
                             onClienteChange={setSelectedClienteId}
                             placeholder="Seleccionar cliente"
                             className="w-full"
                             disabled={readOnly}
                           />
+                        </div>
+
+                        {/* Switch de Reserva y Precio de Reserva */}
+                        <div className="grid grid-cols-2 gap-6">
+                          {/* Switch de Reserva */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Reserva
+                            </label>
+                            <div className="flex items-center">
+                              <button
+                                type="button"
+                                onClick={() => setEsReserva(!esReserva)}
+                                disabled={readOnly}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer ${
+                                  esReserva 
+                                    ? 'bg-primary' 
+                                    : 'bg-gray-200 dark:bg-gray-700'
+                                } ${
+                                  readOnly ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    esReserva ? 'translate-x-6' : 'translate-x-1'
+                                  }`}
+                                />
+                              </button>
+                            <span className="ml-3 text-sm text-gray-600 dark:text-gray-400">
+                              {esReserva ? 'Activado' : 'Desactivado'}
+                            </span>
+                          </div>
+                          </div>
+
+                          {/* Precio de Reserva */}
+                          {esReserva && (
+                            <div>
+                              <label htmlFor="precioReserva" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Precio de Reserva (€)
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  id="precioReserva"
+                                  value={precioReserva}
+                                  onChange={(e) => setPrecioReserva(parseFloat(e.target.value) || 0)}
+                                  disabled={readOnly}
+                                  min="0"
+                                  step="0.01"
+                                  className={`w-full px-3 py-2 pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                                    readOnly 
+                                      ? 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' 
+                                      : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                                  } border-gray-300 dark:border-gray-600`}
+                                  placeholder="0.00"
+                                />
+                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                  <span className="text-gray-500 dark:text-gray-400 text-sm">€</span>
+                                </div>
+                              </div>
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Pago inmediato al realizar la reserva
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         {/* Métodos de pago */}
@@ -468,9 +576,31 @@ export default function PagoReservaModal({
                               </span>
                             </div>
                             
+                            {esReserva && precioRestante > 0 && (
+                              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3 mt-3">
+                                <div className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+                                  <strong>Pago con Reserva:</strong>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-blue-600 dark:text-blue-400">Pago inmediato (reserva):</span>
+                                  <span className="font-medium text-blue-700 dark:text-blue-300">
+                                    {formatPrice(precioReserva)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-blue-600 dark:text-blue-400">Pago pendiente:</span>
+                                  <span className="font-medium text-blue-700 dark:text-blue-300">
+                                    {formatPrice(precioRestante)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            
                             <div className="border-t border-gray-300 dark:border-gray-600 pt-2 mt-2">
                               <div className="flex justify-between text-lg font-bold">
-                                <span className="text-gray-900 dark:text-gray-100">TOTAL:</span>
+                                <span className="text-gray-900 dark:text-gray-100">
+                                  {esReserva ? 'TOTAL A PAGAR AHORA:' : 'TOTAL:'}
+                                </span>
                                 <span className="text-primary">
                                   {formatPrice(total)}
                                 </span>
@@ -624,7 +754,9 @@ export default function PagoReservaModal({
           onGuardar={handleGuardarTicket}
           cartItems={[{
             id: processedPaymentData.actividad.id,
-            name: `${processedPaymentData.actividad.nombre} - Personas:`,
+            name: esReserva 
+              ? `Reserva - ${processedPaymentData.actividad.nombre} - Personas:`
+              : `${processedPaymentData.actividad.nombre} - Personas:`,
             price: processedPaymentData.actividad.precio / processedPaymentData.actividad.numeroPersonas,
             quantity: processedPaymentData.actividad.numeroPersonas, 
             image: '',

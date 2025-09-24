@@ -7,9 +7,47 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import ModalDetalleReserva from './ModalDetalleReserva';
 
 // Configurar moment en español
-moment.locale('es');
+moment.locale('es', {
+  months: [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ],
+  monthsShort: [
+    'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+  ],
+  weekdays: [
+    'Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'
+  ],
+  weekdaysShort: [
+    'Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'
+  ],
+  weekdaysMin: [
+    'D', 'L', 'M', 'X', 'J', 'V', 'S'
+  ],
+  week: {
+    dow: 1 // Lunes como primer día de la semana (1 = Lunes)
+  }
+});
 
 const localizer = momentLocalizer(moment);
+
+// Mensajes en español para el calendario
+const messages = {
+  allDay: 'Todo el día',
+  previous: 'Anterior',
+  next: 'Siguiente',
+  today: 'Hoy',
+  month: 'Mes',
+  week: 'Semana',
+  day: 'Día',
+  agenda: 'Agenda',
+  date: 'Fecha',
+  time: 'Hora',
+  event: 'Evento',
+  noEventsInRange: 'No hay eventos en este rango de fechas.',
+  showMore: (total: number) => `+ Ver más (${total})`
+};
 
 interface Reserva {
   id: string;
@@ -174,20 +212,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
           selectable
           eventPropGetter={getEventStyle}
           views={[Views.MONTH, Views.WEEK, Views.DAY]}
-          messages={{
-            next: 'Siguiente',
-            previous: 'Anterior',
-            today: 'Hoy',
-            month: 'Mes',
-            week: 'Semana',
-            day: 'Día',
-            agenda: 'Agenda',
-            date: 'Fecha',
-            time: 'Hora',
-            event: 'Evento',
-            noEventsInRange: 'No hay reservas en este rango de fechas',
-            showMore: (total: number) => `+ Ver ${total} más`
-          }}
+          messages={messages}
           popup
           showMultiDayTimes
           step={30}
@@ -361,8 +386,87 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
         .calendar-wrapper .rbc-time-view .rbc-event {
           margin: 1px 0 !important;
           border-radius: 3px !important;
-          border: 2px solid rgba(0, 0, 0, 0.3) !important;
+          border: 2px solid white !important;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+        }
+        
+        /* Ancho específico para vista de semana */
+        .calendar-wrapper .rbc-time-view .rbc-events-container .rbc-event {
+          width: calc(100% - 2px) !important;
+          min-width: calc(100% - 2px) !important;
+          max-width: calc(100% - 2px) !important;
+          box-sizing: border-box !important;
+        }
+        
+        /* Distribución proporcional para múltiples eventos en vista de semana */
+        .calendar-wrapper .rbc-time-view .rbc-events-container:has(.rbc-event:nth-child(2):not(.rbc-event:nth-child(3))) .rbc-event {
+          width: calc(50% - 1px) !important;
+          min-width: calc(50% - 1px) !important;
+          max-width: calc(50% - 1px) !important;
+        }
+        
+        .calendar-wrapper .rbc-time-view .rbc-events-container:has(.rbc-event:nth-child(3):not(.rbc-event:nth-child(4))) .rbc-event {
+          width: calc(33.333% - 1px) !important;
+          min-width: calc(33.333% - 1px) !important;
+          max-width: calc(33.333% - 1px) !important;
+        }
+        
+        .calendar-wrapper .rbc-time-view .rbc-events-container:has(.rbc-event:nth-child(4):not(.rbc-event:nth-child(5))) .rbc-event {
+          width: calc(25% - 1px) !important;
+          min-width: calc(25% - 1px) !important;
+          max-width: calc(25% - 1px) !important;
+        }
+        
+        /* Ancho específico para vista de día */
+        .calendar-wrapper .rbc-day-view .rbc-events-container .rbc-event {
+          width: calc(100% - 2px) !important;
+          min-width: calc(100% - 2px) !important;
+          max-width: calc(100% - 2px) !important;
+          box-sizing: border-box !important;
+        }
+        
+        /* Distribución proporcional para múltiples eventos en vista de día */
+        .calendar-wrapper .rbc-day-view .rbc-events-container:has(.rbc-event:nth-child(2):not(.rbc-event:nth-child(3))) .rbc-event {
+          width: calc(50% - 1px) !important;
+          min-width: calc(50% - 1px) !important;
+          max-width: calc(50% - 1px) !important;
+        }
+        
+        .calendar-wrapper .rbc-day-view .rbc-events-container:has(.rbc-event:nth-child(3):not(.rbc-event:nth-child(4))) .rbc-event {
+          width: calc(33.333% - 1px) !important;
+          min-width: calc(33.333% - 1px) !important;
+          max-width: calc(33.333% - 1px) !important;
+        }
+        
+        .calendar-wrapper .rbc-day-view .rbc-events-container:has(.rbc-event:nth-child(4):not(.rbc-event:nth-child(5))) .rbc-event {
+          width: calc(25% - 1px) !important;
+          min-width: calc(25% - 1px) !important;
+          max-width: calc(25% - 1px) !important;
+        }
+        
+        /* Ajuste para múltiples eventos en la misma celda */
+        .calendar-wrapper .rbc-time-view .rbc-events-container {
+          width: 100% !important;
+          overflow: visible !important;
+        }
+        
+        /* Distribución de eventos múltiples */
+        .calendar-wrapper .rbc-time-view .rbc-events-container .rbc-event + .rbc-event {
+          margin-top: 2px !important;
+        }
+        
+        /* Contenedor con flexbox para distribución horizontal */
+        .calendar-wrapper .rbc-time-view .rbc-events-container {
+          display: flex !important;
+          flex-wrap: wrap !important;
+          gap: 2px !important;
+          align-items: flex-start !important;
+        }
+        
+        /* Eventos con flex para distribución proporcional */
+        .calendar-wrapper .rbc-time-view .rbc-event {
+          flex: 1 1 auto !important;
+          margin: 0 !important;
         }
         
         /* Separación adicional en vista de día */
@@ -375,30 +479,30 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
           margin-bottom: 1px !important;
         }
         
-        /* Bordes de colores para diferentes tipos de eventos */
+        /* Bordes blancos para todos los tipos de eventos */
         .calendar-wrapper .rbc-time-view .rbc-event[style*="background-color: rgb(34, 197, 94)"] {
-          border-color: rgba(21, 128, 61, 0.8) !important;
+          border-color: white !important;
         }
         
         .calendar-wrapper .rbc-time-view .rbc-event[style*="background-color: rgb(59, 130, 246)"] {
-          border-color: rgba(37, 99, 235, 0.8) !important;
+          border-color: white !important;
         }
         
         .calendar-wrapper .rbc-time-view .rbc-event[style*="background-color: rgb(168, 85, 247)"] {
-          border-color: rgba(124, 58, 237, 0.8) !important;
+          border-color: white !important;
         }
         
         .calendar-wrapper .rbc-time-view .rbc-event[style*="background-color: rgb(245, 158, 11)"] {
-          border-color: rgba(180, 83, 9, 0.8) !important;
+          border-color: white !important;
         }
         
         .calendar-wrapper .rbc-time-view .rbc-event[style*="background-color: rgb(239, 68, 68)"] {
-          border-color: rgba(185, 28, 28, 0.8) !important;
+          border-color: white !important;
         }
         
-        /* Borde por defecto para eventos sin color específico */
+        /* Borde blanco por defecto para eventos sin color específico */
         .calendar-wrapper .rbc-time-view .rbc-event:not([style*="background-color"]) {
-          border-color: rgba(75, 85, 99, 0.6) !important;
+          border-color: white !important;
         }
         
         /* Estilos para la vista de agenda */

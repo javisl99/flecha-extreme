@@ -103,7 +103,8 @@ export default function ModalNuevaReserva({
       fechaFin: formData.fechaFin,
       horaInicio: formData.horaInicio,
       horaFin: formData.horaFin,
-      nota: formData.nota
+      nota: formData.nota,
+      precioReserva: actividadSeleccionada?.precio_reserva || 0
     };
   };
 
@@ -173,11 +174,13 @@ export default function ModalNuevaReserva({
           `${tarifa.duracion_valor}-${tarifa.duracion_unidad}` === newData.duracion
         );
         if (tarifaSeleccionada) {
+          // Si es reserva, el precio es solo el de la tarifa (el precio de reserva se maneja por separado)
           newData.precio = tarifaSeleccionada.precio * newData.numeroPersonas;
         }
       } else if (field === 'duracion' && !newData.duracion) {
         newData.precio = 0;
       }
+      
       
       return newData;
     });
@@ -383,6 +386,7 @@ export default function ModalNuevaReserva({
       horaInicio: string;
       horaFin: string;
       nota?: string;
+      precioReserva?: number;
     };
     subtotal: number;
     descuento: number;
@@ -502,14 +506,14 @@ export default function ModalNuevaReserva({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-4xl max-h-[90vh] transform overflow-y-auto rounded-2xl bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all">
                 {/* Header azul */}
                 <div className="bg-primary px-6 py-4 flex items-center justify-between">
                   <Dialog.Title
                     as="h3"
                     className="text-lg font-medium leading-6 text-white"
                   >
-                    Nueva Reserva
+                    Nueva Actividad
                   </Dialog.Title>
                   <button
                     type="button"
@@ -522,8 +526,8 @@ export default function ModalNuevaReserva({
                 </div>
 
                 {/* Contenido del modal */}
-                <div className="p-6">
-                  <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="p-4">
+                    <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Primera fila - Empresa y Tipo de Actividad */}
                     <div className="grid grid-cols-2 gap-6">
                       {/* Empresa */}
@@ -764,7 +768,7 @@ export default function ModalNuevaReserva({
                       {/* Cantidad Reservada */}
                       <div>
                         <label htmlFor="cantidadReservada" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Cantidad Reservada *
+                          Unidades Reservadas *
                         </label>
                         <input
                           type="number"
@@ -873,6 +877,7 @@ export default function ModalNuevaReserva({
                       </div>
                     </div>
 
+
                     {/* Nota */}
                     <div>
                       <label htmlFor="nota" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -883,13 +888,14 @@ export default function ModalNuevaReserva({
                         rows={3}
                         value={formData.nota}
                         onChange={(e) => handleInputChange('nota', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
                         placeholder="Notas adicionales sobre la reserva..."
+                        style={{ height: '80px', minHeight: '80px', maxHeight: '80px' }}
                       />
                     </div>
 
                     {/* Botones */}
-                    <div className="flex justify-end space-x-3 pt-4">
+                    <div className="flex justify-end space-x-3 pt-2 pb-2">
                       <button
                         type="button"
                         onClick={handleClose}
@@ -905,7 +911,7 @@ export default function ModalNuevaReserva({
                         {loading ? 'Creando...' : 'Crear Reserva'}
                       </button>
                     </div>
-                  </form>
+                    </form>
                 </div>
               </Dialog.Panel>
             </Transition.Child>

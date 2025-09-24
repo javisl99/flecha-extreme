@@ -448,18 +448,30 @@ export function useActividades() {
       setLoading(true);
       setError(null);
 
-      const { error } = await supabase
+      // 1. PRIMERO: Eliminar todos los pagos asociados a la reserva
+      const { error: pagosError } = await supabase
+        .from('pago')
+        .delete()
+        .eq('origen_tipo', 'reserva')
+        .eq('origen_id', id);
+
+      if (pagosError) {
+        throw new Error(`Error eliminando pagos asociados: ${pagosError.message}`);
+      }
+
+      // 2. SEGUNDO: Eliminar la reserva
+      const { error: reservaError } = await supabase
         .from('reserva')
         .delete()
         .eq('id', id);
 
-      if (error) {
-        throw error;
+      if (reservaError) {
+        throw new Error(`Error eliminando reserva: ${reservaError.message}`);
       }
 
       return { 
         success: true, 
-        message: 'Reserva eliminada correctamente'
+        message: 'Reserva y pagos asociados eliminados correctamente'
       };
     } catch (error: any) {
       console.error('Error al eliminar reserva:', error);
