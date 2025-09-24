@@ -148,7 +148,7 @@ export default function ModalNuevaReserva({
           const actividades = await obtenerActividadesPorTipo(formData.tipoActividad);
           setActividadesExistentes(actividades);
           setTipoCargado(formData.tipoActividad);
-        } catch (error) {
+        } catch {
           setActividadesExistentes([]);
         }
       }
@@ -157,7 +157,7 @@ export default function ModalNuevaReserva({
     cargarActividades();
   }, [formData.tipoActividad, isOpen, obtenerActividadesPorTipo, tipoCargado]);
 
-  const handleInputChange = async (field: string, value: any) => {
+  const handleInputChange = async (field: string, value: string | number | boolean) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
@@ -243,7 +243,7 @@ export default function ModalNuevaReserva({
       if (formData.horaInicio && formData.duracion) {
         const horaFinCalculada = calcularHoraFin(formData.horaInicio, formData.duracion);
         if (horaFinCalculada) {
-          await consultarStock(actividadSeleccionada.id, value, formData.horaInicio, horaFinCalculada);
+          await consultarStock(actividadSeleccionada.id, String(value), formData.horaInicio, horaFinCalculada);
         }
       }
     } else if (field === 'fechaInicio' && !value) {
@@ -253,23 +253,23 @@ export default function ModalNuevaReserva({
     // Si cambia la hora de inicio, consultar stock si hay actividad, fecha y duración seleccionadas
     if (field === 'horaInicio' && value && actividadSeleccionada && formData.fechaInicio && formData.duracion) {
       // Calcular la hora de fin basada en la duración y la nueva hora de inicio
-      const nuevaHoraFin = calcularHoraFin(value, formData.duracion);
+      const nuevaHoraFin = calcularHoraFin(String(value), formData.duracion);
       if (nuevaHoraFin) {
-        await consultarStock(actividadSeleccionada.id, formData.fechaInicio, value, nuevaHoraFin);
+        await consultarStock(actividadSeleccionada.id, formData.fechaInicio, String(value), nuevaHoraFin);
       }
     }
     
     // Si cambia la hora de fin manualmente, consultar stock si hay actividad, fecha y duración seleccionadas
     if (field === 'horaFin' && value && actividadSeleccionada && formData.fechaInicio && formData.duracion) {
       if (formData.horaInicio && value) {
-        await consultarStock(actividadSeleccionada.id, formData.fechaInicio, formData.horaInicio, value);
+        await consultarStock(actividadSeleccionada.id, formData.fechaInicio, formData.horaInicio, String(value));
       }
     }
     
     // Si cambia la duración, consultar stock si hay actividad, fecha y hora seleccionadas
     if (field === 'duracion' && value && actividadSeleccionada && formData.fechaInicio && formData.horaInicio) {
       // Calcular la nueva hora de fin basada en la duración
-      const nuevaHoraFin = calcularHoraFin(formData.horaInicio, value);
+      const nuevaHoraFin = calcularHoraFin(formData.horaInicio, String(value));
       if (nuevaHoraFin) {
         await consultarStock(actividadSeleccionada.id, formData.fechaInicio, formData.horaInicio, nuevaHoraFin);
       }
@@ -282,7 +282,7 @@ export default function ModalNuevaReserva({
       const tarifaSeleccionada = tarifasActividad.find(tarifa => 
         `${tarifa.duracion_valor}-${tarifa.duracion_unidad}` === formData.duracion
       );
-      if (tarifaSeleccionada) {
+      if (tarifaSeleccionada && typeof value === 'number') {
         const precioCalculado = tarifaSeleccionada.precio * value;
         setFormData(prev => ({ ...prev, precio: precioCalculado }));
       }
@@ -400,7 +400,8 @@ export default function ModalNuevaReserva({
     };
   }) => {
     try {
-      // Aquí iría la lógica para crear la reserva y el pago en la base de datos
+      // TODO: Implementar lógica para crear la reserva y el pago usando los datos recibidos
+      // const { actividad, subtotal, descuento, iva, total, concepto, pago } = data;
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Mostrar notificación de éxito

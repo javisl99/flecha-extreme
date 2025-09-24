@@ -10,18 +10,7 @@ interface SwitchVistaActividadesProps {
 }
 
 export default function SwitchVistaActividades({ vistaActual, onVistaChange }: SwitchVistaActividadesProps) {
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  const handleToggle = () => {
-    setIsAnimating(true);
-    const nuevaVista = vistaActual === 'lista' ? 'calendario' : 'lista';
-    
-    // Pequeño delay para la animación
-    setTimeout(() => {
-      onVistaChange(nuevaVista);
-      setIsAnimating(false);
-    }, 150);
-  };
+  const [isAnimating] = useState(false);
 
   return (
     <div>

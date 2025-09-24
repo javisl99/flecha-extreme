@@ -3,8 +3,8 @@
 import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
-import { formatPrice, formatNumber } from '@/lib/formatUtils';
-import { useActividades, ActividadDB, TarifaActividad } from '@/hooks/useActividades';
+import { formatPrice } from '@/lib/formatUtils';
+import { useActividades } from '@/hooks/useActividades';
 import SurfSpinner from '@/components/shared/SurfSpinner';
 import TicketCompra from '@/components/Tienda/TicketCompra';
 import { SelectorCliente } from '@/components/Actividades/SelectorCliente';
@@ -62,11 +62,10 @@ export default function PagoReservaModal({
   readOnly = false,
   reservaData
 }: PagoReservaModalProps) {
-  const { obtenerActividadesPorTipo, obtenerTarifasActividad, loadingActividades, crearReserva, crearPago, obtenerIdEmpresa, obtenerIdCliente } = useActividades();
+  const { crearReserva, crearPago, obtenerIdEmpresa, obtenerIdCliente } = useActividades();
   const { clientes } = useClientes();
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
-  const [estadoPago, setEstadoPago] = useState<EstadoPago>('pendiente');
   const [concepto, setConcepto] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [esReserva, setEsReserva] = useState(false);
@@ -89,21 +88,20 @@ export default function PagoReservaModal({
   useEffect(() => {
     if (reservaData && readOnly) {
       setMetodoPago(reservaData.metodo);
-      setEstadoPago(reservaData.estado);
       setConcepto(reservaData.concepto);
     }
   }, [reservaData, readOnly]);
 
-  const metodosPago: { value: MetodoPago; label: string }[] = [
-    { value: 'efectivo', label: 'Efectivo' },
-    { value: 'tpv', label: 'Tarjeta (TPV)' },
-    { value: 'bizum_alfonso', label: 'Bizum Alfonso' },
-    { value: 'bizum_robe', label: 'Bizum Robe' },
-    { value: 'bizum_alba', label: 'Bizum Alba' },
-    { value: 'bizum_maria', label: 'Bizum María' },
-    { value: 'bizum_jm', label: 'Bizum JM' },
-    { value: 'angeles', label: 'Ángeles' }
-  ];
+  const metodosPago = useMemo(() => [
+    { value: 'efectivo' as MetodoPago, label: 'Efectivo' },
+    { value: 'tpv' as MetodoPago, label: 'Tarjeta (TPV)' },
+    { value: 'bizum_alfonso' as MetodoPago, label: 'Bizum Alfonso' },
+    { value: 'bizum_robe' as MetodoPago, label: 'Bizum Robe' },
+    { value: 'bizum_alba' as MetodoPago, label: 'Bizum Alba' },
+    { value: 'bizum_maria' as MetodoPago, label: 'Bizum María' },
+    { value: 'bizum_jm' as MetodoPago, label: 'Bizum JM' },
+    { value: 'angeles' as MetodoPago, label: 'Ángeles' }
+  ], []);
 
   // Obtener el método de pago optimizado
   const selectedMetodoPago = useMemo(() => 
@@ -112,7 +110,7 @@ export default function PagoReservaModal({
   );
 
   // Cálculos de precios optimizados con useMemo
-  const { subtotal, descuento, subtotalConDescuento, iva, total, precioRestante } = useMemo(() => {
+  const { subtotal, descuento, iva, total, precioRestante } = useMemo(() => {
     const subtotal = actividad.precio;
     const descuento = 0; // Sin descuento por defecto para actividades
     const subtotalConDescuento = subtotal - descuento;
@@ -123,13 +121,9 @@ export default function PagoReservaModal({
     const total = esReserva ? precioReserva : subtotalConDescuento;
     const precioRestante = esReserva ? subtotalConDescuento - precioReserva : 0;
     
-    return { subtotal, descuento, subtotalConDescuento, iva, total, precioRestante };
+    return { subtotal, descuento, iva, total, precioRestante };
   }, [actividad.precio, esReserva, precioReserva]);
 
-  const estadosPago: { value: EstadoPago; label: string }[] = [
-    { value: 'completado', label: 'Completado' },
-    { value: 'pendiente', label: 'Pendiente' }
-  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,9 +287,10 @@ export default function PagoReservaModal({
       // Cerrar modal de confirmación y abrir modal del ticket
       setShowConfirmationModal(false);
       setShowTicketModal(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error procesando pago:', error);
-      toast.error(error.message || 'Error al procesar el pago');
+      const errorMessage = error instanceof Error ? error.message : 'Error al procesar el pago';
+      toast.error(errorMessage);
     } finally {
       setIsProcessing(false);
     }
@@ -319,7 +314,6 @@ export default function PagoReservaModal({
     // Limpiar formulario y cerrar modal
     setSelectedClienteId(null);
     setMetodoPago('efectivo');
-    setEstadoPago('pendiente');
     setConcepto('');
     onClose();
   };
