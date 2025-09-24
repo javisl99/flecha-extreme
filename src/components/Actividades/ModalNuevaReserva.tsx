@@ -1,8 +1,8 @@
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { Toast } from '@/shared/components';
 import { useActividades, ActividadDB, TarifaActividad } from '@/hooks/useActividades';
+import PagoReservaModal from './PagoReservaModal';
 
 interface ModalNuevaReservaProps {
   isOpen: boolean;
@@ -29,7 +29,7 @@ export default function ModalNuevaReserva({
   onSubmit,
   onToast
 }: ModalNuevaReservaProps) {
-  const { obtenerActividadesPorTipo, obtenerTarifasActividad, loadingActividades, error: errorActividades } = useActividades();
+  const { obtenerActividadesPorTipo, obtenerTarifasActividad, consultarStockDisponible, loadingActividades, error: errorActividades } = useActividades();
   
   const [formData, setFormData] = useState({
     empresa: 'Flecha Extreme' as 'Flecha Extreme' | 'Rober',
@@ -52,6 +52,61 @@ export default function ModalNuevaReserva({
   const [actividadSeleccionada, setActividadSeleccionada] = useState<ActividadDB | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [showModalPago, setShowModalPago] = useState(false);
+  const [stockInfo, setStockInfo] = useState<{
+    stockDisponible: number;
+    stockTotal: number;
+    reservadas: number;
+  } | null>(null);
+  const [consultandoStock, setConsultandoStock] = useState(false);
+
+  // Función para consultar stock disponible
+  const consultarStock = async (actividadId: string, fecha: string, horaInicio?: string, horaFin?: string) => {
+    if (!actividadId || !fecha) {
+      setStockInfo(null);
+      return;
+    }
+
+    try {
+      setConsultandoStock(true);
+      const resultado = await consultarStockDisponible(actividadId, fecha, horaInicio, horaFin);
+      
+      if (resultado.success && resultado.stockDisponible !== undefined) {
+        setStockInfo({
+          stockDisponible: resultado.stockDisponible,
+          stockTotal: resultado.stockTotal || 0,
+          reservadas: resultado.reservadas || 0
+        });
+      } else {
+        setStockInfo(null);
+        console.error('Error al consultar stock:', resultado.message);
+      }
+    } catch (error) {
+      console.error('Error al consultar stock:', error);
+      setStockInfo(null);
+    } finally {
+      setConsultandoStock(false);
+    }
+  };
+
+  // Función para generar datos de actividad para PagoReservaModal
+  const generarDatosActividad = () => {
+    return {
+      id: actividadSeleccionada?.id || `actividad-${Date.now()}`,
+      nombre: formData.actividad,
+      precio: formData.precio,
+      cantidad: formData.cantidadReservada,
+      duracion: formData.duracion,
+      empresa: formData.empresa,
+      numeroPersonas: formData.numeroPersonas,
+      fechaInicio: formData.fechaInicio,
+      fechaFin: formData.fechaFin,
+      horaInicio: formData.horaInicio,
+      horaFin: formData.horaFin,
+      nota: formData.nota,
+      precioReserva: actividadSeleccionada?.precio_reserva || 0
+    };
+  };
 
   // Función para calcular la hora de fin basándose en la duración
   const calcularHoraFin = (horaInicio: string, duracion: string): string => {
@@ -93,7 +148,7 @@ export default function ModalNuevaReserva({
           const actividades = await obtenerActividadesPorTipo(formData.tipoActividad);
           setActividadesExistentes(actividades);
           setTipoCargado(formData.tipoActividad);
-        } catch (error) {
+        } catch {
           setActividadesExistentes([]);
         }
       }
@@ -102,7 +157,7 @@ export default function ModalNuevaReserva({
     cargarActividades();
   }, [formData.tipoActividad, isOpen, obtenerActividadesPorTipo, tipoCargado]);
 
-  const handleInputChange = async (field: string, value: any) => {
+  const handleInputChange = async (field: string, value: string | number | boolean) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
@@ -119,11 +174,13 @@ export default function ModalNuevaReserva({
           `${tarifa.duracion_valor}-${tarifa.duracion_unidad}` === newData.duracion
         );
         if (tarifaSeleccionada) {
+          // Si es reserva, el precio es solo el de la tarifa (el precio de reserva se maneja por separado)
           newData.precio = tarifaSeleccionada.precio * newData.numeroPersonas;
         }
       } else if (field === 'duracion' && !newData.duracion) {
         newData.precio = 0;
       }
+      
       
       return newData;
     });
@@ -139,6 +196,7 @@ export default function ModalNuevaReserva({
       setTipoCargado('');
       setTarifasActividad([]);
       setActividadSeleccionada(null);
+      setStockInfo(null);
     }
     
     // Si cambia el nombre de la actividad, cargar las tarifas
@@ -148,6 +206,14 @@ export default function ModalNuevaReserva({
         setActividadSeleccionada(actividad);
         const tarifas = await obtenerTarifasActividad(actividad.id);
         setTarifasActividad(tarifas);
+        
+        // Consultar stock si ya hay fecha, hora de inicio y duración seleccionadas
+        if (formData.fechaInicio && formData.horaInicio && formData.duracion) {
+          const horaFinCalculada = calcularHoraFin(formData.horaInicio, formData.duracion);
+          if (horaFinCalculada) {
+            await consultarStock(actividad.id, formData.fechaInicio, formData.horaInicio, horaFinCalculada);
+          }
+        }
         
         // El precio se calculará cuando se seleccione una duración
         
@@ -168,7 +234,47 @@ export default function ModalNuevaReserva({
     } else if (field === 'actividad' && !value) {
       setTarifasActividad([]);
       setActividadSeleccionada(null);
+      setStockInfo(null);
       setFormData(prev => ({ ...prev, duracion: '', horaFin: '', precio: 0 }));
+    }
+    
+    // Si cambia la fecha de inicio, consultar stock si hay actividad, hora de inicio y duración seleccionadas
+    if (field === 'fechaInicio' && value && actividadSeleccionada) {
+      if (formData.horaInicio && formData.duracion) {
+        const horaFinCalculada = calcularHoraFin(formData.horaInicio, formData.duracion);
+        if (horaFinCalculada) {
+          await consultarStock(actividadSeleccionada.id, String(value), formData.horaInicio, horaFinCalculada);
+        }
+      }
+    } else if (field === 'fechaInicio' && !value) {
+      setStockInfo(null);
+    }
+    
+    // Si cambia la hora de inicio, consultar stock si hay actividad, fecha y duración seleccionadas
+    if (field === 'horaInicio' && value && actividadSeleccionada && formData.fechaInicio && formData.duracion) {
+      // Calcular la hora de fin basada en la duración y la nueva hora de inicio
+      const nuevaHoraFin = calcularHoraFin(String(value), formData.duracion);
+      if (nuevaHoraFin) {
+        await consultarStock(actividadSeleccionada.id, formData.fechaInicio, String(value), nuevaHoraFin);
+      }
+    }
+    
+    // Si cambia la hora de fin manualmente, consultar stock si hay actividad, fecha y duración seleccionadas
+    if (field === 'horaFin' && value && actividadSeleccionada && formData.fechaInicio && formData.duracion) {
+      if (formData.horaInicio && value) {
+        await consultarStock(actividadSeleccionada.id, formData.fechaInicio, formData.horaInicio, String(value));
+      }
+    }
+    
+    // Si cambia la duración, consultar stock si hay actividad, fecha y hora seleccionadas
+    if (field === 'duracion' && value && actividadSeleccionada && formData.fechaInicio && formData.horaInicio) {
+      // Calcular la nueva hora de fin basada en la duración
+      const nuevaHoraFin = calcularHoraFin(formData.horaInicio, String(value));
+      if (nuevaHoraFin) {
+        await consultarStock(actividadSeleccionada.id, formData.fechaInicio, formData.horaInicio, nuevaHoraFin);
+      }
+    } else if (field === 'duracion' && !value) {
+      setStockInfo(null);
     }
     
     // Si cambia el número de personas, recalcular precio
@@ -176,7 +282,7 @@ export default function ModalNuevaReserva({
       const tarifaSeleccionada = tarifasActividad.find(tarifa => 
         `${tarifa.duracion_valor}-${tarifa.duracion_unidad}` === formData.duracion
       );
-      if (tarifaSeleccionada) {
+      if (tarifaSeleccionada && typeof value === 'number') {
         const precioCalculado = tarifaSeleccionada.precio * value;
         setFormData(prev => ({ ...prev, precio: precioCalculado }));
       }
@@ -216,6 +322,15 @@ export default function ModalNuevaReserva({
       newErrors.numeroPersonas = 'El número máximo de personas es 15';
     }
 
+    // Validación de stock disponible
+    if (stockInfo && stockInfo.stockDisponible < formData.cantidadReservada) {
+      newErrors.cantidadReservada = `Solo hay ${stockInfo.stockDisponible} unidades disponibles. Stock total: ${stockInfo.stockTotal}, Reservadas: ${stockInfo.reservadas}`;
+    }
+
+    if (stockInfo && stockInfo.stockDisponible === 0) {
+      newErrors.actividad = 'No hay stock disponible para esta actividad en la fecha seleccionada';
+    }
+
     // El precio se calcula automáticamente, no necesita validación
 
     if (!formData.fechaInicio) {
@@ -228,11 +343,17 @@ export default function ModalNuevaReserva({
 
     if (!formData.horaInicio) {
       newErrors.horaInicio = 'La hora de inicio es obligatoria';
+    } else if (formData.fechaInicio === new Date().toISOString().split('T')[0]) {
+      // Si la fecha seleccionada es hoy, validar que la hora no sea anterior a la actual
+      const horaActual = new Date().toTimeString().substring(0, 5);
+      if (formData.horaInicio < horaActual) {
+        newErrors.horaInicio = 'No se puede seleccionar una hora anterior a la hora actual';
+      }
     }
 
-    // Validar que la fecha de fin sea posterior a la fecha de inicio
-    if (formData.fechaInicio && formData.fechaFin && formData.fechaFin <= formData.fechaInicio) {
-      newErrors.fechaFin = 'La fecha de fin debe ser posterior a la fecha de inicio';
+    // Validar que la fecha de fin sea posterior o igual a la fecha de inicio
+    if (formData.fechaInicio && formData.fechaFin && formData.fechaFin < formData.fechaInicio) {
+      newErrors.fechaFin = 'La fecha de fin debe ser igual o posterior a la fecha de inicio';
     }
 
     setErrors(newErrors);
@@ -246,16 +367,47 @@ export default function ModalNuevaReserva({
       return;
     }
 
-    setLoading(true);
+    // Abrir modal de pago
+    setShowModalPago(true);
+  };
 
+  // Función para manejar el envío del pago desde PagoReservaModal
+  const handlePagoSubmit = async (data: {
+    actividad: {
+      id: string;
+      nombre: string;
+      precio: number;
+      cantidad: number;
+      duracion: string;
+      empresa: string;
+      numeroPersonas: number;
+      fechaInicio: string;
+      fechaFin: string;
+      horaInicio: string;
+      horaFin: string;
+      nota?: string;
+      precioReserva?: number;
+    };
+    subtotal: number;
+    descuento: number;
+    descuentoPorcentaje: number;
+    iva: number;
+    total: number;
+    concepto: string;
+    pago: {
+      metodo: string;
+      estado: string;
+    };
+  }) => {
     try {
-      // Simular creación de reserva (aquí iría la lógica real)
+      // TODO: Implementar lógica para crear la reserva y el pago usando los datos recibidos
+      // const { actividad, subtotal, descuento, iva, total, concepto, pago } = data;
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Mostrar notificación de éxito
       const toastData = {
         visible: true,
-        message: 'Reserva creada exitosamente',
+        message: 'Reserva y pago creados exitosamente',
         type: 'success' as const
       };
       onToast(toastData);
@@ -294,20 +446,14 @@ export default function ModalNuevaReserva({
       setTipoCargado('');
       setTarifasActividad([]);
       setActividadSeleccionada(null);
+      setStockInfo(null);
       setErrors({});
       
-      // Cerrar modal
-      onClose();
+      // No cerrar automáticamente - dejar que el usuario cierre el ticket manualmente
+      // setShowModalPago(false);
+      // onClose();
     } catch (error) {
-      // Mostrar notificación de error
-      const toastData = {
-        visible: true,
-        message: 'Error al crear la reserva',
-        type: 'error' as const
-      };
-      onToast(toastData);
-    } finally {
-      setLoading(false);
+      console.error('Error al procesar el pago:', error);
     }
   };
 
@@ -330,6 +476,7 @@ export default function ModalNuevaReserva({
     setTipoCargado('');
     setTarifasActividad([]);
     setActividadSeleccionada(null);
+    setStockInfo(null);
     setErrors({});
     onClose();
   };
@@ -360,14 +507,14 @@ export default function ModalNuevaReserva({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-4xl max-h-[90vh] transform overflow-y-auto rounded-2xl bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all">
                 {/* Header azul */}
                 <div className="bg-primary px-6 py-4 flex items-center justify-between">
                   <Dialog.Title
                     as="h3"
                     className="text-lg font-medium leading-6 text-white"
                   >
-                    Nueva Reserva
+                    Nueva Actividad
                   </Dialog.Title>
                   <button
                     type="button"
@@ -380,8 +527,8 @@ export default function ModalNuevaReserva({
                 </div>
 
                 {/* Contenido del modal */}
-                <div className="p-6">
-                  <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="p-4">
+                    <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Primera fila - Empresa y Tipo de Actividad */}
                     <div className="grid grid-cols-2 gap-6">
                       {/* Empresa */}
@@ -537,6 +684,7 @@ export default function ModalNuevaReserva({
                           id="fechaInicio"
                           value={formData.fechaInicio}
                           onChange={(e) => handleInputChange('fechaInicio', e.target.value)}
+                          min={new Date().toISOString().split('T')[0]}
                           className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                             errors.fechaInicio 
                               ? 'border-red-300 dark:border-red-600' 
@@ -558,7 +706,7 @@ export default function ModalNuevaReserva({
                           id="fechaFin"
                           value={formData.fechaFin}
                           onChange={(e) => handleInputChange('fechaFin', e.target.value)}
-                          min={formData.fechaInicio}
+                          min={formData.fechaInicio || undefined}
                           className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                             errors.fechaFin 
                               ? 'border-red-300 dark:border-red-600' 
@@ -584,6 +732,7 @@ export default function ModalNuevaReserva({
                           value={formData.horaInicio}
                           onChange={(e) => handleInputChange('horaInicio', e.target.value)}
                           disabled={!formData.fechaInicio}
+                          min={formData.fechaInicio === new Date().toISOString().split('T')[0] ? new Date().toTimeString().substring(0, 5) : undefined}
                           className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                             !formData.fechaInicio 
                               ? 'cursor-not-allowed opacity-50' 
@@ -620,7 +769,7 @@ export default function ModalNuevaReserva({
                       {/* Cantidad Reservada */}
                       <div>
                         <label htmlFor="cantidadReservada" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Cantidad Reservada *
+                          Unidades Reservadas *
                         </label>
                         <input
                           type="number"
@@ -637,6 +786,50 @@ export default function ModalNuevaReserva({
                         />
                         {errors.cantidadReservada && (
                           <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.cantidadReservada}</p>
+                        )}
+                        
+                        {/* Información de stock */}
+                        {stockInfo && (
+                          <div className={`mt-2 p-2 rounded-md ${
+                            stockInfo.stockDisponible > 0 
+                              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' 
+                              : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                          }`}>
+                            <div className={`text-xs ${
+                              stockInfo.stockDisponible > 0 
+                                ? 'text-green-700 dark:text-green-300' 
+                                : 'text-red-700 dark:text-red-300'
+                            }`}>
+                              <div className="flex justify-between">
+                                <span>Stock disponible:</span>
+                                <span className={`font-medium ${stockInfo.stockDisponible > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                  {stockInfo.stockDisponible}
+                                </span>
+                              </div>
+                              <div className={`flex justify-between ${
+                                stockInfo.stockDisponible > 0 
+                                  ? 'text-green-600 dark:text-green-400' 
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                <span>Total:</span>
+                                <span>{stockInfo.stockTotal}</span>
+                              </div>
+                              <div className={`flex justify-between ${
+                                stockInfo.stockDisponible > 0 
+                                  ? 'text-green-600 dark:text-green-400' 
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                <span>Reservadas:</span>
+                                <span>{stockInfo.reservadas}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {consultandoStock && (
+                          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            Consultando stock disponible...
+                          </div>
                         )}
                       </div>
 
@@ -685,6 +878,7 @@ export default function ModalNuevaReserva({
                       </div>
                     </div>
 
+
                     {/* Nota */}
                     <div>
                       <label htmlFor="nota" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -695,13 +889,14 @@ export default function ModalNuevaReserva({
                         rows={3}
                         value={formData.nota}
                         onChange={(e) => handleInputChange('nota', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
                         placeholder="Notas adicionales sobre la reserva..."
+                        style={{ height: '80px', minHeight: '80px', maxHeight: '80px' }}
                       />
                     </div>
 
                     {/* Botones */}
-                    <div className="flex justify-end space-x-3 pt-4">
+                    <div className="flex justify-end space-x-3 pt-2 pb-2">
                       <button
                         type="button"
                         onClick={handleClose}
@@ -717,13 +912,21 @@ export default function ModalNuevaReserva({
                         {loading ? 'Creando...' : 'Crear Reserva'}
                       </button>
                     </div>
-                  </form>
+                    </form>
                 </div>
               </Dialog.Panel>
             </Transition.Child>
           </div>
         </div>
       </Dialog>
+
+      {/* Modal de Pago de Reserva */}
+      <PagoReservaModal
+        isOpen={showModalPago}
+        onClose={() => setShowModalPago(false)}
+        onSubmit={handlePagoSubmit}
+        actividad={generarDatosActividad()}
+      />
     </Transition>
   );
 }
