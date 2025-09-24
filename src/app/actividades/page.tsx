@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Button, Toast } from '@/shared/components';
 import { useActividades } from '@/hooks/useActividades';
 import FiltrosReservas, { type FiltrosReservaState } from '@/components/Actividades/FiltrosReservas';
@@ -10,6 +10,9 @@ import TableSkeleton from '@/components/shared/TableSkeleton';
 import SwitchVistaActividades, { type VistaActividadesTipo } from '@/components/Actividades/SwitchVistaActividades';
 import VistaCalendario from '@/components/Actividades/VistaCalendario';
 import ModalDetalleReserva from '@/components/Actividades/ModalDetalleReserva';
+
+// Usar any temporalmente para evitar conflictos de tipos con el hook
+type Reserva = any;
 
 // Icono para nueva reserva
 const NewReservationIcon = () => (
@@ -29,9 +32,9 @@ export default function ReservasPage() {
     fechaHasta: ''
   });
   
-  const [reservas, setReservas] = useState<any[]>([]);
-  const [reservaSeleccionada, setReservaSeleccionada] = useState<any | null>(null);
-  const [reservaAEliminar, setReservaAEliminar] = useState<any | null>(null);
+  const [reservas, setReservas] = useState<Reserva[]>([]);
+  const [reservaSeleccionada, setReservaSeleccionada] = useState<Reserva | null>(null);
+  const [reservaAEliminar, setReservaAEliminar] = useState<Reserva | null>(null);
   const [showModalReserva, setShowModalReserva] = useState(false);
   const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
@@ -48,12 +51,6 @@ export default function ReservasPage() {
     eliminarReserva 
   } = useActividades();
   
-  // Cargar reservas al montar el componente
-  useEffect(() => {
-    cargarReservas();
-  }, []);
-
-
   const cargarReservas = async () => {
     try {
       const resultado = await obtenerReservas();
@@ -62,11 +59,16 @@ export default function ReservasPage() {
       } else {
         setToast({ visible: true, message: resultado.message, type: 'error' });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al cargar reservas:', error);
       setToast({ visible: true, message: 'Error al cargar las reservas', type: 'error' });
     }
   };
+
+  // Cargar reservas al montar el componente
+  useEffect(() => {
+    cargarReservas();
+  }, []);
   
   // Filtrar reservas
   const reservasFiltradas = reservas.filter(reserva => {
@@ -139,22 +141,22 @@ export default function ReservasPage() {
     });
   };
 
-  const mostrarCliente = (reserva: any) => {
+  const mostrarCliente = (reserva: Reserva) => {
     if (!reserva.cliente) return 'Cliente no establecido';
     return `${reserva.cliente.nombre} ${reserva.cliente.apellidos}`;
   };
 
-  const mostrarActividad = (reserva: any) => {
+  const mostrarActividad = (reserva: Reserva) => {
     if (!reserva.actividad) return 'Actividad no encontrada';
     return reserva.actividad.nombre;
   };
 
-  const mostrarEmpresa = (reserva: any) => {
+  const mostrarEmpresa = (reserva: Reserva) => {
     if (!reserva.empresa) return 'Empresa no establecida';
     return reserva.empresa.nombre;
   };
 
-  const handleEliminarReserva = (reserva: any) => {
+  const handleEliminarReserva = (reserva: Reserva) => {
     setReservaAEliminar(reserva);
     setIsModalConfirmacionOpen(true);
   };
@@ -172,23 +174,23 @@ export default function ReservasPage() {
       } else {
         setToast({ visible: true, message: 'Error al eliminar la reserva', type: 'error' });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al eliminar reserva:', error);
       setToast({ visible: true, message: 'Error al eliminar la reserva', type: 'error' });
     }
   };
 
-  const handleVerReserva = (reserva: any) => {
+  const handleVerReserva = (reserva: Reserva) => {
     setReservaSeleccionada(reserva);
   };
 
-  const handleFilaClick = (reserva: any) => {
+  const handleFilaClick = (reserva: Reserva) => {
     handleVerReserva(reserva);
   };
 
-  const handleActualizarEstado = async (reserva: any, nuevoEstado: string) => {
+  const handleActualizarEstado = async (reserva: Reserva, nuevoEstado: string) => {
     try {
-      const result = await actualizarReserva(reserva.id, { estado: nuevoEstado as any });
+      const result = await actualizarReserva(reserva.id, { estado: nuevoEstado as 'pendiente' | 'confirmada' | 'cancelada' });
       if (result.success) {
         // Actualizar la reserva localmente sin recargar toda la lista
         setReservas(prevReservas => 
@@ -196,7 +198,7 @@ export default function ReservasPage() {
             r.id === reserva.id ? { ...r, estado: nuevoEstado } : r
           )
         );
-        setReservaSeleccionada((prev: any) => prev ? { ...prev, estado: nuevoEstado } : null);
+        setReservaSeleccionada((prev: Reserva | null) => prev ? { ...prev, estado: nuevoEstado } : null);
         // Cerrar el modal después de actualizar el estado
         setReservaSeleccionada(null);
         // Mostrar toast después de cerrar el modal
@@ -206,7 +208,7 @@ export default function ReservasPage() {
       } else {
         setToast({ visible: true, message: 'Error al actualizar el estado de la reserva', type: 'error' });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al actualizar estado:', error);
       setToast({ visible: true, message: 'Error al actualizar el estado de la reserva', type: 'error' });
     }

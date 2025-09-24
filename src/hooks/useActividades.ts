@@ -493,6 +493,7 @@ export function useActividades() {
       setLoading(true);
       setError(null);
 
+
       // Obtener información de la actividad (incluyendo uni_disponibles)
       const { data: actividad, error: actividadError } = await supabase
         .from('actividad')
@@ -506,23 +507,28 @@ export function useActividades() {
 
       const stockTotal = actividad.uni_disponibles || 0;
 
-      // Consulta todas las reservas de la actividad
+      // Consulta todas las reservas de la actividad para la fecha específica
+      const fechaInicio = `${fecha}T00:00:00`;
+      const fechaFin = `${fecha}T23:59:59`;
       const { data: todasLasReservas, error: errorTodas } = await supabase
         .from('reserva')
         .select('cantidad_reservada, estado, fecha_inicio, fecha_fin')
-        .eq('id_actividad', idActividad);
+        .eq('id_actividad', idActividad)
+        .gte('fecha_inicio', fechaInicio)
+        .lte('fecha_inicio', fechaFin);
 
       // Filtrar por estado
       const reservasActivas = todasLasReservas?.filter(r => 
         r.estado === 'confirmada' || r.estado === 'pendiente'
       ) || [];
+      
 
-      // Si se proporciona hora, buscar reservas que se solapen con el horario
+      // Ya filtradas por fecha en la consulta SQL, solo necesitamos filtrar por estado
       let reservas = reservasActivas;
+
+      // Si se proporciona hora, filtrar también por solapamiento de horarios
       if (horaInicio && horaFin) {
-        
-        // Filtrar reservas que se solapen
-        reservas = reservasActivas.filter(reserva => {
+        reservas = reservas.filter(reserva => {
           // Extraer solo la hora de las fechas para comparar
           const reservaInicio = new Date(reserva.fecha_inicio);
           const reservaFin = new Date(reserva.fecha_fin);
@@ -531,17 +537,10 @@ export function useActividades() {
           const reservaHoraInicio = reservaInicio.toTimeString().substring(0, 5);
           const reservaHoraFin = reservaFin.toTimeString().substring(0, 5);
           
-          // Comparar directamente las horas
+          // Comparar directamente las horas para detectar solapamiento
           const solapa = reservaHoraInicio < horaFin && reservaHoraFin > horaInicio;
           return solapa;
         });
-      } else {
-        // Si no hay hora, buscar por fecha completa
-        const fechaInicio = `${fecha}T00:00:00`;
-        const fechaFin = `${fecha}T23:59:59`;
-        reservas = reservasActivas.filter(reserva => 
-          reserva.fecha_inicio >= fechaInicio && reserva.fecha_inicio <= fechaFin
-        );
       }
 
       if (errorTodas) {
@@ -550,6 +549,7 @@ export function useActividades() {
 
       // Calcular total de unidades reservadas
       const reservadas = reservas?.reduce((total, reserva) => total + (reserva.cantidad_reservada || 0), 0) || 0;
+      
       
       // Calcular stock disponible
       const stockDisponible = Math.max(0, stockTotal - reservadas);
