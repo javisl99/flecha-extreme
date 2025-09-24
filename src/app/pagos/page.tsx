@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { Card } from '@/shared/components';
 import { usePagos, type Pago } from '@/hooks/usePagos';
 import { usePedidos, type Pedido } from '@/hooks/usePedidos';
+import { useActividades } from '@/hooks/useActividades';
 import { toast } from 'react-hot-toast';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 import TableSkeleton from '@/components/shared/TableSkeleton';
 import DetallePagoModal from '@/components/Pagos/DetallePagoModal';
 import ModalPago from '@/components/Tienda/ModalPago';
+import PagoReservaModal from '@/components/Actividades/PagoReservaModal';
 import { FiltrosPagos, type FiltrosPagoState } from '@/components/Pagos/FiltrosPagos';
 
 export default function PagosPage() {
@@ -25,8 +27,11 @@ export default function PagosPage() {
   const [isDetallePagoModalOpen, setIsDetallePagoModalOpen] = useState(false);
   const [isModalPagoOpen, setIsModalPagoOpen] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
+  const [isPagoReservaModalOpen, setIsPagoReservaModalOpen] = useState(false);
+  const [reservaSeleccionada, setReservaSeleccionada] = useState<any | null>(null);
   const { pagos, loading, error, eliminarPago, refreshPagos, actualizarPago } = usePagos();
   const { obtenerPedidoPorId } = usePedidos();
+  const { obtenerReservas } = useActividades();
   
   const pagosFiltrados = pagos.filter(pago => {
     const cumpleCliente = !filtros.cliente || (
@@ -118,6 +123,25 @@ export default function PagosPage() {
         console.error('Error cargando pedido:', error);
         toast.error('Error al cargar la información del pedido');
       }
+    } else if (pago.origen_tipo === 'reserva' && pago.origen_id) {
+      // Si es un pago de reserva, cargar los datos de la reserva y abrir PagoReservaModal
+      try {
+        const resultado = await obtenerReservas();
+        if (resultado.success && resultado.reservas) {
+          const reserva = resultado.reservas.find((r: any) => r.id === pago.origen_id);
+          if (reserva) {
+            setReservaSeleccionada(reserva);
+            setIsPagoReservaModalOpen(true);
+          } else {
+            toast.error('No se pudo encontrar la reserva');
+          }
+        } else {
+          toast.error('No se pudo cargar la información de la reserva');
+        }
+      } catch (error) {
+        console.error('Error cargando reserva:', error);
+        toast.error('Error al cargar la información de la reserva');
+      }
     } else {
       // Para otros tipos de pago, usar el modal de detalle normal
       setPagoSeleccionado(pago);
@@ -127,6 +151,32 @@ export default function PagosPage() {
 
   const handleFilaClick = (pago: Pago) => {
     handleVerPago(pago);
+  };
+
+  // Función para transformar los datos de la reserva al formato esperado por PagoReservaModal
+  const transformarReservaParaModal = (reserva: any) => {
+    return {
+      id: reserva.id,
+      nombre: reserva.actividad?.nombre || 'Actividad no encontrada',
+      precio: reserva.precio,
+      cantidad: reserva.cantidad_reservada,
+      duracion: '1 hora', // Valor por defecto, se puede calcular si es necesario
+      empresa: reserva.empresa?.nombre || 'Empresa no establecida',
+      numeroPersonas: reserva.cantidad_reservada,
+      fechaInicio: reserva.fecha_inicio,
+      fechaFin: reserva.fecha_fin,
+      horaInicio: new Date(reserva.fecha_inicio).toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/Madrid'
+      }),
+      horaFin: new Date(reserva.fecha_fin).toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/Madrid'
+      }),
+      nota: reserva.nota || ''
+    };
   };
 
   const handleCompletarPago = async (pago: Pago) => {
@@ -191,7 +241,8 @@ export default function PagosPage() {
       name: item.producto?.nombre || 'Producto no encontrado',
       price: item.producto?.precio || 0,
       quantity: item.cantidad,
-      image: item.producto?.url_foto || ''
+      image: item.producto?.url_foto || '',
+      stock: item.producto?.stock || 0
     }));
 
     // Si hay diferencia significativa (más de 0.01€ para evitar errores de redondeo), agregar producto desconocido
@@ -201,7 +252,8 @@ export default function PagosPage() {
         name: 'Producto Desconocido',
         price: diferencia,
         quantity: 0, // No mostrar cantidad ya que no sabemos cuántas unidades había
-        image: ''
+        image: '',
+        stock: 0
       });
     }
 
@@ -378,6 +430,38 @@ export default function PagosPage() {
           metodo: 'efectivo', // Valor por defecto, se puede obtener del pago asociado
           estado: 'completado', // Valor por defecto
           concepto: 'Pedido de tienda'
+        } : undefined}
+      />
+
+      <PagoReservaModal
+        isOpen={isPagoReservaModalOpen}
+        onClose={() => {
+          setIsPagoReservaModalOpen(false);
+          setReservaSeleccionada(null);
+        }}
+        onSubmit={async () => {
+          // No hacer nada, solo mostrar los datos de la reserva
+          toast.success('Este es un pago de reserva existente, no se puede modificar');
+        }}
+        actividad={reservaSeleccionada ? transformarReservaParaModal(reservaSeleccionada) : {
+          id: '',
+          nombre: '',
+          precio: 0,
+          cantidad: 0,
+          duracion: '',
+          empresa: '',
+          numeroPersonas: 0,
+          fechaInicio: '',
+          fechaFin: '',
+          horaInicio: '',
+          horaFin: '',
+          nota: ''
+        }}
+        readOnly={true}
+        reservaData={reservaSeleccionada ? {
+          metodo: 'efectivo', // Valor por defecto, se puede obtener del pago asociado
+          estado: 'completado', // Valor por defecto
+          concepto: 'Reserva de actividad'
         } : undefined}
       />
     </div>
