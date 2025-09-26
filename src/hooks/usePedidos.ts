@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSupabase } from './useSupabase';
 import { useTickets } from './useTickets';
 
@@ -44,12 +44,7 @@ export function usePedidos() {
   const [error, setError] = useState<string | null>(null);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
 
-  // Cargar pedidos al inicializar
-  useEffect(() => {
-    cargarPedidos();
-  }, []);
-
-  const cargarPedidos = async () => {
+  const cargarPedidos = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -94,7 +89,12 @@ export function usePedidos() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
+
+  // Cargar pedidos al inicializar
+  useEffect(() => {
+    cargarPedidos();
+  }, [cargarPedidos]);
 
   const obtenerPedidoPorId = async (pedidoId: string): Promise<Pedido | null> => {
     try {

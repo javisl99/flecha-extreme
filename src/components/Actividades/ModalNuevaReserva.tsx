@@ -51,7 +51,6 @@ export default function ModalNuevaReserva({
   const [tarifasActividad, setTarifasActividad] = useState<TarifaActividad[]>([]);
   const [actividadSeleccionada, setActividadSeleccionada] = useState<ActividadDB | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
   const [showModalPago, setShowModalPago] = useState(false);
   const [stockInfo, setStockInfo] = useState<{
     stockDisponible: number;
@@ -140,6 +139,32 @@ export default function ModalNuevaReserva({
     return `${horaFormateada}:${minutosFormateados}`;
   };
 
+  // Función para calcular la fecha de fin basándose en la duración
+  const calcularFechaFin = (fechaInicio: string, duracion: string): string => {
+    if (!fechaInicio || !duracion) return '';
+
+    const [duracionValor, duracionUnidad] = duracion.split('-');
+    const valor = parseInt(duracionValor);
+    const unidad = duracionUnidad.toLowerCase();
+
+    const fechaInicioObj = new Date(fechaInicio);
+    
+    // Calcular fecha de fin basándose en la duración
+    if (unidad === 'dia' || unidad === 'dias') {
+      fechaInicioObj.setDate(fechaInicioObj.getDate() + valor);
+    } else if (unidad === 'semana' || unidad === 'semanas') {
+      fechaInicioObj.setDate(fechaInicioObj.getDate() + (valor * 7));
+    } else if (unidad === 'mes' || unidad === 'meses') {
+      fechaInicioObj.setMonth(fechaInicioObj.getMonth() + valor);
+    } else if (unidad === 'año' || unidad === 'años') {
+      fechaInicioObj.setFullYear(fechaInicioObj.getFullYear() + valor);
+    }
+    // Para duraciones en horas o minutos, la fecha de fin será la misma que la de inicio
+    // ya que la duración se maneja a nivel de horas
+
+    return fechaInicioObj.toISOString().split('T')[0];
+  };
+
   // Cargar actividades cuando cambie el tipo
   useEffect(() => {
     const cargarActividades = async () => {
@@ -168,6 +193,13 @@ export default function ModalNuevaReserva({
         newData.horaFin = '';
       }
       
+      // Calcular fecha de fin si cambia la duración y hay fecha de inicio
+      if (field === 'duracion' && newData.duracion && newData.fechaInicio) {
+        newData.fechaFin = calcularFechaFin(newData.fechaInicio, newData.duracion);
+      } else if (field === 'duracion' && !newData.duracion) {
+        newData.fechaFin = '';
+      }
+      
       // Calcular precio cuando se selecciona una duración
       if (field === 'duracion' && newData.duracion) {
         const tarifaSeleccionada = tarifasActividad.find(tarifa => 
@@ -182,8 +214,31 @@ export default function ModalNuevaReserva({
       }
       
       
+      // Si se selecciona una fecha, establecer la hora actual automáticamente
+      if (field === 'fechaInicio' && value) {
+        const ahora = new Date();
+        const horaActual = ahora.toTimeString().substring(0, 5); // Formato HH:MM
+        newData.horaInicio = horaActual;
+        
+        // Si ya hay duración seleccionada, recalcular la hora de fin y fecha de fin
+        if (newData.duracion) {
+          newData.horaFin = calcularHoraFin(horaActual, newData.duracion);
+          newData.fechaFin = calcularFechaFin(String(value), newData.duracion);
+        }
+      }
+      
       return newData;
     });
+    
+    // Consultar stock si se estableció hora automática y hay actividad seleccionada
+    if (field === 'fechaInicio' && value && actividadSeleccionada && formData.duracion) {
+      const ahora = new Date();
+      const horaActual = ahora.toTimeString().substring(0, 5);
+      const horaFinCalculada = calcularHoraFin(horaActual, formData.duracion);
+      if (horaFinCalculada) {
+        await consultarStock(actividadSeleccionada.id, String(value), horaActual, horaFinCalculada);
+      }
+    }
     
     // Limpiar error cuando el usuario empiece a escribir
     if (errors[field]) {
@@ -238,15 +293,8 @@ export default function ModalNuevaReserva({
       setFormData(prev => ({ ...prev, duracion: '', horaFin: '', precio: 0 }));
     }
     
-    // Si cambia la fecha de inicio, consultar stock si hay actividad, hora de inicio y duración seleccionadas
-    if (field === 'fechaInicio' && value && actividadSeleccionada) {
-      if (formData.horaInicio && formData.duracion) {
-        const horaFinCalculada = calcularHoraFin(formData.horaInicio, formData.duracion);
-        if (horaFinCalculada) {
-          await consultarStock(actividadSeleccionada.id, String(value), formData.horaInicio, horaFinCalculada);
-        }
-      }
-    } else if (field === 'fechaInicio' && !value) {
+    // Si cambia la fecha de inicio, limpiar stock si no hay valor
+    if (field === 'fechaInicio' && !value) {
       setStockInfo(null);
     }
     
@@ -372,33 +420,7 @@ export default function ModalNuevaReserva({
   };
 
   // Función para manejar el envío del pago desde PagoReservaModal
-  const handlePagoSubmit = async (data: {
-    actividad: {
-      id: string;
-      nombre: string;
-      precio: number;
-      cantidad: number;
-      duracion: string;
-      empresa: string;
-      numeroPersonas: number;
-      fechaInicio: string;
-      fechaFin: string;
-      horaInicio: string;
-      horaFin: string;
-      nota?: string;
-      precioReserva?: number;
-    };
-    subtotal: number;
-    descuento: number;
-    descuentoPorcentaje: number;
-    iva: number;
-    total: number;
-    concepto: string;
-    pago: {
-      metodo: string;
-      estado: string;
-    };
-  }) => {
+  const handlePagoSubmit = async () => {
     try {
       // TODO: Implementar lógica para crear la reserva y el pago usando los datos recibidos
       // const { actividad, subtotal, descuento, iva, total, concepto, pago } = data;
@@ -906,10 +928,10 @@ export default function ModalNuevaReserva({
                       </button>
                       <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loadingActividades}
                         className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {loading ? 'Creando...' : 'Crear Reserva'}
+                        {loadingActividades ? 'Creando...' : 'Crear Reserva'}
                       </button>
                     </div>
                     </form>

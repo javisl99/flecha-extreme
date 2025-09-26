@@ -2,13 +2,14 @@
 
 import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ReceiptPercentIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { formatPrice } from '@/lib/formatUtils';
 import { useActividades } from '@/hooks/useActividades';
 import SurfSpinner from '@/components/shared/SurfSpinner';
 import TicketCompra from '@/components/Tienda/TicketCompra';
 import { SelectorCliente } from '@/components/Actividades/SelectorCliente';
 import { useClientes } from '@/hooks/useClientes';
+import { useTickets } from '@/hooks/useTickets';
 import { toast } from 'react-hot-toast';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
@@ -64,6 +65,7 @@ export default function PagoReservaModal({
 }: PagoReservaModalProps) {
   const { crearReserva, crearPago, obtenerIdEmpresa, obtenerIdCliente } = useActividades();
   const { clientes } = useClientes();
+  const { saveTicket } = useTickets();
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [concepto, setConcepto] = useState<string>('');
@@ -72,6 +74,7 @@ export default function PagoReservaModal({
   const [precioReserva, setPrecioReserva] = useState<number>(0);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
+  const [isSavingTicket, setIsSavingTicket] = useState(false);
   const [processedPaymentData, setProcessedPaymentData] = useState<{
     actividad: ActividadReserva;
     subtotal: number;
@@ -82,6 +85,7 @@ export default function PagoReservaModal({
     metodoPago: string;
     fecha: Date;
     reservaId?: string;
+    estadoPago: EstadoPago;
   } | null>(null);
 
   // Inicializar valores cuando se proporcionen datos de la reserva
@@ -136,7 +140,7 @@ export default function PagoReservaModal({
     setShowConfirmationModal(true);
   };
 
-  const handleConfirmPayment = async () => {
+  const handleConfirmPaymentWithState = async (estado: EstadoPago) => {
     setIsProcessing(true);
     
     try {
@@ -184,7 +188,7 @@ export default function PagoReservaModal({
           precio: actividad.precio,
           fecha_inicio: fechaInicio.toISOString(),
           fecha_fin: fechaFin.toISOString(),
-          estado: 'confirmada',
+          estado: esReserva ? 'pendiente' : (estado === 'completado' ? 'confirmada' : 'pendiente'),
           nota: actividad.nota || undefined
         });
         
@@ -234,7 +238,7 @@ export default function PagoReservaModal({
             concepto: concepto,
             importe: actividad.precio,
             metodo: metodoPago,
-            estado: 'completado'
+            estado: estado
           });
           
           if (!resultadoPago.success) {
@@ -262,7 +266,8 @@ export default function PagoReservaModal({
           return 'Efectivo';
         })(),
         fecha: new Date(),
-        reservaId
+        reservaId,
+        estadoPago: estado
       };
       
       setProcessedPaymentData(paymentData);
@@ -279,7 +284,7 @@ export default function PagoReservaModal({
           concepto, // Usar el concepto del campo del formulario
           pago: {
             metodo: metodoPago,
-            estado: 'completado' // Siempre completado
+            estado: estado
           }
         });
       }
@@ -296,16 +301,93 @@ export default function PagoReservaModal({
     }
   };
 
+  const handleConfirmPayment = async () => {
+    await handleConfirmPaymentWithState('completado');
+  };
+
   const handleCancelPayment = () => {
     setShowConfirmationModal(false);
   };
 
-  const handleGenerarQR = () => {
-    // TODO: Implementar generación de QR
-  };
 
-  const handleGuardarTicket = () => {
-    // TODO: Implementar guardado del ticket
+  const handleGuardarTicket = async () => {
+    if (!processedPaymentData) {
+      toast.error('No hay datos de pago para guardar');
+      return;
+    }
+
+    setIsSavingTicket(true);
+
+    try {
+      const ticketData = {
+        cartItems: [{
+          id: processedPaymentData.actividad.id,
+          name: esReserva 
+            ? `Reserva - ${processedPaymentData.actividad.nombre}`
+            : processedPaymentData.actividad.nombre,
+          price: processedPaymentData.actividad.precio / processedPaymentData.actividad.numeroPersonas,
+          quantity: processedPaymentData.actividad.numeroPersonas,
+          image: '',
+        }],
+        subtotal: processedPaymentData.subtotal,
+        descuento: processedPaymentData.descuento,
+        discountPercentage: processedPaymentData.discountPercentage,
+        iva: processedPaymentData.iva,
+        total: processedPaymentData.total,
+        metodoPago: processedPaymentData.metodoPago,
+        fecha: processedPaymentData.fecha,
+        pedidoId: processedPaymentData.reservaId,
+        clienteId: selectedClienteId || undefined,
+        estadoPago: processedPaymentData.estadoPago
+      };
+
+      const result = await saveTicket(ticketData);
+      
+      if (result.success && result.url) {
+        // Actualizar la tabla reserva con la URL del ticket
+        if (processedPaymentData.reservaId) {
+          try {
+            const supabase = (await import('@/lib/supabaseClient')).default;
+            await supabase
+              .from('reserva')
+              .update({ ticket_url: result.url })
+              .eq('id', processedPaymentData.reservaId);
+          } catch (err) {
+            console.error('❌ Error en catch al actualizar tabla reserva:', err);
+            console.warn('Error al actualizar la URL del ticket en la tabla reserva:', err);
+          }
+        } else {
+          console.warn('⚠️ No hay reservaId para actualizar la tabla reserva');
+        }
+
+        // Mostrar toast de éxito
+        if (result.emailSent) {
+          toast.success(`✅ Ticket PDF guardado exitosamente\n📧 ${result.emailMessage}`, {
+            duration: 4000,
+          });
+        } else if (processedPaymentData.estadoPago === 'pendiente') {
+          toast.success(`✅ Ticket PDF guardado exitosamente\n⏳ ${result.emailMessage}`, {
+            duration: 4000,
+          });
+        } else {
+          toast.success(`✅ Ticket PDF guardado exitosamente\n⚠️ ${result.emailMessage}`, {
+            duration: 4000,
+          });
+        }
+
+        // Cerrar el modal del ticket después de guardar exitosamente
+        setShowTicketModal(false);
+        setProcessedPaymentData(null);
+        onClose();
+      } else {
+        toast.error(`❌ Error al guardar el ticket: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error guardando ticket:', error);
+      toast.error(`❌ Error al guardar el ticket: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    } finally {
+      setIsSavingTicket(false);
+    }
   };
 
   const handleCloseTicket = () => {
@@ -683,7 +765,10 @@ export default function PagoReservaModal({
                       
                       {/* Descripción */}
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                        Por favor, confirme cuando haya recibido el pago de <span className="font-semibold text-primary">{formatPrice(total)}</span>
+                        {!esReserva 
+                          ? `Seleccione cómo desea procesar el pago de ${formatPrice(total)}`
+                          : `Por favor, confirme cuando haya recibido el pago de ${formatPrice(total)}`
+                        }
                       </p>
                       
                       {/* Información del pago */}
@@ -705,31 +790,84 @@ export default function PagoReservaModal({
                       </div>
                       
                       {/* Botones */}
-                      <div className="flex space-x-3">
-                        <button
-                          type="button"
-                          className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md transition-colors duration-75 cursor-pointer"
-                          onClick={handleCancelPayment}
-                          disabled={isProcessing}
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="button"
-                          className="flex-1 px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          onClick={handleConfirmPayment}
-                          disabled={isProcessing}
-                        >
-                          {isProcessing ? (
-                            <div className="flex items-center justify-center gap-2">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                              <span>Procesando...</span>
-                            </div>
-                          ) : (
-                            'Confirmar Pago'
-                          )}
-                        </button>
-                      </div>
+                      {!esReserva ? (
+                        // Opciones para pago completo (sin reserva)
+                        <div className="flex flex-col space-y-3">
+                          <div className="flex space-x-3">
+                            <button
+                              type="button"
+                              className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md transition-colors duration-75 cursor-pointer"
+                              onClick={handleCancelPayment}
+                              disabled={isProcessing}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              className="flex-1 px-4 py-2 text-sm font-bold text-white bg-yellow-600 hover:bg-yellow-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              onClick={() => handleConfirmPaymentWithState('pendiente')}
+                              disabled={isProcessing}
+                            >
+                              {isProcessing ? (
+                                <div className="flex items-center justify-center gap-2">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                  <span>Procesando...</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center gap-2">
+                                  <ClockIcon className="h-4 w-4" />
+                                  <span>Pendiente Pago</span>
+                                </div>
+                              )}
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            className="w-full px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            onClick={() => handleConfirmPaymentWithState('completado')}
+                            disabled={isProcessing}
+                          >
+                            {isProcessing ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                <span>Procesando...</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-2">
+                                <CheckCircleIcon className="h-4 w-4" />
+                                <span>Confirmar Pago</span>
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        // Opción única para reserva
+                        <div className="flex space-x-3">
+                          <button
+                            type="button"
+                            className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md transition-colors duration-75 cursor-pointer"
+                            onClick={handleCancelPayment}
+                            disabled={isProcessing}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            className="flex-1 px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            onClick={handleConfirmPayment}
+                            disabled={isProcessing}
+                          >
+                            {isProcessing ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                <span>Procesando...</span>
+                              </div>
+                            ) : (
+                              'Confirmar Pago'
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Dialog.Panel>
@@ -744,7 +882,6 @@ export default function PagoReservaModal({
         <TicketCompra
           isOpen={showTicketModal}
           onClose={handleCloseTicket}
-          onGenerarQR={handleGenerarQR}
           onGuardar={handleGuardarTicket}
           cartItems={[{
             id: processedPaymentData.actividad.id,
@@ -763,6 +900,9 @@ export default function PagoReservaModal({
           metodoPago={processedPaymentData.metodoPago}
           fecha={processedPaymentData.fecha}
           pedidoId={processedPaymentData.reservaId}
+          clienteId={selectedClienteId || undefined}
+          estadoPago={processedPaymentData.estadoPago}
+          isSaving={isSavingTicket}
         />
       )}
     </Transition.Root>

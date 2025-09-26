@@ -23,7 +23,7 @@ export default function VistaPedidos() {
   const [mostrarModalEliminar, setMostrarModalEliminar] = useState(false);
   const [pedidoAEliminar, setPedidoAEliminar] = useState<Pedido | null>(null);
   
-  const { pedidos, loading, error, refreshPedidos, eliminarPedido } = usePedidos();
+  const { pedidos, loading, error, eliminarPedido, refreshPedidos } = usePedidos();
   
   const pedidosFiltrados = pedidos.filter(pedido => {
     const cumpleCliente = !filtros.cliente || (
@@ -107,6 +107,7 @@ export default function VistaPedidos() {
     setMostrarModalEliminar(false);
     setPedidoAEliminar(null);
   };
+
 
   const handleDescargarTicket = async (pedido: Pedido, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -318,11 +319,13 @@ export default function VistaPedidos() {
         discountPercentage={pedidoSeleccionado?.descuento || 0}
         readOnly={true}
         pedidoData={pedidoSeleccionado ? {
+          pedidoId: pedidoSeleccionado.id,
           clienteId: pedidoSeleccionado.id_cliente,
           metodo: 'efectivo', // Valor por defecto
-          estado: 'completado', // Valor por defecto
+          estado: pedidoSeleccionado.estado as 'completado' | 'pendiente' | 'cancelado',
           concepto: pedidoSeleccionado.concepto || ''
         } : undefined}
+        onPedidoUpdated={refreshPedidos}
       />
 
       {/* Modal de confirmación de eliminación */}
@@ -335,6 +338,7 @@ export default function VistaPedidos() {
         textoConfirmar="Eliminar"
         textoCancelar="Cancelar"
       />
+
     </div>
   );
 }

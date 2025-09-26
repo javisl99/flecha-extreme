@@ -1,18 +1,38 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Toast } from '@/shared/components';
 import { useActividades } from '@/hooks/useActividades';
 import FiltrosReservas, { type FiltrosReservaState } from '@/components/Actividades/FiltrosReservas';
 import ModalNuevaReserva from '@/components/Actividades/ModalNuevaReserva';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
-import TableSkeleton from '@/components/shared/TableSkeleton';
+import SurfSpinner from '@/components/shared/SurfSpinner';
 import SwitchVistaActividades, { type VistaActividadesTipo } from '@/components/Actividades/SwitchVistaActividades';
 import VistaCalendario from '@/components/Actividades/VistaCalendario';
 import ModalDetalleReserva from '@/components/Actividades/ModalDetalleReserva';
+import ModalSeleccionTicket from '@/components/Actividades/ModalSeleccionTicket';
 
-// Usar any temporalmente para evitar conflictos de tipos con el hook
-type Reserva = any;
+// Definir tipo específico para Reserva
+interface Reserva {
+  id: string;
+  cliente?: {
+    nombre: string;
+    apellidos: string;
+  };
+  actividad?: {
+    nombre: string;
+  };
+  empresa?: {
+    nombre: string;
+  };
+  fecha_inicio: string;
+  fecha_fin: string;
+  precio: number;
+  estado: string;
+  cantidad_reservada: number;
+  ticket_url?: string;
+  ticket_url_reserva?: string;
+}
 
 // Icono para nueva reserva
 const NewReservationIcon = () => (
@@ -37,11 +57,14 @@ export default function ReservasPage() {
   const [reservaAEliminar, setReservaAEliminar] = useState<Reserva | null>(null);
   const [showModalReserva, setShowModalReserva] = useState(false);
   const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
+  const [showModalSeleccionTicket, setShowModalSeleccionTicket] = useState(false);
+  const [reservaParaTicket, setReservaParaTicket] = useState<Reserva | null>(null);
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
     visible: false,
     message: '',
     type: 'success'
   });
+  const [recargandoLista, setRecargandoLista] = useState(false);
   
   const { 
     loading, 
@@ -51,7 +74,7 @@ export default function ReservasPage() {
     eliminarReserva 
   } = useActividades();
   
-  const cargarReservas = async () => {
+  const cargarReservas = useCallback(async () => {
     try {
       const resultado = await obtenerReservas();
       if (resultado.success && resultado.reservas) {
@@ -63,12 +86,24 @@ export default function ReservasPage() {
       console.error('Error al cargar reservas:', error);
       setToast({ visible: true, message: 'Error al cargar las reservas', type: 'error' });
     }
-  };
+  }, [obtenerReservas]);
 
   // Cargar reservas al montar el componente
   useEffect(() => {
     cargarReservas();
-  }, []);
+  }, [cargarReservas]);
+
+  // Función para manejar el cambio a la vista de lista
+  const handleCambioALista = async () => {
+    setRecargandoLista(true);
+    try {
+      await cargarReservas();
+    } catch (error) {
+      console.error('Error al recargar reservas:', error);
+    } finally {
+      setRecargandoLista(false);
+    }
+  };
   
   // Filtrar reservas
   const reservasFiltradas = reservas.filter(reserva => {
@@ -188,18 +223,48 @@ export default function ReservasPage() {
     handleVerReserva(reserva);
   };
 
+  const handleDescargarTicket = async (reserva: Reserva, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Verificar si la reserva tiene ticket_url_reserva (ticket del pago de actividad)
+    if (reserva.ticket_url_reserva) {
+      // Si tiene ticket_url_reserva, mostrar modal de selección
+      setReservaParaTicket(reserva);
+      setShowModalSeleccionTicket(true);
+      return;
+    }
+    
+    // Si no tiene ticket_url_reserva pero sí tiene ticket_url, descargar directamente
+    if (!reserva.ticket_url) {
+      setToast({ visible: true, message: 'Esta reserva no tiene ticket disponible', type: 'error' });
+      return;
+    }
+
+    try {
+      // Crear un enlace temporal para descargar el archivo
+      const link = document.createElement('a');
+      link.href = reserva.ticket_url;
+      link.download = `ticket_${reserva.id}_${new Date(reserva.fecha_inicio).toISOString().split('T')[0]}.pdf`;
+      link.target = '_blank';
+      
+      // Añadir el enlace al DOM, hacer clic y removerlo
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setToast({ visible: true, message: 'Descargando ticket...', type: 'success' });
+    } catch (error) {
+      console.error('Error descargando ticket:', error);
+      setToast({ visible: true, message: 'Error al descargar el ticket', type: 'error' });
+    }
+  };
+
   const handleActualizarEstado = async (reserva: Reserva, nuevoEstado: string) => {
     try {
       const result = await actualizarReserva(reserva.id, { estado: nuevoEstado as 'pendiente' | 'confirmada' | 'cancelada' });
       if (result.success) {
-        // Actualizar la reserva localmente sin recargar toda la lista
-        setReservas(prevReservas => 
-          prevReservas.map(r => 
-            r.id === reserva.id ? { ...r, estado: nuevoEstado } : r
-          )
-        );
-        setReservaSeleccionada((prev: Reserva | null) => prev ? { ...prev, estado: nuevoEstado } : null);
-        // Cerrar el modal después de actualizar el estado
+        // Recargar todas las reservas para obtener los datos completos incluyendo tickets
+        await cargarReservas();
         setReservaSeleccionada(null);
         // Mostrar toast después de cerrar el modal
         setTimeout(() => {
@@ -215,26 +280,61 @@ export default function ReservasPage() {
   };
 
 
-  const handleNuevaReserva = (data: {
-    empresa: 'Flecha Extreme' | 'Rober';
-    tipoActividad: 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros';
-    actividad: string;
-    cantidadReservada: number;
-    numeroPersonas: number;
-    precio: number;
-    fechaInicio: string;
-    fechaFin: string;
-    horaInicio: string;
-    horaFin: string;
-    nota?: string;
-  }) => {
-    console.log('Nueva reserva creada:', data);
+  const handleNuevaReserva = () => {
     // Recargar las reservas después de crear una nueva
     cargarReservas();
   };
 
   const handleToast = (toastData: { visible: boolean; message: string; type: 'success' | 'error' }) => {
     setToast(toastData);
+  };
+
+  const handleSeleccionarTicketReserva = async () => {
+    if (!reservaParaTicket) return;
+    
+    try {
+      // Descargar ticket de la reserva (ticket_url)
+      const link = document.createElement('a');
+      link.href = reservaParaTicket.ticket_url || '';
+      link.download = `ticket_reserva_${reservaParaTicket.id}_${new Date(reservaParaTicket.fecha_inicio).toISOString().split('T')[0]}.pdf`;
+      link.target = '_blank';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setToast({ visible: true, message: 'Descargando ticket de la reserva...', type: 'success' });
+    } catch (error) {
+      console.error('Error descargando ticket de reserva:', error);
+      setToast({ visible: true, message: 'Error al descargar el ticket de la reserva', type: 'error' });
+    } finally {
+      setShowModalSeleccionTicket(false);
+      setReservaParaTicket(null);
+    }
+  };
+
+  const handleSeleccionarTicketPago = async () => {
+    if (!reservaParaTicket) return;
+    
+    try {
+      // Descargar ticket del pago de actividad (ticket_url_reserva)
+      const link = document.createElement('a');
+      link.href = reservaParaTicket.ticket_url_reserva || '';
+      link.download = `ticket_pago_${reservaParaTicket.id}_${new Date(reservaParaTicket.fecha_inicio).toISOString().split('T')[0]}.pdf`;
+      link.target = '_blank';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setToast({ visible: true, message: 'Descargando ticket del pago de actividad...', type: 'success' });
+    } catch (error) {
+      console.error('Error descargando ticket de pago:', error);
+      setToast({ visible: true, message: 'Error al descargar el ticket del pago', type: 'error' });
+    } finally {
+      setShowModalSeleccionTicket(false);
+      setReservaParaTicket(null);
+    }
   };
   
   if (error) {
@@ -251,7 +351,11 @@ export default function ReservasPage() {
         <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Actividades</h1>
         <div className="flex items-center space-x-4">
           {/* Switch de vista */}
-          <SwitchVistaActividades vistaActual={vistaActual} onVistaChange={setVistaActual} />
+          <SwitchVistaActividades 
+            vistaActual={vistaActual} 
+            onVistaChange={setVistaActual} 
+            onCambioALista={handleCambioALista}
+          />
           
           {/* Botón Nueva Reserva */}
           <Button 
@@ -269,8 +373,10 @@ export default function ReservasPage() {
           <FiltrosReservas onFiltrosChange={setFiltros} />
           
           <div className="overflow-x-auto">
-            {loading ? (
-              <TableSkeleton columns={8} rows={5} />
+            {loading || recargandoLista ? (
+              <div className="flex justify-center items-center py-12">
+                <SurfSpinner size="lg" showText={true} text="Cargando actividades..." />
+              </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-table-head-bg dark:bg-gray-800">
@@ -349,6 +455,17 @@ export default function ReservasPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
                           </button>
+                          {(reserva.ticket_url || reserva.ticket_url_reserva) && (
+                            <button 
+                              className="p-1.5 rounded-full text-blue-600 dark:text-blue-500 bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 cursor-pointer" 
+                              title="Descargar ticket"
+                              onClick={(e) => handleDescargarTicket(reserva, e)}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </button>
+                          )}
                           <button 
                             className="p-1.5 rounded-full text-red-600 dark:text-red-500 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 cursor-pointer" 
                             title="Eliminar"
@@ -383,7 +500,7 @@ export default function ReservasPage() {
           <div className="p-4">
             {loading ? (
               <div className="flex items-center justify-center h-96">
-                <div className="text-lg text-gray-500 dark:text-gray-400">Cargando calendario...</div>
+                <SurfSpinner size="lg" showText={true} text="Cargando calendario..." />
               </div>
             ) : (
               <VistaCalendario 
@@ -422,6 +539,17 @@ export default function ReservasPage() {
         onClose={() => setShowModalReserva(false)}
         onSubmit={handleNuevaReserva}
         onToast={handleToast}
+      />
+
+      {/* Modal de selección de ticket */}
+      <ModalSeleccionTicket
+        isOpen={showModalSeleccionTicket}
+        onClose={() => {
+          setShowModalSeleccionTicket(false);
+          setReservaParaTicket(null);
+        }}
+        onSeleccionarTicketReserva={handleSeleccionarTicketReserva}
+        onSeleccionarTicketPago={handleSeleccionarTicketPago}
       />
 
       {/* Toast de notificación */}

@@ -10,18 +10,18 @@ interface SwitchVistaProps {
 }
 
 export default function SwitchVista({ vistaActual, onVistaChange }: SwitchVistaProps) {
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [isAnimating] = useState(false);
 
-  const handleToggle = () => {
-    setIsAnimating(true);
-    const nuevaVista = vistaActual === 'tienda' ? 'pedidos' : 'tienda';
-    
-    // Pequeño delay para la animación
-    setTimeout(() => {
-      onVistaChange(nuevaVista);
-      setIsAnimating(false);
-    }, 150);
-  };
+  // const _handleToggle = () => {
+  //   setIsAnimating(true);
+  //   const nuevaVista = vistaActual === 'tienda' ? 'pedidos' : 'tienda';
+  //   
+  //   // Pequeño delay para la animación
+  //   setTimeout(() => {
+  //     onVistaChange(nuevaVista);
+  //     setIsAnimating(false);
+  //   }, 150);
+  // };
 
   return (
     <div>

@@ -28,14 +28,14 @@ export function useProductos() {
       }
 
       // Transformar los datos de la base de datos al formato esperado
-      const transformedProductos: Product[] = data?.map((producto: any) => ({
-        id: producto.id.toString(),
-        name: producto.nombre,
-        price: parseFloat(producto.precio),
-        stock: parseInt(producto.stock),
-        image: producto.url_foto || '',
-        description: producto.descripcion || '',
-        category: producto.categoria || 'Equipamiento'
+      const transformedProductos: Product[] = data?.map((producto: Record<string, unknown>) => ({
+        id: producto.id?.toString() || '',
+        name: (producto.nombre as string) || '',
+        price: parseFloat((producto.precio as string) || '0'),
+        stock: parseInt((producto.stock as string) || '0'),
+        image: (producto.url_foto as string) || '',
+        description: (producto.descripcion as string) || '',
+        category: (producto.categoria as string) || 'Equipamiento'
       })) || [];
 
       setProductos(transformedProductos);
@@ -216,7 +216,7 @@ export function useProductos() {
         const filePath = `productos/${fileName}`;
 
         // Subir archivo al bucket 'fotos_productos'
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('fotos_productos')
           .upload(filePath, imageFile);
 
@@ -283,7 +283,7 @@ export function useProductos() {
         const filePath = `productos/${fileName}`;
 
         // Subir archivo al bucket 'fotos_productos'
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('fotos_productos')
           .upload(filePath, imageFile);
 
@@ -300,7 +300,7 @@ export function useProductos() {
       }
 
       // Preparar los datos para actualizar
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (updatedData.name) updateData.nombre = updatedData.name;
       if (updatedData.price !== undefined) updateData.precio = updatedData.price;
       if (updatedData.stock !== undefined) updateData.stock = updatedData.stock;
