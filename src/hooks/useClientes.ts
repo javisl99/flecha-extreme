@@ -8,11 +8,11 @@ interface UseClientesReturn {
   clientes: Cliente[];
   loading: boolean;
   error: string | null;
-  crearCliente: (nuevoCliente: Omit<Cliente, 'id'>) => Promise<{ data: Cliente | null; error: any }>;
-  actualizarCliente: (id: string, datosActualizados: Partial<Cliente>) => Promise<{ data: Cliente | null; error: any }>;
-  eliminarCliente: (id: string) => Promise<{ error: any }>;
+  crearCliente: (nuevoCliente: Omit<Cliente, 'id'>) => Promise<{ data: Cliente | null; error: unknown }>;
+  actualizarCliente: (id: string, datosActualizados: Partial<Cliente>) => Promise<{ data: Cliente | null; error: unknown }>;
+  eliminarCliente: (id: string) => Promise<{ error: unknown }>;
   refreshClientes: () => Promise<void>;
-  getCliente: (id: string) => Promise<any>;
+  getCliente: (id: string) => Promise<{ nombre: string; apellidos: string } | null>;
 }
 
 export function useClientes(): UseClientesReturn {

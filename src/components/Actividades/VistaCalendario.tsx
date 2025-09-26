@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Calendar, momentLocalizer, Views } from 'react-big-calendar';
+import { Calendar, momentLocalizer, Views, View } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import ModalDetalleReserva from './ModalDetalleReserva';
@@ -83,7 +83,7 @@ interface EventoCalendario {
 }
 
 export default function VistaCalendario({ reservas, onActualizarEstado }: VistaCalendarioProps) {
-  const [view, setView] = useState<any>(Views.MONTH);
+  const [view, setView] = useState<View>(Views.MONTH);
   const [date, setDate] = useState(new Date());
   const [reservaSeleccionada, setReservaSeleccionada] = useState<Reserva | null>(null);
 
@@ -163,7 +163,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
     setDate(newDate);
   };
 
-  const handleView = (newView: any) => {
+  const handleView = (newView: View) => {
     setView(newView);
   };
 

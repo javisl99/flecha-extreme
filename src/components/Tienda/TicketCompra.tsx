@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, QrCodeIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import { formatPrice, formatNumber } from '@/lib/formatUtils';
 import Image from 'next/image';
 import { useTickets } from '@/hooks/useTickets';
@@ -16,10 +16,11 @@ interface CartItem {
   image: string;
 }
 
+type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
+
 interface TicketCompraProps {
   isOpen: boolean;
   onClose: () => void;
-  onGenerarQR: () => void;
   onGuardar: () => void;
   cartItems: CartItem[];
   subtotal: number;
@@ -30,12 +31,14 @@ interface TicketCompraProps {
   metodoPago: string;
   fecha: Date;
   pedidoId?: string;
+  clienteId?: string; // Agregamos el ID del cliente
+  estadoPago: EstadoPago;
+  isSaving?: boolean; // Estado de guardado desde el componente padre
 }
 
 export default function TicketCompra({
   isOpen,
   onClose,
-  onGenerarQR,
   onGuardar,
   cartItems,
   subtotal,
@@ -45,12 +48,14 @@ export default function TicketCompra({
   total,
   metodoPago,
   fecha,
-  pedidoId
+  pedidoId,
+  clienteId,
+  estadoPago,
+  isSaving = false
 }: TicketCompraProps) {
   const { loading, error, saveTicket, generateTicketQR } = useTickets();
   const [showQR, setShowQR] = useState(false);
   const [qrCode, setQrCode] = useState<string>('');
-  const [ticketUrl, setTicketUrl] = useState<string>('');
 
   const handleGuardar = async () => {
     const ticketData = {
@@ -62,17 +67,41 @@ export default function TicketCompra({
       total,
       metodoPago,
       fecha,
-      pedidoId
+      pedidoId,
+      clienteId, // Incluimos el clienteId para el envío de email
+      estadoPago // Incluimos el estado del pago
     };
 
     const result = await saveTicket(ticketData);
     
     if (result.success && result.url) {
-      setTicketUrl(result.url);
-      toast.success('Ticket PDF guardado exitosamente');
+      // Mostrar Toast específico sobre el envío del email
+      if (result.emailSent) {
+        toast.success(`✅ Ticket PDF guardado exitosamente\n📧 ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      } else if (estadoPago === 'pendiente') {
+        toast.success(`✅ Ticket PDF guardado exitosamente\n⏳ ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      } else {
+        toast.success(`✅ Ticket PDF guardado exitosamente\n⚠️ ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      }
       onClose(); // Cerrar el modal después de guardar exitosamente
     } else {
-      toast.error(`Error al guardar el ticket: ${result.error}`);
+      toast.error(`❌ Error al guardar el ticket: ${result.error}`);
+    }
+  };
+
+  const handleGuardarClick = async () => {
+    // Si se pasa una función onGuardar personalizada, usarla
+    if (onGuardar && onGuardar !== handleGuardar) {
+      await onGuardar();
+    } else {
+      // Usar la función interna por defecto
+      await handleGuardar();
     }
   };
 
@@ -86,18 +115,33 @@ export default function TicketCompra({
       total,
       metodoPago,
       fecha,
-      pedidoId
+      pedidoId,
+      clienteId, // Incluimos el clienteId para el envío de email
+      estadoPago // Incluimos el estado del pago
     };
 
     const result = await generateTicketQR(ticketData);
     
     if (result.success && result.qrCode && result.url) {
       setQrCode(result.qrCode);
-      setTicketUrl(result.url);
       setShowQR(true);
-      toast.success('Código QR generado exitosamente');
+      
+      // Mostrar Toast específico sobre el envío del email
+      if (result.emailSent) {
+        toast.success(`✅ Código QR generado exitosamente\n📧 ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      } else if (estadoPago === 'pendiente') {
+        toast.success(`✅ Código QR generado exitosamente\n⏳ ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      } else {
+        toast.success(`✅ Código QR generado exitosamente\n⚠️ ${result.emailMessage}`, {
+          duration: 4000,
+        });
+      }
     } else {
-      toast.error(`Error al generar el QR: ${result.error}`);
+      toast.error(`❌ Error al generar el QR: ${result.error}`);
     }
   };
   
@@ -285,7 +329,7 @@ export default function TicketCompra({
                         Código QR del Ticket
                       </h4>
                       <div className="flex justify-center mb-3">
-                        <img src={qrCode} alt="QR Code" className="w-32 h-32" />
+                        <Image src={qrCode} alt="QR Code" width={128} height={128} className="w-32 h-32" />
                       </div>
                       <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
                         Escanea este código para descargar el ticket PDF
@@ -310,25 +354,21 @@ export default function TicketCompra({
                       onClick={handleGenerarQR}
                       disabled={loading}
                     >
-                      {loading ? (
+                      {loading && (
                         <div className="w-4 h-4 border-2 border-gray-600 dark:border-gray-300 border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        <QrCodeIcon className="h-4 w-4" />
                       )}
                       {loading ? 'Generando...' : 'Generar QR'}
                     </button>
                     <button
                       type="button"
                       className="flex-1 px-4 py-2 text-sm font-bold text-white bg-primary hover:bg-primary/90 rounded-md transition-colors duration-75 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={handleGuardar}
-                      disabled={loading}
+                      onClick={handleGuardarClick}
+                      disabled={loading || isSaving}
                     >
-                      {loading ? (
+                      {(loading || isSaving) && (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        <DocumentArrowDownIcon className="h-4 w-4" />
                       )}
-                      {loading ? 'Guardando...' : 'Guardar'}
+                      {(loading || isSaving) ? 'Guardando...' : 'Guardar'}
                     </button>
                   </div>
                 </div>

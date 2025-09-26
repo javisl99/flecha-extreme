@@ -28,7 +28,16 @@ export default function PagosPage() {
   const [isModalPagoOpen, setIsModalPagoOpen] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
   const [isPagoReservaModalOpen, setIsPagoReservaModalOpen] = useState(false);
-  const [reservaSeleccionada, setReservaSeleccionada] = useState<any | null>(null);
+  const [reservaSeleccionada, setReservaSeleccionada] = useState<{
+    id: string;
+    actividad?: { nombre: string };
+    precio: number;
+    cantidad_reservada: number;
+    empresa?: { nombre: string };
+    fecha_inicio: string;
+    fecha_fin: string;
+    nota?: string;
+  } | null>(null);
   const { pagos, loading, error, eliminarPago, refreshPagos, actualizarPago } = usePagos();
   const { obtenerPedidoPorId } = usePedidos();
   const { obtenerReservas } = useActividades();
@@ -128,7 +137,7 @@ export default function PagosPage() {
       try {
         const resultado = await obtenerReservas();
         if (resultado.success && resultado.reservas) {
-          const reserva = resultado.reservas.find((r: any) => r.id === pago.origen_id);
+          const reserva = resultado.reservas.find((r: { id: string }) => r.id === pago.origen_id);
           if (reserva) {
             setReservaSeleccionada(reserva);
             setIsPagoReservaModalOpen(true);
@@ -154,7 +163,16 @@ export default function PagosPage() {
   };
 
   // Función para transformar los datos de la reserva al formato esperado por PagoReservaModal
-  const transformarReservaParaModal = (reserva: any) => {
+  const transformarReservaParaModal = (reserva: {
+    id: string;
+    actividad?: { nombre: string };
+    precio: number;
+    cantidad_reservada: number;
+    empresa?: { nombre: string };
+    fecha_inicio: string;
+    fecha_fin: string;
+    nota?: string;
+  }) => {
     return {
       id: reserva.id,
       nombre: reserva.actividad?.nombre || 'Actividad no encontrada',
@@ -426,6 +444,7 @@ export default function PagosPage() {
         })()}
         readOnly={true}
         pedidoData={pedidoSeleccionado ? {
+          pedidoId: pedidoSeleccionado.id,
           clienteId: pedidoSeleccionado.id_cliente,
           metodo: 'efectivo', // Valor por defecto, se puede obtener del pago asociado
           estado: 'completado', // Valor por defecto
