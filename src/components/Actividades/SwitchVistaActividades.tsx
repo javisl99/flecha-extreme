@@ -7,9 +7,10 @@ export type VistaActividadesTipo = 'lista' | 'calendario';
 interface SwitchVistaActividadesProps {
   vistaActual: VistaActividadesTipo;
   onVistaChange: (vista: VistaActividadesTipo) => void;
+  onCambioALista?: () => void;
 }
 
-export default function SwitchVistaActividades({ vistaActual, onVistaChange }: SwitchVistaActividadesProps) {
+export default function SwitchVistaActividades({ vistaActual, onVistaChange, onCambioALista }: SwitchVistaActividadesProps) {
   const [isAnimating] = useState(false);
 
   return (
@@ -39,7 +40,12 @@ export default function SwitchVistaActividades({ vistaActual, onVistaChange }: S
 
           {/* Botón Lista */}
           <button
-            onClick={() => vistaActual !== 'lista' && onVistaChange('lista')}
+            onClick={() => {
+              if (vistaActual !== 'lista') {
+                onVistaChange('lista');
+                onCambioALista?.();
+              }
+            }}
             className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
               vistaActual === 'lista'
                 ? 'bg-primary text-white shadow-sm'

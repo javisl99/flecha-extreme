@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useSupabase } from './useSupabase';
+import { useTickets } from './useTickets';
 
 export interface NuevaActividad {
   nombre: string;
@@ -37,6 +38,7 @@ export interface TarifaActividad {
 
 export function useActividades() {
   const { supabase } = useSupabase();
+  const { deleteTicket } = useTickets();
   const [loading, setLoading] = useState(false);
   const [loadingActividades, setLoadingActividades] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -448,7 +450,33 @@ export function useActividades() {
       setLoading(true);
       setError(null);
 
-      // 1. PRIMERO: Eliminar todos los pagos asociados a la reserva
+      // 0. PRIMERO: Obtener la reserva para verificar si tiene tickets
+      const { data: reservaAEliminar, error: reservaFetchError } = await supabase
+        .from('reserva')
+        .select('ticket_url, ticket_url_reserva')
+        .eq('id', id)
+        .single();
+
+      if (reservaFetchError) {
+        throw new Error(`Error obteniendo datos de la reserva: ${reservaFetchError.message}`);
+      }
+
+      // 1. SEGUNDO: Si la reserva tiene tickets, eliminar ambos del bucket PRIMERO
+      if (reservaAEliminar?.ticket_url) {
+        const ticketEliminado = await deleteTicket(reservaAEliminar.ticket_url);
+        if (!ticketEliminado) {
+          console.warn('No se pudo eliminar el ticket_url del bucket, pero continuando con la eliminación de la reserva');
+        }
+      }
+
+      if (reservaAEliminar?.ticket_url_reserva) {
+        const ticketReservaEliminado = await deleteTicket(reservaAEliminar.ticket_url_reserva);
+        if (!ticketReservaEliminado) {
+          console.warn('No se pudo eliminar el ticket_url_reserva del bucket, pero continuando con la eliminación de la reserva');
+        }
+      }
+
+      // 2. TERCERO: Eliminar todos los pagos asociados a la reserva
       const { error: pagosError } = await supabase
         .from('pago')
         .delete()
@@ -459,7 +487,7 @@ export function useActividades() {
         throw new Error(`Error eliminando pagos asociados: ${pagosError.message}`);
       }
 
-      // 2. SEGUNDO: Eliminar la reserva
+      // 3. CUARTO: Eliminar la reserva
       const { error: reservaError } = await supabase
         .from('reserva')
         .delete()
@@ -471,7 +499,7 @@ export function useActividades() {
 
       return { 
         success: true, 
-        message: 'Reserva y pagos asociados eliminados correctamente'
+        message: 'Reserva, pagos asociados y tickets eliminados correctamente'
       };
     } catch (error: any) {
       console.error('Error al eliminar reserva:', error);
@@ -507,15 +535,14 @@ export function useActividades() {
 
       const stockTotal = actividad.uni_disponibles || 0;
 
-      // Consulta todas las reservas de la actividad para la fecha específica
+      // Consulta todas las reservas de la actividad que se solapan con la fecha específica
       const fechaInicio = `${fecha}T00:00:00`;
       const fechaFin = `${fecha}T23:59:59`;
       const { data: todasLasReservas, error: errorTodas } = await supabase
         .from('reserva')
         .select('cantidad_reservada, estado, fecha_inicio, fecha_fin')
         .eq('id_actividad', idActividad)
-        .gte('fecha_inicio', fechaInicio)
-        .lte('fecha_inicio', fechaFin);
+        .or(`and(fecha_inicio.lte.${fechaFin},fecha_fin.gte.${fechaInicio})`);
 
       // Filtrar por estado
       const reservasActivas = todasLasReservas?.filter(r => 
@@ -529,16 +556,27 @@ export function useActividades() {
       // Si se proporciona hora, filtrar también por solapamiento de horarios
       if (horaInicio && horaFin) {
         reservas = reservas.filter(reserva => {
-          // Extraer solo la hora de las fechas para comparar
           const reservaInicio = new Date(reserva.fecha_inicio);
           const reservaFin = new Date(reserva.fecha_fin);
           
+          // Si la reserva es de múltiples días, considerar solo el día consultado
+          const fechaConsultada = new Date(fecha);
+          const inicioDia = new Date(fechaConsultada);
+          inicioDia.setHours(0, 0, 0, 0);
+          const finDia = new Date(fechaConsultada);
+          finDia.setHours(23, 59, 59, 999);
+          
+          // Determinar el rango de horas efectivo de la reserva para este día
+          const reservaInicioEfectivo = reservaInicio > inicioDia ? reservaInicio : inicioDia;
+          const reservaFinEfectivo = reservaFin < finDia ? reservaFin : finDia;
+          
           // Obtener las horas en formato HH:MM
-          const reservaHoraInicio = reservaInicio.toTimeString().substring(0, 5);
-          const reservaHoraFin = reservaFin.toTimeString().substring(0, 5);
+          const reservaHoraInicio = reservaInicioEfectivo.toTimeString().substring(0, 5);
+          const reservaHoraFin = reservaFinEfectivo.toTimeString().substring(0, 5);
           
           // Comparar directamente las horas para detectar solapamiento
           const solapa = reservaHoraInicio < horaFin && reservaHoraFin > horaInicio;
+          
           return solapa;
         });
       }
@@ -574,6 +612,119 @@ export function useActividades() {
     }
   };
 
+  const obtenerPagosPendientesReserva = async (reservaId: string): Promise<{ success: boolean; pagos?: any[]; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('pago')
+        .select('*')
+        .eq('origen_tipo', 'reserva')
+        .eq('origen_id', reservaId)
+        .eq('estado', 'pendiente');
+
+      if (error) {
+        throw error;
+      }
+
+      return { 
+        success: true, 
+        pagos: data || [],
+        message: 'Pagos pendientes obtenidos correctamente'
+      };
+    } catch (error: any) {
+      console.error('Error al obtener pagos pendientes:', error);
+      setError(error.message || 'Error al obtener pagos pendientes');
+      return { success: false, message: error.message || 'Error al obtener pagos pendientes' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const obtenerTodosLosPagosReserva = async (reservaId: string): Promise<{ success: boolean; pagos?: any[]; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('pago')
+        .select('*')
+        .eq('origen_tipo', 'reserva')
+        .eq('origen_id', reservaId);
+
+      if (error) {
+        throw error;
+      }
+
+      return { 
+        success: true, 
+        pagos: data || [],
+        message: 'Todos los pagos obtenidos correctamente'
+      };
+    } catch (error: any) {
+      console.error('Error al obtener todos los pagos:', error);
+      setError(error.message || 'Error al obtener todos los pagos');
+      return { success: false, message: error.message || 'Error al obtener todos los pagos' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const actualizarTicketUrlReserva = async (reservaId: string, ticketUrl: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { error } = await supabase
+        .from('reserva')
+        .update({ ticket_url_reserva: ticketUrl })
+        .eq('id', reservaId);
+
+      if (error) {
+        throw error;
+      }
+
+      return { 
+        success: true, 
+        message: 'Ticket URL de reserva actualizado correctamente'
+      };
+    } catch (error: any) {
+      console.error('Error al actualizar ticket URL de reserva:', error);
+      setError(error.message || 'Error al actualizar ticket URL de reserva');
+      return { success: false, message: error.message || 'Error al actualizar ticket URL de reserva' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const actualizarEstadoPago = async (pagoId: string, nuevoEstado: 'completado' | 'pendiente' | 'cancelado'): Promise<{ success: boolean; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { error } = await supabase
+        .from('pago')
+        .update({ estado: nuevoEstado })
+        .eq('id', pagoId);
+
+      if (error) {
+        throw error;
+      }
+
+      return { 
+        success: true, 
+        message: 'Estado del pago actualizado correctamente'
+      };
+    } catch (error: any) {
+      console.error('Error al actualizar estado del pago:', error);
+      setError(error.message || 'Error al actualizar estado del pago');
+      return { success: false, message: error.message || 'Error al actualizar estado del pago' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     loading,
     loadingActividades,
@@ -591,6 +742,10 @@ export function useActividades() {
     obtenerReservas,
     actualizarReserva,
     eliminarReserva,
-    consultarStockDisponible
+    consultarStockDisponible,
+    obtenerPagosPendientesReserva,
+    obtenerTodosLosPagosReserva,
+    actualizarTicketUrlReserva,
+    actualizarEstadoPago
   };
 }
