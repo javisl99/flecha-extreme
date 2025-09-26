@@ -34,11 +34,14 @@ interface TicketCompraProps {
   pedidoId?: string;
   clienteId?: string; // Agregamos el ID del cliente
   estadoPago: EstadoPago;
+  isSaving?: boolean; // Estado de guardado desde el componente padre
 }
 
 export default function TicketCompra({
   isOpen,
   onClose,
+  onGenerarQR,
+  onGuardar,
   cartItems,
   subtotal,
   descuento,
@@ -49,7 +52,8 @@ export default function TicketCompra({
   fecha,
   pedidoId,
   clienteId,
-  estadoPago
+  estadoPago,
+  isSaving = false
 }: TicketCompraProps) {
   const { loading, error, saveTicket, generateTicketQR } = useTickets();
   const [showQR, setShowQR] = useState(false);
@@ -90,6 +94,16 @@ export default function TicketCompra({
       onClose(); // Cerrar el modal después de guardar exitosamente
     } else {
       toast.error(`❌ Error al guardar el ticket: ${result.error}`);
+    }
+  };
+
+  const handleGuardarClick = async () => {
+    // Si se pasa una función onGuardar personalizada, usarla
+    if (onGuardar && onGuardar !== handleGuardar) {
+      await onGuardar();
+    } else {
+      // Usar la función interna por defecto
+      await handleGuardar();
     }
   };
 
@@ -342,25 +356,21 @@ export default function TicketCompra({
                       onClick={handleGenerarQR}
                       disabled={loading}
                     >
-                      {loading ? (
+                      {loading && (
                         <div className="w-4 h-4 border-2 border-gray-600 dark:border-gray-300 border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        <QrCodeIcon className="h-4 w-4" />
                       )}
                       {loading ? 'Generando...' : 'Generar QR'}
                     </button>
                     <button
                       type="button"
                       className="flex-1 px-4 py-2 text-sm font-bold text-white bg-primary hover:bg-primary/90 rounded-md transition-colors duration-75 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={handleGuardar}
-                      disabled={loading}
+                      onClick={handleGuardarClick}
+                      disabled={loading || isSaving}
                     >
-                      {loading ? (
+                      {(loading || isSaving) && (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        <DocumentArrowDownIcon className="h-4 w-4" />
                       )}
-                      {loading ? 'Guardando...' : 'Guardar'}
+                      {(loading || isSaving) ? 'Guardando...' : 'Guardar'}
                     </button>
                   </div>
                 </div>

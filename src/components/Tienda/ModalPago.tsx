@@ -78,6 +78,7 @@ export default function ModalPago({
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [stockValidationError, setStockValidationError] = useState<string | null>(null);
   const [isCompletingPayment, setIsCompletingPayment] = useState(false);
+  const [isSavingTicket, setIsSavingTicket] = useState(false);
   const [processedPaymentData, setProcessedPaymentData] = useState<{
     cartItems: CartItem[];
     subtotal: number;
@@ -266,8 +267,60 @@ export default function ModalPago({
     // TODO: Implementar generación de QR
   };
 
-  const handleGuardarTicket = () => {
-    // TODO: Implementar guardado del ticket
+  const handleGuardarTicket = async () => {
+    if (!processedPaymentData) {
+      toast.error('No hay datos de pago para guardar');
+      return;
+    }
+
+    setIsSavingTicket(true);
+
+    try {
+      const ticketData = {
+        cartItems: processedPaymentData.cartItems,
+        subtotal: processedPaymentData.subtotal,
+        descuento: processedPaymentData.descuento,
+        discountPercentage: processedPaymentData.discountPercentage,
+        iva: processedPaymentData.iva,
+        total: processedPaymentData.total,
+        metodoPago: processedPaymentData.metodoPago,
+        fecha: processedPaymentData.fecha,
+        pedidoId: processedPaymentData.pedidoId,
+        clienteId: selectedClienteId || undefined,
+        estadoPago: processedPaymentData.estadoPago
+      };
+
+      const result = await saveTicket(ticketData);
+      
+      if (result.success && result.url) {
+        // Mostrar toast de éxito
+        if (result.emailSent) {
+          toast.success(`✅ Ticket PDF guardado exitosamente\n📧 ${result.emailMessage}`, {
+            duration: 4000,
+          });
+        } else if (processedPaymentData.estadoPago === 'pendiente') {
+          toast.success(`✅ Ticket PDF guardado exitosamente\n⏳ ${result.emailMessage}`, {
+            duration: 4000,
+          });
+        } else {
+          toast.success(`✅ Ticket PDF guardado exitosamente\n⚠️ ${result.emailMessage}`, {
+            duration: 4000,
+          });
+        }
+
+        // Cerrar el modal del ticket después de guardar exitosamente
+        setShowTicketModal(false);
+        setProcessedPaymentData(null);
+        onClose();
+      } else {
+        toast.error(`❌ Error al guardar el ticket: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error guardando ticket:', error);
+      toast.error(`❌ Error al guardar el ticket: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    } finally {
+      setIsSavingTicket(false);
+    }
   };
 
   const handleCloseTicket = () => {
@@ -780,6 +833,7 @@ export default function ModalPago({
           pedidoId={processedPaymentData.pedidoId}
           clienteId={selectedClienteId || undefined} // Pasar el ID del cliente seleccionado
           estadoPago={processedPaymentData.estadoPago}
+          isSaving={isSavingTicket}
         />
       )}
     </Transition.Root>
