@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSupabase } from './useSupabase';
 import { useProductos } from './useProductos';
 
@@ -39,7 +39,7 @@ interface PagoResult {
 export interface Pago {
   id: string;
   id_cliente: string | null;
-  origen_tipo: 'reserva' | 'pedido' | 'parking';
+  origen_tipo: 'reserva' | 'pedido' | 'parking' | 'actividad';
   origen_id: string | null;
   concepto: string;
   importe: number;
@@ -61,12 +61,7 @@ export function usePagos() {
   const [error, setError] = useState<string | null>(null);
   const [pagos, setPagos] = useState<Pago[]>([]);
 
-  // Cargar pagos al inicializar
-  useEffect(() => {
-    cargarPagos();
-  }, []);
-
-  const cargarPagos = async () => {
+  const cargarPagos = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -90,7 +85,12 @@ export function usePagos() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
+
+  // Cargar pagos al inicializar
+  useEffect(() => {
+    cargarPagos();
+  }, [cargarPagos]);
 
   const refreshPagos = async () => {
     await cargarPagos();

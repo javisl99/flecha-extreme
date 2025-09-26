@@ -69,6 +69,7 @@ export function FiltrosPagos({ onFiltrosChange }: FiltrosPagosProps) {
   const origenesDisponibles: Record<Pago['origen_tipo'], string> = {
     'parking': 'Parking',
     'pedido': 'Pedido',
+    'reserva': 'Reserva',
     'actividad': 'Actividad'
   };
 

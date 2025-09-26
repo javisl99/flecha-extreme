@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Product } from './data';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 
@@ -146,9 +147,11 @@ export default function ModalEditProduct({
             <div className="flex items-center space-x-4">
               <label className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 transition-all duration-300 hover:scale-105 cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary relative bg-gray-100 dark:bg-gray-700">
                 {imagePreview && imagePreview.trim() !== '' ? (
-                  <img
+                  <Image
                     src={imagePreview}
                     alt="Preview"
+                    width={96}
+                    height={96}
                     className="object-cover w-full h-full transition-all duration-300 bg-white"
                     style={{ display: 'block' }}
                     onError={() => {

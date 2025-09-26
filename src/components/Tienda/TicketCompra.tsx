@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, QrCodeIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import { formatPrice, formatNumber } from '@/lib/formatUtils';
 import Image from 'next/image';
 import { useTickets } from '@/hooks/useTickets';
@@ -21,7 +21,6 @@ type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 interface TicketCompraProps {
   isOpen: boolean;
   onClose: () => void;
-  onGenerarQR: () => void;
   onGuardar: () => void;
   cartItems: CartItem[];
   subtotal: number;
@@ -40,7 +39,6 @@ interface TicketCompraProps {
 export default function TicketCompra({
   isOpen,
   onClose,
-  onGenerarQR,
   onGuardar,
   cartItems,
   subtotal,
@@ -331,7 +329,7 @@ export default function TicketCompra({
                         Código QR del Ticket
                       </h4>
                       <div className="flex justify-center mb-3">
-                        <img src={qrCode} alt="QR Code" className="w-32 h-32" />
+                        <Image src={qrCode} alt="QR Code" width={128} height={128} className="w-32 h-32" />
                       </div>
                       <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
                         Escanea este código para descargar el ticket PDF

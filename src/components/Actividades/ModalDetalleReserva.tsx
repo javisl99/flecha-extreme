@@ -67,6 +67,19 @@ export default function ModalDetalleReserva({
 
   // Función para obtener el email del cliente
   const obtenerEmailCliente = async (clienteId: string): Promise<string | null> => {
+    // Validar que el clienteId no esté vacío y sea un UUID válido
+    if (!clienteId || clienteId.trim() === '') {
+      console.warn('⚠️ ID de cliente vacío o inválido:', clienteId);
+      return null;
+    }
+
+    // Validar formato básico de UUID (8-4-4-4-12 caracteres hexadecimales)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(clienteId)) {
+      console.warn('⚠️ ID de cliente no tiene formato UUID válido:', clienteId);
+      return null;
+    }
+
     try {
       const { data, error } = await supabase
         .from('cliente')
@@ -258,7 +271,13 @@ export default function ModalDetalleReserva({
 
       // Tomar el primer pago pendiente
       const pago = resultadoPendientes.pagos[0];
-      setPagoPendiente(pago);
+      setPagoPendiente({
+        id: pago.id,
+        concepto: pago.concepto,
+        importe: pago.importe,
+        metodo: pago.metodo,
+        id_cliente: pago.cliente?.id || ''
+      });
       setShowTicketModal(true);
       
       // NO actualizar el estado de la reserva aquí - se hará después de completar el ticket
@@ -466,7 +485,6 @@ export default function ModalDetalleReserva({
             setShowTicketModal(false);
             setPagoPendiente(null);
           }}
-          onGenerarQR={() => {}} // No implementado para este caso
           onGuardar={handleGuardarTicket}
           cartItems={[{
             id: 'pago-pendiente',

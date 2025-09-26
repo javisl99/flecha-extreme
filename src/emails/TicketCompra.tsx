@@ -16,14 +16,12 @@ interface TicketCompraProps {
   cliente: Cliente;
   ticketData: TicketData;
   ticketUrl: string;
-  estadoPago?: 'completado' | 'pendiente' | 'cancelado';
 }
 
 export default function TicketCompra({
   cliente,
   ticketData,
   ticketUrl,
-  estadoPago = 'completado',
 }: TicketCompraProps) {
   const formatPrice = (price: number): string => {
     return price.toFixed(2).replace('.', ',') + '€';
@@ -229,6 +227,8 @@ export default function TicketCompra({
                 src="https://vvcpgnkatdwwzwnfihrf.supabase.co/storage/v1/object/public/logos/main-logo.png" 
                 alt="Flecha Extreme" 
                 className="max-w-[120px] h-auto mb-[15px] mx-auto"
+                width={120}
+                height={120}
                 style={{maxWidth: '150px'}}
               />
               <Heading className="text-white responsive-title font-bold m-0 mb-[8px]">

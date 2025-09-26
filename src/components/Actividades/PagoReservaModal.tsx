@@ -188,7 +188,7 @@ export default function PagoReservaModal({
           precio: actividad.precio,
           fecha_inicio: fechaInicio.toISOString(),
           fecha_fin: fechaFin.toISOString(),
-          estado: 'pendiente',
+          estado: esReserva ? 'pendiente' : (estado === 'completado' ? 'confirmada' : 'pendiente'),
           nota: actividad.nota || undefined
         });
         
@@ -309,9 +309,6 @@ export default function PagoReservaModal({
     setShowConfirmationModal(false);
   };
 
-  const handleGenerarQR = () => {
-    // TODO: Implementar generación de QR
-  };
 
   const handleGuardarTicket = async () => {
     if (!processedPaymentData) {
@@ -351,7 +348,7 @@ export default function PagoReservaModal({
         if (processedPaymentData.reservaId) {
           try {
             const supabase = (await import('@/lib/supabaseClient')).default;
-            const { error: updateError } = await supabase
+            await supabase
               .from('reserva')
               .update({ ticket_url: result.url })
               .eq('id', processedPaymentData.reservaId);
@@ -885,7 +882,6 @@ export default function PagoReservaModal({
         <TicketCompra
           isOpen={showTicketModal}
           onClose={handleCloseTicket}
-          onGenerarQR={handleGenerarQR}
           onGuardar={handleGuardarTicket}
           cartItems={[{
             id: processedPaymentData.actividad.id,

@@ -51,7 +51,6 @@ export default function ModalNuevaReserva({
   const [tarifasActividad, setTarifasActividad] = useState<TarifaActividad[]>([]);
   const [actividadSeleccionada, setActividadSeleccionada] = useState<ActividadDB | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
   const [showModalPago, setShowModalPago] = useState(false);
   const [stockInfo, setStockInfo] = useState<{
     stockDisponible: number;
@@ -421,33 +420,7 @@ export default function ModalNuevaReserva({
   };
 
   // Función para manejar el envío del pago desde PagoReservaModal
-  const handlePagoSubmit = async (data: {
-    actividad: {
-      id: string;
-      nombre: string;
-      precio: number;
-      cantidad: number;
-      duracion: string;
-      empresa: string;
-      numeroPersonas: number;
-      fechaInicio: string;
-      fechaFin: string;
-      horaInicio: string;
-      horaFin: string;
-      nota?: string;
-      precioReserva?: number;
-    };
-    subtotal: number;
-    descuento: number;
-    descuentoPorcentaje: number;
-    iva: number;
-    total: number;
-    concepto: string;
-    pago: {
-      metodo: string;
-      estado: string;
-    };
-  }) => {
+  const handlePagoSubmit = async () => {
     try {
       // TODO: Implementar lógica para crear la reserva y el pago usando los datos recibidos
       // const { actividad, subtotal, descuento, iva, total, concepto, pago } = data;
@@ -955,10 +928,10 @@ export default function ModalNuevaReserva({
                       </button>
                       <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loadingActividades}
                         className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {loading ? 'Creando...' : 'Crear Reserva'}
+                        {loadingActividades ? 'Creando...' : 'Crear Reserva'}
                       </button>
                     </div>
                     </form>
