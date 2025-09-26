@@ -36,6 +36,42 @@ export interface TarifaActividad {
   descuento: number | null;
 }
 
+export interface Reserva {
+  id: string;
+  cliente?: {
+    nombre: string;
+    apellidos: string;
+  };
+  actividad?: {
+    nombre: string;
+  };
+  empresa?: {
+    nombre: string;
+  };
+  fecha_inicio: string;
+  fecha_fin: string;
+  precio: number;
+  estado: string;
+  cantidad_reservada: number;
+  ticket_url?: string;
+  ticket_url_reserva?: string;
+}
+
+export interface Pago {
+  id: string;
+  importe: number;
+  concepto: string;
+  metodo: string;
+  estado: string;
+  origen_tipo: string;
+  origen_id: string;
+  cliente?: {
+    id: string;
+    nombre: string;
+    apellidos: string;
+  };
+}
+
 export function useActividades() {
   const { supabase } = useSupabase();
   const { deleteTicket } = useTickets();
@@ -277,10 +313,11 @@ export function useActividades() {
         message: 'Reserva creada correctamente',
         reservaId: data.id
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al crear reserva:', error);
-      setError(error.message || 'Error al crear la reserva');
-      return { success: false, message: error.message || 'Error al crear la reserva' };
+      const errorMessage = error instanceof Error ? error.message : 'Error al crear la reserva';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -314,10 +351,11 @@ export function useActividades() {
         message: 'Pago creado correctamente',
         pagoId: data.id
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al crear pago:', error);
-      setError(error.message || 'Error al crear el pago');
-      return { success: false, message: error.message || 'Error al crear el pago' };
+      const errorMessage = error instanceof Error ? error.message : 'Error al crear el pago';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -343,10 +381,11 @@ export function useActividades() {
         empresaId: data.id,
         message: 'ID de empresa obtenido correctamente'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al obtener ID de empresa:', error);
-      setError(error.message || 'Error al obtener ID de empresa');
-      return { success: false, message: error.message || 'Error al obtener ID de empresa' };
+      const errorMessage = error instanceof Error ? error.message : 'Error al obtener ID de empresa';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -373,16 +412,17 @@ export function useActividades() {
         clienteId: data.id,
         message: 'ID de cliente obtenido correctamente'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al obtener ID de cliente:', error);
-      setError(error.message || 'Error al obtener ID de cliente');
-      return { success: false, message: error.message || 'Error al obtener ID de cliente' };
+      const errorMessage = error instanceof Error ? error.message : 'Error al obtener ID de cliente';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
     } finally {
       setLoading(false);
     }
   };
 
-  const obtenerReservas = async (): Promise<{ success: boolean; reservas?: any[]; message: string }> => {
+  const obtenerReservas = useCallback(async (): Promise<{ success: boolean; reservas?: Reserva[]; message: string }> => {
     try {
       setLoading(true);
       setError(null);
@@ -406,14 +446,15 @@ export function useActividades() {
         reservas: data || [],
         message: 'Reservas obtenidas correctamente'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al obtener reservas:', error);
-      setError(error.message || 'Error al obtener reservas');
-      return { success: false, message: error.message || 'Error al obtener reservas' };
+      const errorMessage = error instanceof Error ? error.message : 'Error al obtener reservas';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   const actualizarReserva = async (id: string, datosReserva: {
     estado?: 'confirmada' | 'pendiente' | 'completada' | 'cancelada';
@@ -436,10 +477,11 @@ export function useActividades() {
         success: true, 
         message: 'Reserva actualizada correctamente'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al actualizar reserva:', error);
-      setError(error.message || 'Error al actualizar reserva');
-      return { success: false, message: error.message || 'Error al actualizar reserva' };
+      const errorMessage = error instanceof Error ? error.message : 'Error al actualizar reserva';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -501,10 +543,10 @@ export function useActividades() {
         success: true, 
         message: 'Reserva, pagos asociados y tickets eliminados correctamente'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al eliminar reserva:', error);
-      setError(error.message || 'Error al eliminar reserva');
-      return { success: false, message: error.message || 'Error al eliminar reserva' };
+      setError(error instanceof Error ? error.message : 'Error al eliminar reserva');
+      return { success: false, message: error instanceof Error ? error.message : 'Error al eliminar reserva' };
     } finally {
       setLoading(false);
     }
@@ -600,26 +642,29 @@ export function useActividades() {
         message: 'Stock consultado correctamente'
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al consultar stock:', error);
-      setError(error.message || 'Error al consultar stock disponible');
+      setError(error instanceof Error ? error.message : 'Error al consultar stock disponible');
       return { 
         success: false, 
-        message: error.message || 'Error al consultar stock disponible' 
+        message: error instanceof Error ? error.message : 'Error al consultar stock disponible' 
       };
     } finally {
       setLoading(false);
     }
   };
 
-  const obtenerPagosPendientesReserva = async (reservaId: string): Promise<{ success: boolean; pagos?: any[]; message: string }> => {
+  const obtenerPagosPendientesReserva = async (reservaId: string): Promise<{ success: boolean; pagos?: Pago[]; message: string }> => {
     try {
       setLoading(true);
       setError(null);
 
       const { data, error } = await supabase
         .from('pago')
-        .select('*')
+        .select(`
+          *,
+          cliente:cliente(id, nombre, apellidos, email)
+        `)
         .eq('origen_tipo', 'reserva')
         .eq('origen_id', reservaId)
         .eq('estado', 'pendiente');
@@ -633,16 +678,16 @@ export function useActividades() {
         pagos: data || [],
         message: 'Pagos pendientes obtenidos correctamente'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al obtener pagos pendientes:', error);
-      setError(error.message || 'Error al obtener pagos pendientes');
-      return { success: false, message: error.message || 'Error al obtener pagos pendientes' };
+      setError(error instanceof Error ? error.message : 'Error al obtener pagos pendientes');
+      return { success: false, message: error instanceof Error ? error.message : 'Error al obtener pagos pendientes' };
     } finally {
       setLoading(false);
     }
   };
 
-  const obtenerTodosLosPagosReserva = async (reservaId: string): Promise<{ success: boolean; pagos?: any[]; message: string }> => {
+  const obtenerTodosLosPagosReserva = async (reservaId: string): Promise<{ success: boolean; pagos?: Pago[]; message: string }> => {
     try {
       setLoading(true);
       setError(null);
@@ -662,10 +707,10 @@ export function useActividades() {
         pagos: data || [],
         message: 'Todos los pagos obtenidos correctamente'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al obtener todos los pagos:', error);
-      setError(error.message || 'Error al obtener todos los pagos');
-      return { success: false, message: error.message || 'Error al obtener todos los pagos' };
+      setError(error instanceof Error ? error.message : 'Error al obtener todos los pagos');
+      return { success: false, message: error instanceof Error ? error.message : 'Error al obtener todos los pagos' };
     } finally {
       setLoading(false);
     }
@@ -689,10 +734,10 @@ export function useActividades() {
         success: true, 
         message: 'Ticket URL de reserva actualizado correctamente'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al actualizar ticket URL de reserva:', error);
-      setError(error.message || 'Error al actualizar ticket URL de reserva');
-      return { success: false, message: error.message || 'Error al actualizar ticket URL de reserva' };
+      setError(error instanceof Error ? error.message : 'Error al actualizar ticket URL de reserva');
+      return { success: false, message: error instanceof Error ? error.message : 'Error al actualizar ticket URL de reserva' };
     } finally {
       setLoading(false);
     }
@@ -716,10 +761,10 @@ export function useActividades() {
         success: true, 
         message: 'Estado del pago actualizado correctamente'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al actualizar estado del pago:', error);
-      setError(error.message || 'Error al actualizar estado del pago');
-      return { success: false, message: error.message || 'Error al actualizar estado del pago' };
+      setError(error instanceof Error ? error.message : 'Error al actualizar estado del pago');
+      return { success: false, message: error instanceof Error ? error.message : 'Error al actualizar estado del pago' };
     } finally {
       setLoading(false);
     }

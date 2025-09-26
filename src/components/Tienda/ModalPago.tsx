@@ -7,7 +7,6 @@ import { SelectorClienteCompacto } from './SelectorClienteCompacto';
 import { formatPrice, formatNumber } from '@/lib/formatUtils';
 import { useClientes } from '@/hooks/useClientes';
 import { useProductos } from '@/hooks/useProductos';
-import { usePagos } from '@/hooks/usePagos';
 import { useTickets } from '@/hooks/useTickets';
 import SurfSpinner from '@/components/shared/SurfSpinner';
 import TicketCompra from './TicketCompra';
@@ -67,11 +66,9 @@ export default function ModalPago({
 }: ModalPagoProps) {
   const { clientes } = useClientes();
   const { productos } = useProductos();
-  const { actualizarPago } = usePagos();
   const { saveTicket } = useTickets();
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
-  const [estadoPago, setEstadoPago] = useState<EstadoPago>('completado');
   const [concepto, setConcepto] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -97,7 +94,7 @@ export default function ModalPago({
     if (pedidoData && readOnly) {
       setSelectedClienteId(pedidoData.clienteId);
       setMetodoPago(pedidoData.metodo);
-      setEstadoPago(pedidoData.estado);
+      // Estado del pago establecido desde pedidoData
       setConcepto(pedidoData.concepto);
     }
   }, [pedidoData, readOnly]);
@@ -255,17 +252,11 @@ export default function ModalPago({
     }
   };
 
-  const handleConfirmPayment = async () => {
-    await handleConfirmPaymentWithState(estadoPago);
-  };
 
   const handleCancelPayment = () => {
     setShowConfirmationModal(false);
   };
 
-  const handleGenerarQR = () => {
-    // TODO: Implementar generación de QR
-  };
 
   const handleGuardarTicket = async () => {
     if (!processedPaymentData) {
@@ -330,7 +321,7 @@ export default function ModalPago({
     if (!readOnly) {
       setSelectedClienteId(null);
       setMetodoPago('efectivo');
-      setEstadoPago('pendiente');
+      // Estado del pago: pendiente
       setConcepto('');
       onClose();
     }
@@ -396,7 +387,7 @@ export default function ModalPago({
       toast.success('Pago completado exitosamente y email enviado al cliente');
       
       // Actualizar el estado local para reflejar el cambio
-      setEstadoPago('completado');
+      // Estado del pago: completado
 
       // Cerrar el modal y actualizar la tabla de pedidos
       onClose();
@@ -820,7 +811,6 @@ export default function ModalPago({
         <TicketCompra
           isOpen={showTicketModal}
           onClose={handleCloseTicket}
-          onGenerarQR={handleGenerarQR}
           onGuardar={handleGuardarTicket}
           cartItems={processedPaymentData.cartItems}
           subtotal={processedPaymentData.subtotal}

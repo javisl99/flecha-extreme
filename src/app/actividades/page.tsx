@@ -1,21 +1,38 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Toast } from '@/shared/components';
 import { useActividades } from '@/hooks/useActividades';
 import FiltrosReservas, { type FiltrosReservaState } from '@/components/Actividades/FiltrosReservas';
 import ModalNuevaReserva from '@/components/Actividades/ModalNuevaReserva';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
-import TableSkeleton from '@/components/shared/TableSkeleton';
 import SurfSpinner from '@/components/shared/SurfSpinner';
 import SwitchVistaActividades, { type VistaActividadesTipo } from '@/components/Actividades/SwitchVistaActividades';
 import VistaCalendario from '@/components/Actividades/VistaCalendario';
 import ModalDetalleReserva from '@/components/Actividades/ModalDetalleReserva';
 import ModalSeleccionTicket from '@/components/Actividades/ModalSeleccionTicket';
-import { toast } from 'react-hot-toast';
 
-// Usar any temporalmente para evitar conflictos de tipos con el hook
-type Reserva = any;
+// Definir tipo específico para Reserva
+interface Reserva {
+  id: string;
+  cliente?: {
+    nombre: string;
+    apellidos: string;
+  };
+  actividad?: {
+    nombre: string;
+  };
+  empresa?: {
+    nombre: string;
+  };
+  fecha_inicio: string;
+  fecha_fin: string;
+  precio: number;
+  estado: string;
+  cantidad_reservada: number;
+  ticket_url?: string;
+  ticket_url_reserva?: string;
+}
 
 // Icono para nueva reserva
 const NewReservationIcon = () => (
@@ -57,7 +74,7 @@ export default function ReservasPage() {
     eliminarReserva 
   } = useActividades();
   
-  const cargarReservas = async () => {
+  const cargarReservas = useCallback(async () => {
     try {
       const resultado = await obtenerReservas();
       if (resultado.success && resultado.reservas) {
@@ -69,12 +86,12 @@ export default function ReservasPage() {
       console.error('Error al cargar reservas:', error);
       setToast({ visible: true, message: 'Error al cargar las reservas', type: 'error' });
     }
-  };
+  }, [obtenerReservas]);
 
   // Cargar reservas al montar el componente
   useEffect(() => {
     cargarReservas();
-  }, []);
+  }, [cargarReservas]);
 
   // Función para manejar el cambio a la vista de lista
   const handleCambioALista = async () => {
@@ -263,19 +280,7 @@ export default function ReservasPage() {
   };
 
 
-  const handleNuevaReserva = (data: {
-    empresa: 'Flecha Extreme' | 'Rober';
-    tipoActividad: 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros';
-    actividad: string;
-    cantidadReservada: number;
-    numeroPersonas: number;
-    precio: number;
-    fechaInicio: string;
-    fechaFin: string;
-    horaInicio: string;
-    horaFin: string;
-    nota?: string;
-  }) => {
+  const handleNuevaReserva = () => {
     // Recargar las reservas después de crear una nueva
     cargarReservas();
   };
@@ -290,7 +295,7 @@ export default function ReservasPage() {
     try {
       // Descargar ticket de la reserva (ticket_url)
       const link = document.createElement('a');
-      link.href = reservaParaTicket.ticket_url;
+      link.href = reservaParaTicket.ticket_url || '';
       link.download = `ticket_reserva_${reservaParaTicket.id}_${new Date(reservaParaTicket.fecha_inicio).toISOString().split('T')[0]}.pdf`;
       link.target = '_blank';
       
@@ -314,7 +319,7 @@ export default function ReservasPage() {
     try {
       // Descargar ticket del pago de actividad (ticket_url_reserva)
       const link = document.createElement('a');
-      link.href = reservaParaTicket.ticket_url_reserva;
+      link.href = reservaParaTicket.ticket_url_reserva || '';
       link.download = `ticket_pago_${reservaParaTicket.id}_${new Date(reservaParaTicket.fecha_inicio).toISOString().split('T')[0]}.pdf`;
       link.target = '_blank';
       
@@ -495,7 +500,7 @@ export default function ReservasPage() {
           <div className="p-4">
             {loading ? (
               <div className="flex items-center justify-center h-96">
-                <div className="text-lg text-gray-500 dark:text-gray-400">Cargando calendario...</div>
+                <SurfSpinner size="lg" showText={true} text="Cargando calendario..." />
               </div>
             ) : (
               <VistaCalendario 
