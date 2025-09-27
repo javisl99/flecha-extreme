@@ -176,7 +176,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
   return (
     <div className="h-full">
       <div className="mb-4">
-        <div className="flex flex-wrap gap-4 text-xs">
+        <div className="flex flex-wrap gap-2 sm:gap-4 text-xs">
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-green-500 rounded"></div>
             <span className="text-gray-600 dark:text-gray-400">Confirmada</span>
@@ -196,7 +196,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
         </div>
       </div>
       
-      <div className="h-[600px] calendar-wrapper">
+      <div className="h-[400px] sm:h-[500px] lg:h-[600px] calendar-wrapper">
         <Calendar
           localizer={localizer}
           events={eventos}
@@ -364,6 +364,44 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
           
           .calendar-wrapper .rbc-toolbar-label {
             @apply text-center mb-2;
+          }
+          
+          .calendar-wrapper .rbc-header {
+            @apply text-xs py-2 px-1;
+          }
+          
+          .calendar-wrapper .rbc-date-cell {
+            @apply text-xs;
+          }
+          
+          .calendar-wrapper .rbc-event {
+            @apply text-xs px-1 py-0.5;
+          }
+          
+          .calendar-wrapper .rbc-event-content {
+            @apply text-xs;
+          }
+        }
+        
+        @media (max-width: 640px) {
+          .calendar-wrapper .rbc-toolbar {
+            @apply gap-1;
+          }
+          
+          .calendar-wrapper .rbc-btn-group button {
+            @apply px-2 py-1 text-xs;
+          }
+          
+          .calendar-wrapper .rbc-header {
+            @apply text-xs py-1 px-0.5;
+          }
+          
+          .calendar-wrapper .rbc-date-cell {
+            @apply text-xs p-1;
+          }
+          
+          .calendar-wrapper .rbc-event {
+            @apply text-xs px-0.5 py-0.5;
           }
         }
         

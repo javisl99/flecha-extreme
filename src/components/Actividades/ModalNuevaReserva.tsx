@@ -519,7 +519,7 @@ export default function ModalNuevaReserva({
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
+          <div className="flex min-h-full items-center justify-center p-2 sm:p-4 text-center">
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"
@@ -529,12 +529,12 @@ export default function ModalNuevaReserva({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-4xl max-h-[90vh] transform overflow-y-auto rounded-2xl bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] transform overflow-y-auto rounded-2xl bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all">
                 {/* Header azul */}
-                <div className="bg-primary px-6 py-4 flex items-center justify-between">
+                <div className="bg-primary px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
                   <Dialog.Title
                     as="h3"
-                    className="text-lg font-medium leading-6 text-white"
+                    className="text-base sm:text-lg font-medium leading-6 text-white"
                   >
                     Nueva Actividad
                   </Dialog.Title>
@@ -549,10 +549,10 @@ export default function ModalNuevaReserva({
                 </div>
 
                 {/* Contenido del modal */}
-                <div className="p-4">
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="p-3 sm:p-4">
+                    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                     {/* Primera fila - Empresa y Tipo de Actividad */}
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                       {/* Empresa */}
                       <div>
                         <label htmlFor="empresa" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -606,7 +606,7 @@ export default function ModalNuevaReserva({
                     </div>
 
                     {/* Segunda fila - Duración y Actividad */}
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                       {/* Duración */}
                       <div>
                         {tarifasActividad.length >= 1 ? (
@@ -695,7 +695,7 @@ export default function ModalNuevaReserva({
                     </div>
 
                     {/* Tercera fila - Fechas */}
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                       {/* Fecha de Inicio */}
                       <div>
                         <label htmlFor="fechaInicio" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -742,7 +742,7 @@ export default function ModalNuevaReserva({
                     </div>
 
                     {/* Cuarta fila - Horas */}
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                       {/* Hora de Inicio */}
                       <div>
                         <label htmlFor="horaInicio" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -787,7 +787,7 @@ export default function ModalNuevaReserva({
                     </div>
 
                     {/* Quinta fila - Cantidad Reservada, Número de Personas y Precio */}
-                    <div className="grid grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                       {/* Cantidad Reservada */}
                       <div>
                         <label htmlFor="cantidadReservada" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -918,11 +918,11 @@ export default function ModalNuevaReserva({
                     </div>
 
                     {/* Botones */}
-                    <div className="flex justify-end space-x-3 pt-2 pb-2">
+                    <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2 pb-2">
                       <button
                         type="button"
                         onClick={handleClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer"
+                        className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer"
                       >
                         Cancelar
                       </button>

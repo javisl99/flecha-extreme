@@ -416,7 +416,7 @@ export default function PagoReservaModal({
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 flex items-center justify-center">
-          <div className="flex min-h-full w-full items-center justify-center p-4">
+          <div className="flex min-h-full w-full items-center justify-center p-2 sm:p-4">
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-150"
@@ -426,20 +426,60 @@ export default function PagoReservaModal({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative w-full max-w-4xl max-h-[90vh] transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-lg transition-transform">
-                <form onSubmit={handleSubmit}>
+              <Dialog.Panel className="relative w-full max-w-4xl h-[95vh] sm:h-[90vh] transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-lg transition-transform flex flex-col">
+                <style jsx>{`
+                  .modal-content {
+                    overflow-y: auto !important;
+                    scrollbar-width: thin;
+                    scrollbar-color: #3b82f6 #e5e7eb;
+                    scroll-behavior: smooth;
+                  }
+                  
+                  .modal-content::-webkit-scrollbar {
+                    width: 8px;
+                  }
+                  
+                  .modal-content::-webkit-scrollbar-track {
+                    background: #e5e7eb;
+                    border-radius: 4px;
+                  }
+                  
+                  .modal-content::-webkit-scrollbar-thumb {
+                    background: #3b82f6;
+                    border-radius: 4px;
+                    border: 1px solid #e5e7eb;
+                  }
+                  
+                  .modal-content::-webkit-scrollbar-thumb:hover {
+                    background: #2563eb;
+                  }
+                  
+                  .dark .modal-content::-webkit-scrollbar-track {
+                    background: #374151;
+                  }
+                  
+                  .dark .modal-content::-webkit-scrollbar-thumb {
+                    background: #3b82f6;
+                    border: 1px solid #374151;
+                  }
+                  
+                  .dark .modal-content::-webkit-scrollbar-thumb:hover {
+                    background: #2563eb;
+                  }
+                `}</style>
+                <form onSubmit={handleSubmit} className="flex flex-col h-full">
                   {/* Header */}
-                  <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <div className="p-2 bg-primary/10 rounded-lg">
-                          <ReceiptPercentIcon className="h-6 w-6 text-primary" />
+                          <ReceiptPercentIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                         </div>
                         <div>
-                          <Dialog.Title as="h3" className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                          <Dialog.Title as="h3" className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">
                             Procesar Pago de Reserva
                           </Dialog.Title>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             {actividad.nombre} - {actividad.empresa}
                           </p>
                         </div>
@@ -456,10 +496,10 @@ export default function PagoReservaModal({
                   </div>
 
                   {/* Contenido */}
-                  <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-200px)]">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="modal-content px-4 sm:px-6 py-3 sm:py-4 overflow-y-auto flex-1 min-h-0 max-h-[calc(95vh-200px)] sm:max-h-[calc(90vh-200px)]">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 pb-4">
                       {/* Columna izquierda - Cliente y Método de pago */}
-                      <div className="space-y-6">
+                      <div className="space-y-4 sm:space-y-6">
                         {/* Selector de cliente */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -475,7 +515,7 @@ export default function PagoReservaModal({
                         </div>
 
                         {/* Switch de Reserva y Precio de Reserva */}
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                           {/* Switch de Reserva */}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -583,13 +623,13 @@ export default function PagoReservaModal({
                       </div>
 
                       {/* Columna derecha - Ticket de reserva */}
-                      <div className="space-y-4">
+                      <div className="hidden lg:block space-y-3 sm:space-y-4">
                         <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                           Ticket de Reserva
                         </h4>
                         
                         {/* Ticket container */}
-                        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border-2 border-dashed border-gray-300 dark:border-gray-600">
+                        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 sm:p-4 border-2 border-dashed border-gray-300 dark:border-gray-600">
                           {/* Header del ticket */}
                           <div className="text-center border-b border-gray-300 dark:border-gray-600 pb-3 mb-4">
                             <h5 className="font-bold text-lg text-gray-900 dark:text-gray-100">
@@ -689,11 +729,11 @@ export default function PagoReservaModal({
                   </div>
 
                   {/* Footer */}
-                  <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex justify-end space-x-3">
+                  <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+                    <div className="flex flex-col sm:flex-row justify-end gap-3">
                       <button
                         type="button"
-                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-md transition-colors duration-75 cursor-pointer"
+                        className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-md transition-colors duration-75 cursor-pointer"
                         onClick={onClose}
                         disabled={isProcessing}
                       >
@@ -703,7 +743,7 @@ export default function PagoReservaModal({
                         <button
                           type="submit"
                           disabled={!actividad || !selectedClienteId || isProcessing}
-                          className="px-6 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          className="w-full sm:w-auto px-6 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                           {isProcessing ? (
                             <div className="flex items-center gap-2">
@@ -793,7 +833,7 @@ export default function PagoReservaModal({
                       {!esReserva ? (
                         // Opciones para pago completo (sin reserva)
                         <div className="flex flex-col space-y-3">
-                          <div className="flex space-x-3">
+                          <div className="flex flex-col sm:flex-row gap-3">
                             <button
                               type="button"
                               className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md transition-colors duration-75 cursor-pointer"
@@ -842,7 +882,7 @@ export default function PagoReservaModal({
                         </div>
                       ) : (
                         // Opción única para reserva
-                        <div className="flex space-x-3">
+                        <div className="flex flex-col sm:flex-row gap-3">
                           <button
                             type="button"
                             className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md transition-colors duration-75 cursor-pointer"

@@ -392,11 +392,11 @@ export default function ModalDetalleReserva({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-card-bg dark:bg-card-bg border border-card-border dark:border-card-border rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
+      <div className="bg-card-bg dark:bg-card-bg border border-card-border dark:border-card-border rounded-lg max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
         {/* Header con fondo azul */}
-        <div className="bg-primary text-white p-4 flex items-center justify-between rounded-t-lg">
-          <h2 className="text-xl font-bold">Detalles de la Reserva</h2>
+        <div className="bg-primary text-white p-3 sm:p-4 flex items-center justify-between rounded-t-lg">
+          <h2 className="text-lg sm:text-xl font-bold">Detalles de la Reserva</h2>
           <button 
             className="text-white hover:text-gray-200 cursor-pointer text-xl font-bold"
             onClick={onClose}
@@ -405,9 +405,9 @@ export default function ModalDetalleReserva({
           </button>
         </div>
         
-        <div className="p-6">
+        <div className="p-3 sm:p-6">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Cliente</label>
                 <p className="font-medium text-gray-900 dark:text-gray-100">{mostrarCliente(reserva)}</p>
@@ -451,10 +451,10 @@ export default function ModalDetalleReserva({
               </div>
             )}
             
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4 flex flex-wrap gap-2">
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4 flex flex-col sm:flex-row gap-2">
               {reserva.estado !== 'confirmada' && (
                 <button 
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => handleConfirmarPago(reserva)}
                   disabled={isLoadingPago}
                 >
@@ -463,13 +463,13 @@ export default function ModalDetalleReserva({
               )}
               {reserva.estado !== 'cancelada' && (
                 <button 
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors cursor-pointer"
+                  className="w-full sm:flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors cursor-pointer"
                   onClick={() => onActualizarEstado(reserva, 'cancelada')}
                 >
                   Cancelar
                 </button>
               )}
-              <Button variant="outline" className="flex-1" onClick={onClose}>
+              <Button variant="outline" className="w-full sm:flex-1" onClick={onClose}>
                 Cerrar
               </Button>
             </div>
