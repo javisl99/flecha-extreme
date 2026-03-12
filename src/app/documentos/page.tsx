@@ -28,6 +28,8 @@ export default function DocumentosPage() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { obtenerDocumentos, eliminarDocumento } = useDocumentos();
   const { usuario, loading: userLoading } = useUserData();
+
+  const getDocumentoFecha = (documento: Documento) => documento.created_at || documento.fechaCreacion || '';
   
   const documentosFiltrados = documentos.filter(doc => {
     const cumpleNombre = !filtros.nombre || doc.nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
@@ -37,7 +39,7 @@ export default function DocumentosPage() {
         (`${doc.usuario.nombre} ${doc.usuario.apellidos}`).toLowerCase().includes(filtros.usuario.toLowerCase())
       );
 
-    const fechaDocumento = new Date(doc.created_at);
+    const fechaDocumento = new Date(getDocumentoFecha(doc));
     const cumpleFechaDesde = !filtros.fechaDesde || fechaDocumento >= new Date(filtros.fechaDesde);
     const cumpleFechaHasta = !filtros.fechaHasta || fechaDocumento <= new Date(filtros.fechaHasta);
 
@@ -173,7 +175,7 @@ export default function DocumentosPage() {
                         {documento.usuario ? `${documento.usuario.nombre} ${documento.usuario.apellidos}` : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">
-                        {new Date(documento.created_at).toLocaleDateString()}
+                        {new Date(getDocumentoFecha(documento)).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end space-x-2">
