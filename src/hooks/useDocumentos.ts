@@ -1,24 +1,16 @@
 import { useState, useCallback } from 'react';
 import supabaseClient from '@/lib/supabaseClient';
 import { useUserData } from './useUserData';
+import { Documento } from '@/shared/types';
 
-export interface Documento {
-  id: string;
-  id_usuario: string;
-  nombre: string;
-  descripcion?: string;
-  url: string;
-  created_at: string;
-  usuario?: {
-    nombre: string;
-    apellidos: string;
-  };
-}
+export type { Documento } from '@/shared/types';
 
 interface SubirDocumentoParams {
   nombre: string;
   descripcion?: string;
   archivo: File;
+  categoria?: Documento['categoria'];
+  idMovimientoContable?: string | null;
 }
 
 interface DocumentoResponse {
@@ -37,7 +29,13 @@ export function useDocumentos() {
   const [loading, setLoading] = useState(false);
   const { usuario } = useUserData();
 
-  const subirDocumento = useCallback(async ({ nombre, descripcion, archivo }: SubirDocumentoParams): Promise<DocumentoResponse> => {
+  const subirDocumento = useCallback(async ({
+    nombre,
+    descripcion,
+    archivo,
+    categoria = 'general',
+    idMovimientoContable = null,
+  }: SubirDocumentoParams): Promise<DocumentoResponse> => {
     if (!usuario) {
       return { success: false, error: 'Usuario no autenticado' };
     }
@@ -70,7 +68,9 @@ export function useDocumentos() {
           id_usuario: usuario.id,
           nombre,
           descripcion,
-          url: publicUrl
+          url: publicUrl,
+          categoria,
+          id_movimiento_contable: idMovimientoContable
         })
         .select()
         .single();

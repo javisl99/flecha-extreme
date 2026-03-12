@@ -81,10 +81,11 @@ export default function ConfiguracionPage() {
                 Nueva Contraseña
               </label>
               <input
-                type="text"
+                type="password"
                 id="nuevaContraseña"
                 value={nuevaContraseña}
                 onChange={(e) => setNuevaContraseña(e.target.value)}
+                autoComplete="new-password"
                 className="w-full px-3 py-2 border border-input-border dark:border-input-border bg-input-bg dark:bg-input-bg rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Ingrese su nueva contraseña"
               />
