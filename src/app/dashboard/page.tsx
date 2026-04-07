@@ -5,7 +5,8 @@ import { Card, SurfSpinner } from '@/shared/components';
 import ResumenDiario from '@/components/Dashboard/ResumenDiario';
 import ReservasHoy from '@/components/Dashboard/ReservasHoy';
 import { reservasMock } from '@/components/Actividades/data';
-import { movimientosCajaMock } from '@/components/Contabilidad/data';
+import { useContabilidad } from '@/hooks/useContabilidad';
+import { formatCurrency } from '@/lib/contabilidad';
 
 // Componentes de iconos SVG para el dashboard
 const CalendarIcon = () => (
@@ -27,6 +28,7 @@ const ChartIcon = () => (
 );
 
 export default function DashboardPage() {
+  const { loading: contabilidadLoading, getResumenEfeDiario } = useContabilidad();
   // Usando la fecha actual
   const getCurrentDate = () => {
     const now = new Date();
@@ -41,16 +43,8 @@ export default function DashboardPage() {
   // Calcular KPIs
   const reservasPendientes = reservasMock.filter(r => r.estado === 'Pendiente').length;
   const reservasNoPagadas = reservasMock.filter(r => !r.pagado).length;
-  
-  const ingresosDiarios = movimientosCajaMock
-    .filter(m => m.fecha === fecha && m.tipo === 'ingreso')
-    .reduce((total, m) => total + m.importe, 0);
-    
-  const gastosDiarios = movimientosCajaMock
-    .filter(m => m.fecha === fecha && m.tipo === 'gasto')
-    .reduce((total, m) => total + m.importe, 0);
-  
-  const balanceDiario = ingresosDiarios - gastosDiarios;
+  const resumenContable = getResumenEfeDiario(fecha);
+  const movimientosHoy = resumenContable.movimientos;
   
   return (
     <div className="p-6 space-y-6">
@@ -80,15 +74,15 @@ export default function DashboardPage() {
           icon={<ChartIcon />}
           className="bg-card-bg"
         >
-          <div className={`text-4xl font-bold text-center ${balanceDiario >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
-            {balanceDiario.toFixed(2)} €
+          <div className={`text-4xl font-bold text-center ${resumenContable.saldo >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+            {contabilidadLoading ? '...' : formatCurrency(resumenContable.saldo)}
           </div>
           <div className="text-sm text-center text-gray-500 dark:text-gray-400 mt-2">Ingresos - Gastos</div>
         </Card>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ResumenDiario fecha={fecha} />
+        <ResumenDiario fecha={fecha} resumen={resumenContable} movimientos={movimientosHoy} />
         <ReservasHoy reservas={reservasHoy} />
       </div>
       
