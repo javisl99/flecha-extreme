@@ -100,10 +100,10 @@ export default function ReservasPage() {
               onChange={(e) => setFiltros({ ...filtros, estado: e.target.value as Reserva['estado'] || undefined })}
             >
               <option value="">Todos</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="confirmada">Confirmada</option>
-              <option value="completada">Completada</option>
-              <option value="cancelada">Cancelada</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="Confirmada">Confirmada</option>
+              <option value="Completada">Completada</option>
+              <option value="Cancelada">Cancelada</option>
             </select>
           </div>
           
