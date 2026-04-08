@@ -515,7 +515,7 @@ export default function ModalNuevaReserva({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+          <div className="fixed inset-0 bg-black/35 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -529,12 +529,11 @@ export default function ModalNuevaReserva({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-4xl max-h-[90vh] transform overflow-y-auto rounded-2xl bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all">
-                {/* Header azul */}
-                <div className="bg-primary px-6 py-4 flex items-center justify-between">
+              <Dialog.Panel className="actividades-v2-modal w-full max-w-4xl max-h-[90vh] transform overflow-y-auto rounded-2xl border border-outline-variant/35 bg-surface-container-lowest text-left align-middle shadow-xl transition-all">
+                <div className="primary-gradient flex items-center justify-between px-6 py-4">
                   <Dialog.Title
                     as="h3"
-                    className="text-lg font-medium leading-6 text-white"
+                    className="font-headline text-2xl font-extrabold leading-6 tracking-tight text-white"
                   >
                     Nueva Actividad
                   </Dialog.Title>
@@ -549,8 +548,8 @@ export default function ModalNuevaReserva({
                 </div>
 
                 {/* Contenido del modal */}
-                <div className="p-4">
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="p-6">
+                    <form onSubmit={handleSubmit} className="actividades-v2-modal-form space-y-6">
                     {/* Primera fila - Empresa y Tipo de Actividad */}
                     <div className="grid grid-cols-2 gap-6">
                       {/* Empresa */}
@@ -922,14 +921,14 @@ export default function ModalNuevaReserva({
                       <button
                         type="button"
                         onClick={handleClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer"
+                        className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       >
                         Cancelar
                       </button>
                       <button
                         type="submit"
                         disabled={loadingActividades}
-                        className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="primary-gradient rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {loadingActividades ? 'Creando...' : 'Crear Reserva'}
                       </button>
@@ -949,6 +948,40 @@ export default function ModalNuevaReserva({
         onSubmit={handlePagoSubmit}
         actividad={generarDatosActividad()}
       />
+
+      <style jsx global>{`
+        .actividades-v2-modal-form label {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--outline);
+        }
+
+        .actividades-v2-modal-form input[type='text'],
+        .actividades-v2-modal-form input[type='number'],
+        .actividades-v2-modal-form input[type='date'],
+        .actividades-v2-modal-form input[type='time'],
+        .actividades-v2-modal-form select,
+        .actividades-v2-modal-form textarea {
+          border-radius: 14px;
+          border: 1px solid color-mix(in srgb, var(--outline-variant) 60%, transparent);
+          background: var(--surface-container-lowest);
+          color: var(--on-surface);
+          box-shadow: 0 1px 0 rgba(0, 25, 71, 0.05);
+        }
+
+        .actividades-v2-modal-form input[type='text']:focus,
+        .actividades-v2-modal-form input[type='number']:focus,
+        .actividades-v2-modal-form input[type='date']:focus,
+        .actividades-v2-modal-form input[type='time']:focus,
+        .actividades-v2-modal-form select:focus,
+        .actividades-v2-modal-form textarea:focus {
+          border-color: color-mix(in srgb, var(--primary) 45%, white);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+          outline: none;
+        }
+      `}</style>
     </Transition>
   );
 }

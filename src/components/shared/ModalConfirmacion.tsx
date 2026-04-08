@@ -11,6 +11,7 @@ interface ModalConfirmacionProps {
   mensaje: string;
   textoConfirmar?: string;
   textoCancelar?: string;
+  variante?: 'default' | 'actividades-v2' | 'clientes-v2' | 'pagos-v2';
 }
 
 const ModalConfirmacion = ({
@@ -20,8 +21,11 @@ const ModalConfirmacion = ({
   titulo,
   mensaje,
   textoConfirmar = 'Confirmar',
-  textoCancelar = 'Cancelar'
+  textoCancelar = 'Cancelar',
+  variante = 'default',
 }: ModalConfirmacionProps) => {
+  const esV2 = variante !== 'default';
+
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -34,7 +38,7 @@ const ModalConfirmacion = ({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-white/10 dark:bg-black/10 backdrop-blur-sm" />
+          <div className={`fixed inset-0 backdrop-blur-sm ${esV2 ? 'bg-black/35' : 'bg-white/10 dark:bg-black/10'}`} />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -48,12 +52,15 @@ const ModalConfirmacion = ({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all">
-                {/* Header azul */}
-                <div className="bg-primary px-6 py-4 flex items-center justify-between">
+              <Dialog.Panel className={`w-full max-w-md transform overflow-hidden rounded-2xl text-left align-middle shadow-xl transition-all ${
+                esV2
+                  ? 'border border-outline-variant/35 bg-surface-container-lowest'
+                  : 'bg-white dark:bg-gray-800'
+              }`}>
+                <div className={`${esV2 ? 'primary-gradient' : 'bg-primary'} flex items-center justify-between px-6 py-4`}>
                   <Dialog.Title
                     as="h3"
-                    className="text-lg font-medium leading-6 text-white"
+                    className={`leading-6 text-white ${esV2 ? 'font-headline text-xl font-extrabold tracking-tight' : 'text-lg font-medium'}`}
                   >
                     {titulo}
                   </Dialog.Title>
@@ -68,30 +75,54 @@ const ModalConfirmacion = ({
                 </div>
 
                 {/* Contenido del modal */}
-                <div className="p-6">
+                <div className={`${esV2 ? 'p-6' : 'p-6'}`}>
                   <div className="mb-6">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className={esV2 ? 'text-sm leading-relaxed text-on-surface-variant' : 'text-sm text-gray-500 dark:text-gray-400'}>
                       {mensaje}
                     </p>
                   </div>
 
                   <div className="flex justify-end space-x-3">
-                    <Button
-                      variant="outline"
-                      onClick={onClose}
-                    >
-                      {textoCancelar}
-                    </Button>
-                    <Button
-                      variant="accent"
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                      onClick={() => {
-                        onConfirm();
-                        onClose();
-                      }}
-                    >
-                      {textoConfirmar}
-                    </Button>
+                    {esV2 ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={onClose}
+                          className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary"
+                        >
+                          {textoCancelar}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onConfirm();
+                            onClose();
+                          }}
+                          className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                        >
+                          {textoConfirmar}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={onClose}
+                        >
+                          {textoCancelar}
+                        </Button>
+                        <Button
+                          variant="accent"
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                          onClick={() => {
+                            onConfirm();
+                            onClose();
+                          }}
+                        >
+                          {textoConfirmar}
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </Dialog.Panel>

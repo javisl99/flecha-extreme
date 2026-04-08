@@ -5,6 +5,7 @@ import ReservaForm from './ReservaForm';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
+type EstadoPlazaVisual = 'disponible' | 'reservada' | 'ocupada';
 
 interface TarifaParking {
   id: string;
@@ -58,16 +59,37 @@ interface PlazaInfoModalProps {
   }) => void;
 }
 
-export default function PlazaInfoModal({ 
-  isOpen, 
-  onClose, 
-  plaza, 
+const getEstadoPlaza = (plaza: { disponible?: boolean; reservada?: boolean }): EstadoPlazaVisual => {
+  if (plaza.disponible !== false && !plaza.reservada) return 'disponible';
+  if (plaza.reservada) return 'reservada';
+  return 'ocupada';
+};
+
+const ESTADO_PLAZA_STYLES: Record<EstadoPlazaVisual, { etiqueta: string; chip: string }> = {
+  disponible: {
+    etiqueta: 'Disponible',
+    chip: 'bg-emerald-100 text-emerald-700'
+  },
+  reservada: {
+    etiqueta: 'Reservada',
+    chip: 'bg-amber-100 text-amber-700'
+  },
+  ocupada: {
+    etiqueta: 'Ocupada',
+    chip: 'bg-rose-100 text-rose-700'
+  }
+};
+
+export default function PlazaInfoModal({
+  isOpen,
+  onClose,
+  plaza,
   reservaInfo,
   pagoInfo,
   clienteInfo,
   tarifas,
   onEliminarReserva,
-  onCrearReserva 
+  onCrearReserva
 }: PlazaInfoModalProps) {
   const [showReservaForm, setShowReservaForm] = useState(false);
 
@@ -88,45 +110,36 @@ export default function PlazaInfoModal({
     }).format(precio);
   };
 
-  const getEstadoColor = () => {
-    if (plaza.disponible && !plaza.reservada) {
-      return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-200 dark:border-green-800';
-    } else if (plaza.reservada) {
-      return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-200 dark:border-red-800';
-    }
-    return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-200 dark:border-red-800';
-  };
-
   const getMetodoPagoLabel = (metodo: MetodoPago) => {
     const labels: Record<MetodoPago, string> = {
-      'efectivo': 'Efectivo',
-      'tpv': 'Tarjeta (TPV)',
-      'bizum_alfonso': 'Bizum Alfonso',
-      'bizum_robe': 'Bizum Robe',
-      'bizum_alba': 'Bizum Alba',
-      'bizum_maria': 'Bizum María',
-      'bizum_jm': 'Bizum JM',
-      'angeles': 'Ángeles'
+      efectivo: 'Efectivo',
+      tpv: 'Tarjeta (TPV)',
+      bizum_alfonso: 'Bizum Alfonso',
+      bizum_robe: 'Bizum Robe',
+      bizum_alba: 'Bizum Alba',
+      bizum_maria: 'Bizum María',
+      bizum_jm: 'Bizum JM',
+      angeles: 'Ángeles'
     };
     return labels[metodo] || metodo;
   };
 
   const getEstadoPagoLabel = (estado: EstadoPago) => {
     const labels: Record<EstadoPago, string> = {
-      'completado': 'Completado',
-      'pendiente': 'Pendiente',
-      'cancelado': 'Cancelado'
+      completado: 'Completado',
+      pendiente: 'Pendiente',
+      cancelado: 'Cancelado'
     };
     return labels[estado] || estado;
   };
 
   const getEstadoPagoColor = (estado: EstadoPago) => {
     const colors: Record<EstadoPago, string> = {
-      'completado': 'bg-green-100 text-green-800 border-green-200',
-      'pendiente': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'cancelado': 'bg-red-100 text-red-800 border-red-200'
+      completado: 'bg-emerald-100 text-emerald-700',
+      pendiente: 'bg-amber-100 text-amber-700',
+      cancelado: 'bg-rose-100 text-rose-700'
     };
-    return colors[estado] || '';
+    return colors[estado] || 'bg-surface-container-high text-on-surface-variant';
   };
 
   const handleCrearReserva = (data: {
@@ -146,8 +159,15 @@ export default function PlazaInfoModal({
 
   const getTarifaInfo = () => {
     if (!reservaInfo?.id_tarifa) return null;
-    return tarifas.find(t => t.id === reservaInfo.id_tarifa);
+    return tarifas.find((tarifa) => tarifa.id === reservaInfo.id_tarifa);
   };
+
+  const estadoPlaza = getEstadoPlaza(plaza);
+  const estadoPlazaStyles = ESTADO_PLAZA_STYLES[estadoPlaza];
+  const tipoPlazaLabel = plaza.tipo.charAt(0).toUpperCase() + plaza.tipo.slice(1);
+
+  const dataLabelClassName = 'text-[11px] font-black uppercase tracking-[0.12em] text-outline';
+  const dataValueClassName = 'mt-1 text-sm font-semibold text-on-surface';
 
   return (
     <>
@@ -155,199 +175,176 @@ export default function PlazaInfoModal({
         <Dialog as="div" className="relative z-50" onClose={onClose}>
           <Transition.Child
             as={Fragment}
-            enter="ease-out duration-300"
+            enter="ease-out duration-200"
             enterFrom="opacity-0"
             enterTo="opacity-100"
-            leave="ease-in duration-200"
+            leave="ease-in duration-150"
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm transition-opacity" />
+            <div className="fixed inset-0 bg-black/35 backdrop-blur-sm" />
           </Transition.Child>
 
           <div className="fixed inset-0 z-10 overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4">
               <Transition.Child
                 as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                enter="ease-out duration-200"
+                enterFrom="opacity-0 translate-y-3 sm:scale-95"
                 enterTo="opacity-100 translate-y-0 sm:scale-100"
-                leave="ease-in duration-200"
+                leave="ease-in duration-150"
                 leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-                leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                leaveTo="opacity-0 translate-y-3 sm:scale-95"
               >
-                <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-                  <div className={`px-6 py-4 border-b ${getEstadoColor()}`}>
-                    <div className="flex items-center justify-between">
-                      <Dialog.Title as="h3" className="text-xl font-semibold">
-                        Plaza {plaza.codigo}
-                      </Dialog.Title>
-                      <button
-                        type="button"
-                        className="rounded-lg p-1 hover:bg-black/10 transition-colors"
-                        onClick={onClose}
-                      >
-                        <span className="sr-only">Cerrar</span>
-                        <XMarkIcon className="h-6 w-6" />
-                      </button>
+                <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl transition-all">
+                  <div className="primary-gradient px-6 py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <Dialog.Title as="h3" className="font-headline text-xl font-extrabold tracking-tight text-white">
+                          Plaza {plaza.codigo}
+                        </Dialog.Title>
+                        <p className="mt-1 text-xs font-semibold text-white/80">{tipoPlazaLabel}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`${estadoPlazaStyles.chip} rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em]`}
+                        >
+                          {estadoPlazaStyles.etiqueta}
+                        </span>
+                        <button
+                          type="button"
+                          className="rounded-md text-white transition hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white/50"
+                          onClick={onClose}
+                        >
+                          <span className="sr-only">Cerrar</span>
+                          <XMarkIcon className="h-6 w-6" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="px-6 py-4">
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                            Tipo
-                          </p>
-                          <p className="text-sm text-gray-900 dark:text-gray-100">
-                            {plaza.tipo.charAt(0).toUpperCase() + plaza.tipo.slice(1)}
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                            Estado
-                          </p>
-                          <span className={`inline-flex rounded-md px-2 py-1 text-sm font-medium ${getEstadoColor()}`}>
-                            {plaza.disponible && !plaza.reservada ? 'Disponible' :
-                             plaza.reservada ? 'Reservada' : 'Ocupada'}
-                          </span>
+                  <div className="space-y-5 p-6">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                        <p className={dataLabelClassName}>Tipo</p>
+                        <p className={dataValueClassName}>{tipoPlazaLabel}</p>
+                      </div>
+                      <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                        <p className={dataLabelClassName}>Estado actual</p>
+                        <span
+                          className={`${estadoPlazaStyles.chip} mt-2 inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em]`}
+                        >
+                          {estadoPlazaStyles.etiqueta}
+                        </span>
+                      </div>
+                    </div>
+
+                    {reservaInfo ? (
+                      <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                        <h4 className="font-headline text-lg font-extrabold text-primary-dark">Información de la Reserva</h4>
+                        <div className="mt-4 space-y-4">
+                          {clienteInfo ? (
+                            <div>
+                              <p className={dataLabelClassName}>Cliente</p>
+                              <div className="mt-1 flex items-center">
+                                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-light text-sm font-bold text-white">
+                                  {clienteInfo.nombre.charAt(0)}
+                                  {clienteInfo.apellidos.charAt(0)}
+                                </div>
+                                <p className="ml-3 text-sm font-semibold text-on-surface">
+                                  {clienteInfo.nombre} {clienteInfo.apellidos}
+                                </p>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                              <p className={dataLabelClassName}>Fecha de inicio</p>
+                              <p className={dataValueClassName}>{formatearFecha(reservaInfo.fecha_inicio)}</p>
+                            </div>
+                            <div>
+                              <p className={dataLabelClassName}>Fecha de fin</p>
+                              <p className={dataValueClassName}>{formatearFecha(reservaInfo.fecha_fin)}</p>
+                            </div>
+                          </div>
+
+                          {getTarifaInfo() ? (
+                            <div>
+                              <p className={dataLabelClassName}>Tarifa</p>
+                              <p className={dataValueClassName}>
+                                {getTarifaInfo()?.periodo === 'mes' ? 'Mensual' : 'Quincenal'} -{' '}
+                                {formatearPrecio(getTarifaInfo()?.precio || 0)}
+                              </p>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
+                    ) : null}
 
-                      {reservaInfo && (
-                        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                          <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                            Información de la Reserva
-                          </h4>
-                          <div className="space-y-4">
-                            {clienteInfo && (
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                  Cliente
-                                </p>
-                                <div className="flex items-center">
-                                  <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary-light text-white flex items-center justify-center text-sm">
-                                    {clienteInfo.nombre.charAt(0)}{clienteInfo.apellidos.charAt(0)}
-                                  </div>
-                                  <p className="ml-3 text-sm text-gray-900 dark:text-gray-100">
-                                    {clienteInfo.nombre} {clienteInfo.apellidos}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                  Fecha de inicio
-                                </p>
-                                <p className="text-sm text-gray-900 dark:text-gray-100">
-                                  {formatearFecha(reservaInfo.fecha_inicio)}
-                                </p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                  Fecha de fin
-                                </p>
-                                <p className="text-sm text-gray-900 dark:text-gray-100">
-                                  {formatearFecha(reservaInfo.fecha_fin)}
-                                </p>
-                              </div>
+                    {pagoInfo ? (
+                      <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                        <h4 className="font-headline text-lg font-extrabold text-primary-dark">Información del Pago</h4>
+                        <div className="mt-4 space-y-4">
+                          {pagoInfo.concepto ? (
+                            <div>
+                              <p className={dataLabelClassName}>Concepto</p>
+                              <p className={dataValueClassName}>{pagoInfo.concepto}</p>
                             </div>
+                          ) : null}
 
-                            {getTarifaInfo() && (
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                  Tarifa
-                                </p>
-                                <p className="text-sm text-gray-900 dark:text-gray-100">
-                                  {getTarifaInfo()?.periodo === 'mes' ? 'Mensual' : 'Quincenal'} - {formatearPrecio(getTarifaInfo()?.precio || 0)}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {pagoInfo && (
-                        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                          <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                            Información del Pago
-                          </h4>
-                          <div className="space-y-4">
-                            {pagoInfo.concepto && (
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                  Concepto
-                                </p>
-                                <p className="text-sm text-gray-900 dark:text-gray-100">
-                                  {pagoInfo.concepto}
-                                </p>
-                              </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                  Importe
-                                </p>
-                                <p className="text-sm text-gray-900 dark:text-gray-100">
-                                  {formatearPrecio(pagoInfo.importe)}
-                                </p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                  Método de pago
-                                </p>
-                                <p className="text-sm text-gray-900 dark:text-gray-100">
-                                  {getMetodoPagoLabel(pagoInfo.metodo)}
-                                </p>
-                              </div>
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                              <p className={dataLabelClassName}>Importe</p>
+                              <p className={dataValueClassName}>{formatearPrecio(pagoInfo.importe)}</p>
                             </div>
-
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                Estado del pago
-                              </p>
-                              <span className={`inline-flex rounded-md px-2 py-1 text-sm font-medium ${getEstadoPagoColor(pagoInfo.estado)}`}>
-                                {getEstadoPagoLabel(pagoInfo.estado)}
-                              </span>
+                            <div>
+                              <p className={dataLabelClassName}>Método de pago</p>
+                              <p className={dataValueClassName}>{getMetodoPagoLabel(pagoInfo.metodo)}</p>
                             </div>
                           </div>
+
+                          <div>
+                            <p className={dataLabelClassName}>Estado del pago</p>
+                            <span
+                              className={`${getEstadoPagoColor(pagoInfo.estado)} mt-2 inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em]`}
+                            >
+                              {getEstadoPagoLabel(pagoInfo.estado)}
+                            </span>
+                          </div>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    ) : null}
                   </div>
 
-                  <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex justify-end space-x-3">
+                  <div className="flex flex-wrap justify-end gap-3 border-t border-outline-variant/25 px-6 py-4">
+                    <button
+                      type="button"
+                      className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary"
+                      onClick={onClose}
+                    >
+                      Cerrar
+                    </button>
+
+                    {!plaza.reservada ? (
                       <button
                         type="button"
-                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                        onClick={onClose}
+                        className="primary-gradient rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110"
+                        onClick={() => setShowReservaForm(true)}
                       >
-                        Cerrar
+                        Crear Reserva
                       </button>
-                      {!plaza.reservada && (
-                        <button
-                          type="button"
-                          className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-md transition-colors"
-                          onClick={() => setShowReservaForm(true)}
-                        >
-                          Crear Reserva
-                        </button>
-                      )}
-                      {plaza.reservada && onEliminarReserva && (
-                        <button
-                          type="button"
-                          className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
-                          onClick={onEliminarReserva}
-                        >
-                          Eliminar Reserva
-                        </button>
-                      )}
-                    </div>
+                    ) : null}
+
+                    {plaza.reservada && onEliminarReserva ? (
+                      <button
+                        type="button"
+                        className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                        onClick={onEliminarReserva}
+                      >
+                        Eliminar Reserva
+                      </button>
+                    ) : null}
                   </div>
                 </Dialog.Panel>
               </Transition.Child>
@@ -356,7 +353,7 @@ export default function PlazaInfoModal({
         </Dialog>
       </Transition.Root>
 
-      {showReservaForm && (
+      {showReservaForm ? (
         <ReservaForm
           isOpen={showReservaForm}
           onClose={() => setShowReservaForm(false)}
@@ -364,7 +361,7 @@ export default function PlazaInfoModal({
           plazaCodigo={plaza.codigo}
           tarifas={tarifas}
         />
-      )}
+      ) : null}
     </>
   );
-} 
+}

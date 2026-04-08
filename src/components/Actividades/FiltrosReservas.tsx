@@ -44,40 +44,46 @@ export default function FiltrosReservas({ onFiltrosChange }: FiltrosReservasProp
     onFiltrosChange(filtrosLimpios);
   };
 
+  const inputClassName =
+    'h-11 w-full rounded-full border border-outline-variant/45 bg-surface-container-lowest px-4 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15';
+
+  const labelClassName = 'mb-2 block text-[11px] font-black uppercase tracking-[0.14em] text-outline';
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 p-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-low px-6 py-5">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className={labelClassName}>
           Cliente
         </label>
         <input
           type="text"
           placeholder="Buscar cliente..."
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          className={inputClassName}
           value={filtros.cliente}
           onChange={(e) => handleFiltroChange('cliente', e.target.value)}
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className={labelClassName}>
           Actividad
         </label>
         <input
           type="text"
           placeholder="Buscar actividad..."
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          className={inputClassName}
           value={filtros.actividad}
           onChange={(e) => handleFiltroChange('actividad', e.target.value)}
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className={labelClassName}>
           Estado
         </label>
         <select
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          className={inputClassName}
           value={filtros.estado}
           onChange={(e) => handleFiltroChange('estado', e.target.value)}
         >
@@ -90,11 +96,11 @@ export default function FiltrosReservas({ onFiltrosChange }: FiltrosReservasProp
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className={labelClassName}>
           Empresa
         </label>
         <select
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          className={inputClassName}
           value={filtros.empresa}
           onChange={(e) => handleFiltroChange('empresa', e.target.value)}
         >
@@ -105,33 +111,35 @@ export default function FiltrosReservas({ onFiltrosChange }: FiltrosReservasProp
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className={labelClassName}>
           Fecha Desde
         </label>
         <input
           type="date"
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          className={inputClassName}
           value={filtros.fechaDesde}
           onChange={(e) => handleFiltroChange('fechaDesde', e.target.value)}
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className={labelClassName}>
           Fecha Hasta
         </label>
         <input
           type="date"
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          className={inputClassName}
           value={filtros.fechaHasta}
           onChange={(e) => handleFiltroChange('fechaHasta', e.target.value)}
         />
       </div>
+      </div>
 
-      <div className="flex items-end">
+      <div className="mt-4 flex justify-end">
         <button
+          type="button"
           onClick={limpiarFiltros}
-          className="w-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+          className="rounded-full border border-outline-variant/45 bg-surface-container-lowest px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
         >
           Limpiar Filtros
         </button>
