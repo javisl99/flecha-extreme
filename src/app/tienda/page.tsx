@@ -214,11 +214,11 @@ export default function TiendaPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="h-screen flex flex-col bg-surface">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-2">
+      <div className="bg-surface-container-lowest border-b border-outline-variant/40 px-6 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">
+          <h1 className="text-2xl font-bold text-primary-dark">
             {vistaActual === 'tienda' ? 'Tienda Flecha Extreme' : 'Pedidos Flecha Extreme'}
           </h1>
           
@@ -239,7 +239,7 @@ export default function TiendaPage() {
         {vistaActual === 'tienda' ? (
           <>
             {/* Área de productos (2/3 de la pantalla) */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 min-w-0 overflow-y-auto p-6">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <SurfSpinner size="lg" showText={true} text="Cargando productos..." />
@@ -266,7 +266,7 @@ export default function TiendaPage() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                     {productos.map((product) => (
                       <ProductCard
                         key={product.id}
@@ -297,7 +297,7 @@ export default function TiendaPage() {
             </div>
 
             {/* Cesta lateral (1/3 de la pantalla) */}
-            <div className="w-96 border-l border-gray-200 dark:border-gray-700">
+            <div className="w-96 shrink-0 p-4 pl-0">
               <ShoppingCart
                 items={cartItems}
                 onUpdateQuantity={handleUpdateQuantity}
@@ -305,6 +305,7 @@ export default function TiendaPage() {
                 onClearCart={handleClearCart}
                 onCheckout={handleCheckout}
                 onProceedToPayment={handleProceedToPayment}
+                className="md:border-l-0"
               />
             </div>
           </>
