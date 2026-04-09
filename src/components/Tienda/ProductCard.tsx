@@ -16,16 +16,15 @@ export default function ProductCard({ product, onAddToCart, onEditProduct }: Pro
   const [isAdding, setIsAdding] = useState(false);
 
   const handleAddToCart = async () => {
-    if (quantity > 0 && quantity <= product.stock) {
-      setIsAdding(true);
-      
-      // Simular animación de añadido
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      onAddToCart(product, quantity);
-      setQuantity(1);
-      setIsAdding(false);
+    if (quantity <= 0 || quantity > product.stock) {
+      return;
     }
+
+    setIsAdding(true);
+    await new Promise((resolve) => setTimeout(resolve, 220));
+    onAddToCart(product, quantity);
+    setQuantity(1);
+    setIsAdding(false);
   };
 
   const incrementQuantity = () => {
@@ -43,7 +42,6 @@ export default function ProductCard({ product, onAddToCart, onEditProduct }: Pro
   const isOutOfStock = product.stock === 0;
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Evitar que se abra la modal si se hace clic en los botones o controles
     const target = e.target as HTMLElement;
     if (target.closest('button') || target.closest('input') || target.closest('svg')) {
       return;
@@ -51,157 +49,97 @@ export default function ProductCard({ product, onAddToCart, onEditProduct }: Pro
     onEditProduct(product);
   };
 
+  const stockTone =
+    product.stock === 0
+      ? 'bg-red-100 text-red-700 border-red-200'
+      : product.stock <= 3
+        ? 'bg-amber-100 text-amber-700 border-amber-200'
+        : 'bg-emerald-100 text-emerald-700 border-emerald-200';
+
+  const stockLabel =
+    product.stock === 0 ? 'Sin stock' : product.stock <= 3 ? `Ultimas ${product.stock} und.` : `${product.stock} und.`;
+
   return (
-    <div 
-      className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group flex flex-col h-full cursor-pointer ${
-        isOutOfStock ? 'opacity-60' : ''
+    <article
+      className={`group flex h-full cursor-pointer flex-col overflow-hidden rounded-[1.25rem] border border-outline-variant/28 bg-surface-container-lowest shadow-[0_16px_32px_rgba(0,25,71,0.08)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(0,25,71,0.12)] ${
+        isOutOfStock ? 'opacity-80' : ''
       }`}
       onClick={handleCardClick}
     >
-      {/* Imagen del producto */}
-      <div className="relative h-48 bg-gray-100 dark:bg-gray-700 overflow-hidden">
+      <div className="relative h-44 overflow-hidden border-b border-outline-variant/20 bg-surface-container-low">
         <Image
           src={product.image}
           alt={product.name}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
+          className="object-cover transition duration-300 group-hover:scale-[1.03]"
         />
-        {isOutOfStock && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-              Sin Stock
-            </span>
-          </div>
-        )}
-        {product.stock > 0 && product.stock <= 3 && (
-          <div className="absolute top-2 right-2 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
-            ¡Últimas unidades!
-          </div>
-        )}
-      </div>
 
-      {/* Contenido del producto */}
-      <div className="p-4 flex flex-col flex-1">
-        {/* Contenido superior flexible */}
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2 truncate">
-            {product.name}
-          </h3>
-          
-          {product.description && (
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">
-              {product.description}
-            </p>
-          )}
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
+          <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] ${stockTone}`}>
+            {stockLabel}
+          </span>
         </div>
 
-        {/* Contenido inferior fijo */}
-        <div className="mt-auto">
-          {/* Precio y stock - responsive layout */}
-          <div className="mb-3">
-            {/* En pantallas grandes: precio y stock en la misma línea */}
-            <div className="hidden sm:flex items-center justify-between gap-2">
-              <span className="text-2xl font-bold text-primary-dark dark:text-primary-light flex-shrink-0">
-                {formatPrice(product.price)}
-              </span>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <div className={`w-2 h-2 rounded-full ${
-                  product.stock === 0 
-                    ? 'bg-red-500' 
-                    : product.stock <= 3 
-                      ? 'bg-orange-500' 
-                      : 'bg-green-500'
-                }`}></div>
-                <span className={`text-xs font-medium whitespace-nowrap ${
-                  product.stock === 0 
-                    ? 'text-red-600 dark:text-red-400' 
-                    : product.stock <= 3 
-                      ? 'text-orange-600 dark:text-orange-400' 
-                      : 'text-green-600 dark:text-green-400'
-                }`}>
-                  {product.stock} unds.
-                </span>
-              </div>
-            </div>
-            
-            {/* En pantallas pequeñas: precio debajo del stock */}
-            <div className="sm:hidden space-y-2">
-              <div className="flex items-center justify-center gap-1.5">
-                <div className={`w-2 h-2 rounded-full ${
-                  product.stock === 0 
-                    ? 'bg-red-500' 
-                    : product.stock <= 3 
-                      ? 'bg-orange-500' 
-                      : 'bg-green-500'
-                }`}></div>
-                <span className={`text-xs font-medium ${
-                  product.stock === 0 
-                    ? 'text-red-600 dark:text-red-400' 
-                    : product.stock <= 3 
-                      ? 'text-orange-600 dark:text-orange-400' 
-                      : 'text-green-600 dark:text-green-400'
-                }`}>
-                  {product.stock} unds.
-                </span>
-              </div>
-              <div className="text-center">
-                <span className="text-2xl font-bold text-primary-dark dark:text-primary-light">
-                  {formatPrice(product.price)}
-                </span>
-              </div>
-            </div>
+        {isOutOfStock ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-primary-dark/60 backdrop-blur-[1px]">
+            <span className="rounded-full border border-white/20 bg-white/20 px-3 py-1 text-xs font-bold text-white">No disponible</span>
           </div>
+        ) : null}
+      </div>
 
-          {/* Selector de cantidad y botón añadir */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg flex-1 justify-center">
-              <button
-                onClick={decrementQuantity}
-                disabled={quantity <= 1 || isOutOfStock}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                </svg>
-              </button>
-              <span className="px-1.5 py-1.5 text-sm font-medium min-w-[1.5rem] text-center">
-                {quantity}
-              </span>
-              <button
-                onClick={incrementQuantity}
-                disabled={quantity >= product.stock || isOutOfStock}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </button>
-            </div>
+      <div className="flex flex-1 flex-col p-4">
+        <div className="mb-2 min-h-[3rem]">
+          <h3 className="line-clamp-2 text-sm font-bold text-on-surface sm:text-base">{product.name}</h3>
+          {product.description ? <p className="mt-1 line-clamp-2 text-xs text-on-surface-variant sm:text-sm">{product.description}</p> : null}
+        </div>
+
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <span className="font-headline text-xl font-extrabold text-primary-dark sm:text-2xl">{formatPrice(product.price)}</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-outline sm:text-xs">por unidad</span>
+        </div>
+
+        <div className="mt-auto grid grid-cols-1 gap-2 min-[420px]:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="flex h-10 min-w-0 items-center justify-between rounded-full border border-outline-variant/45 bg-surface-container-low px-2">
+            <button
+              onClick={decrementQuantity}
+              disabled={quantity <= 1 || isOutOfStock}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Disminuir cantidad"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+              </svg>
+            </button>
+
+            <span className="min-w-[1.5rem] text-center text-sm font-bold text-on-surface">{quantity}</span>
 
             <button
-              onClick={handleAddToCart}
-              disabled={isOutOfStock || isAdding}
-              className={`flex-1 py-2 px-3 rounded-lg font-semibold transition-all duration-200 text-sm cursor-pointer ${
-                isOutOfStock
-                  ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'
-                  : isAdding
-                  ? 'bg-green-500 text-white'
-                  : 'bg-primary-dark hover:bg-primary text-white hover:shadow-lg'
-              }`}
+              onClick={incrementQuantity}
+              disabled={quantity >= product.stock || isOutOfStock}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Aumentar cantidad"
             >
-              {isAdding ? (
-                <div className="flex items-center justify-center">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              ) : isOutOfStock ? (
-                'Sin Stock'
-              ) : (
-                'Añadir'
-              )}
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v12m6-6H6" />
+              </svg>
             </button>
           </div>
+
+          <button
+            onClick={handleAddToCart}
+            disabled={isOutOfStock || isAdding}
+            className={`h-10 rounded-full px-3 text-xs font-bold transition min-[420px]:min-w-[8.25rem] sm:px-4 sm:text-sm ${
+              isOutOfStock
+                ? 'cursor-not-allowed border border-outline-variant/40 bg-surface-container-low text-outline'
+                : isAdding
+                  ? 'bg-emerald-600 text-white'
+                  : 'primary-gradient text-white shadow-md shadow-primary/25 hover:brightness-110'
+            }`}
+          >
+            {isAdding ? 'Anadiendo...' : isOutOfStock ? 'Sin stock' : 'Anadir'}
+          </button>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

@@ -1,30 +1,72 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap");
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf8ff;
+  --foreground: #001947;
+
   --primary-dark: #00296b;
   --primary: #003f88;
   --primary-light: #00509d;
   --accent: #fdc500;
   --accent-light: #ffd500;
-  --card-bg: #ffffff;
-  --card-border: #e5e7eb;
-  --input-bg: #ffffff;
-  --input-border: #d1d5db;
-  --table-head-bg: #f9fafb;
-  --table-row-hover: #f3f4f6;
+
+  --surface: #faf8ff;
+  --surface-dim: #ced9ff;
+  --surface-bright: #faf8ff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f2f3ff;
+  --surface-container: #eaedff;
+  --surface-container-high: #e2e7ff;
+  --surface-container-highest: #dae2ff;
+
+  --on-surface: #001947;
+  --on-surface-variant: #434751;
+  --outline: #737782;
+  --outline-variant: #c3c6d3;
+
+  --primary-container: #003f88;
+  --secondary: #1f5eac;
+  --secondary-container: #78acff;
+
+  --card-bg: var(--surface-container-lowest);
+  --card-border: #e0e5f4;
+  --input-bg: var(--surface-container-lowest);
+  --input-border: #d3d9eb;
+  --table-head-bg: #f4f6ff;
+  --table-row-hover: var(--surface-container-low);
   --modal-overlay: rgba(0, 0, 0, 0.5);
+
+  --font-sans: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-headline: "Manrope", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", monospace;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+
   --color-primary-dark: var(--primary-dark);
   --color-primary: var(--primary);
   --color-primary-light: var(--primary-light);
+  --color-primary-container: var(--primary-container);
+  --color-secondary: var(--secondary);
+  --color-secondary-container: var(--secondary-container);
   --color-accent: var(--accent);
   --color-accent-light: var(--accent-light);
+
   --color-card-bg: var(--card-bg);
   --color-card-border: var(--card-border);
   --color-input-bg: var(--input-bg);
@@ -32,25 +74,40 @@
   --color-table-head-bg: var(--table-head-bg);
   --color-table-row-hover: var(--table-row-hover);
   --color-modal-overlay: var(--modal-overlay);
-  --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", monospace;
+  --font-sans: var(--font-sans);
+  --font-headline: var(--font-headline);
+  --font-mono: var(--font-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #1e293b;
-    --foreground: #f8fafc;
-    --primary-dark: #00509d;
-    --primary: #0066cc;
-    --primary-light: #0077e6;
-    --accent: #ffd700;
-    --accent-light: #ffe047;
-    --card-bg: #293548;
-    --card-border: #3e4c63;
-    --input-bg: #334155;
-    --input-border: #475569;
-    --table-head-bg: #293548;
-    --table-row-hover: #334155;
+    --background: #06112f;
+    --foreground: #eef0ff;
+
+    --surface: #06112f;
+    --surface-dim: #0d1d46;
+    --surface-bright: #0a1840;
+    --surface-container-lowest: #0a1a43;
+    --surface-container-low: #102452;
+    --surface-container: #12285a;
+    --surface-container-high: #183164;
+    --surface-container-highest: #1b356b;
+
+    --on-surface: #eef0ff;
+    --on-surface-variant: #c8d1ea;
+    --outline: #8d98b8;
+    --outline-variant: #4f5b82;
+
+    --primary-container: #1d4d99;
+    --secondary: #93baff;
+    --secondary-container: #6a98ea;
+
+    --card-bg: var(--surface-container-lowest);
+    --card-border: #2b3e6d;
+    --input-bg: var(--surface-container-lowest);
+    --input-border: #304678;
+    --table-head-bg: #14295b;
+    --table-row-hover: #132755;
     --modal-overlay: rgba(0, 0, 0, 0.7);
   }
 }
@@ -63,17 +120,48 @@ html, body {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: var(--font-sans);
   min-height: 100vh;
-  min-height: 100dvh; /* Dynamic viewport height para dispositivos móviles */
+  min-height: 100dvh;
+}
+
+h1, h2, h3, h4, h5, h6,
+.font-headline {
+  font-family: var(--font-headline);
 }
 
 #__next {
   height: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+}
+
+.sidebar-gradient {
+  background: linear-gradient(180deg, #001947 0%, #00296b 100%);
+}
+
+.primary-gradient {
+  background: linear-gradient(135deg, #003f88 0%, #00296b 100%);
+}
+
+.glass-surface {
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid color-mix(in srgb, var(--outline-variant) 14%, transparent);
+}
+
+.shadow-sidebar-ambient {
+  box-shadow: 20px 0 40px rgba(0, 25, 71, 0.08);
+}
+
+.shadow-card-ambient {
+  box-shadow: 0 20px 40px rgba(0, 25, 71, 0.08);
+}
+
+.ease-fluid {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Animaciones personalizadas para el modal */
