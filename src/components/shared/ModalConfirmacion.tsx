@@ -11,7 +11,14 @@ interface ModalConfirmacionProps {
   mensaje: string;
   textoConfirmar?: string;
   textoCancelar?: string;
-  variante?: 'default' | 'actividades-v2' | 'clientes-v2' | 'pagos-v2';
+  variante?:
+    | 'default'
+    | 'actividades-v2'
+    | 'clientes-v2'
+    | 'empleados-v2'
+    | 'pagos-v2'
+    | 'documentos-v2'
+    | 'contabilidad-v2';
 }
 
 const ModalConfirmacion = ({

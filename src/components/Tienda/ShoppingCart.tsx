@@ -69,9 +69,9 @@ export default function ShoppingCart({
       </div>
 
       {items.length > 0 ? (
-        <footer className="space-y-4 border-t border-outline-variant/20 px-5 py-4">
-          <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-4">
-            <label htmlFor="discount-percentage" className="mb-2 block text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+        <footer className="space-y-3 border-t border-outline-variant/20 px-4 py-3">
+          <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-3">
+            <label htmlFor="discount-percentage" className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.12em] text-outline">
               Descuento (%)
             </label>
             <div className="flex items-center gap-2">
@@ -91,20 +91,20 @@ export default function ShoppingCart({
                   const parsedValue = Number(value);
                   setDiscountPercentage(Number.isNaN(parsedValue) ? 0 : Math.min(100, Math.max(0, parsedValue)));
                 }}
-                className="h-10 w-full rounded-full border border-outline-variant/45 bg-surface-container-lowest px-4 text-sm text-on-surface transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                className="h-9 w-full rounded-full border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
                 placeholder="0"
               />
               <button
                 type="button"
                 onClick={() => setDiscountPercentage(0)}
-                className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-2 text-xs font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary"
+                className="h-9 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 text-xs font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary"
               >
                 Limpiar
               </button>
             </div>
           </div>
 
-          <div className="space-y-2 rounded-2xl border border-outline-variant/30 bg-surface-container-low p-4 text-sm">
+          <div className="space-y-1.5 rounded-2xl border border-outline-variant/30 bg-surface-container-low p-3 text-sm">
             <div className="flex items-center justify-between text-on-surface-variant">
               <span>Subtotal</span>
               <span className="font-semibold text-on-surface">{formatPrice(subtotal)}</span>
@@ -115,9 +115,9 @@ export default function ShoppingCart({
                 <span className="font-semibold">-{formatPrice(discountAmount)}</span>
               </div>
             ) : null}
-            <div className="mt-2 flex items-center justify-between border-t border-outline-variant/25 pt-2">
-              <span className="font-headline text-lg font-extrabold text-on-surface">Total</span>
-              <span className="font-headline text-2xl font-extrabold text-primary-dark">{formatPrice(total)}</span>
+            <div className="mt-1.5 flex items-center justify-between border-t border-outline-variant/25 pt-1.5">
+              <span className="font-headline text-base font-extrabold text-on-surface">Total</span>
+              <span className="font-headline text-xl font-extrabold text-primary-dark">{formatPrice(total)}</span>
             </div>
           </div>
 
