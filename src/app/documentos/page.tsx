@@ -1,8 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card, Button } from '@/shared/components';
-import { DocumentIcon } from '@heroicons/react/24/outline';
+import { Button } from '@/shared/components';
+import {
+  ArrowDownTrayIcon,
+  DocumentIcon,
+  EyeIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline';
 import { SubirDocumentoModal } from '@/components/Documentos/SubirDocumentoModal';
 import { useDocumentos, Documento } from '@/hooks/useDocumentos';
 import { toast } from 'react-hot-toast';
@@ -18,7 +23,7 @@ export default function DocumentosPage() {
     descripcion: '',
     usuario: '',
     fechaDesde: '',
-    fechaHasta: ''
+    fechaHasta: '',
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
@@ -30,14 +35,21 @@ export default function DocumentosPage() {
   const { usuario, loading: userLoading } = useUserData();
 
   const getDocumentoFecha = (documento: Documento) => documento.created_at || documento.fechaCreacion || '';
-  
-  const documentosFiltrados = documentos.filter(doc => {
+
+  const formatearFechaDocumento = (documento: Documento) => {
+    const fecha = getDocumentoFecha(documento);
+    if (!fecha) return '-';
+    const parsedDate = new Date(fecha);
+    return Number.isNaN(parsedDate.getTime()) ? '-' : parsedDate.toLocaleDateString('es-ES');
+  };
+
+  const documentosFiltrados = documentos.filter((doc) => {
     const cumpleNombre = !filtros.nombre || doc.nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
     const cumpleDescripcion = !filtros.descripcion || (doc.descripcion?.toLowerCase() || '').includes(filtros.descripcion.toLowerCase());
-    const cumpleUsuario = !filtros.usuario || 
-      (doc.usuario && 
-        (`${doc.usuario.nombre} ${doc.usuario.apellidos}`).toLowerCase().includes(filtros.usuario.toLowerCase())
-      );
+    const cumpleUsuario = !filtros.usuario || (
+      doc.usuario &&
+      (`${doc.usuario.nombre} ${doc.usuario.apellidos}`).toLowerCase().includes(filtros.usuario.toLowerCase())
+    );
 
     const fechaDocumento = new Date(getDocumentoFecha(doc));
     const cumpleFechaDesde = !filtros.fechaDesde || fechaDocumento >= new Date(filtros.fechaDesde);
@@ -98,7 +110,7 @@ export default function DocumentosPage() {
       const result = await eliminarDocumento(documentoAEliminar);
       
       if (result.success) {
-        setDocumentos(docs => docs.filter(doc => doc.id !== documentoAEliminar.id));
+          setDocumentos((docs) => docs.filter((doc) => doc.id !== documentoAEliminar.id));
         toast.success('Documento eliminado correctamente');
       } else {
         toast.error(result.error || 'Error al eliminar el documento');
@@ -119,90 +131,107 @@ export default function DocumentosPage() {
 
   return (
     <ProtectedRoute>
-      <div className="p-6 space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Documentos</h1>
-          <Button 
-            variant="primary" 
-            className="cursor-pointer flex items-center gap-2"
+      <div className="space-y-6 p-6 lg:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Documentos</h1>
+          <Button
+            variant="primary"
+            className="primary-gradient flex cursor-pointer items-center gap-2 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
             onClick={() => setIsModalOpen(true)}
             disabled={isInitialLoading}
           >
-            <DocumentIcon className="h-5 w-5" />
+            <ArrowDownTrayIcon className="h-5 w-5" />
             Subir Documento
           </Button>
         </div>
-        
-        <Card>
-          <div className="mb-4">
+
+        <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
+          <div className="px-6 py-6">
             <FiltrosDocumentos onFiltrosChange={setFiltros} />
           </div>
-          
+
+          <div className="border-t border-outline-variant/20" />
+
           <div className="overflow-x-auto">
             {isInitialLoading || userLoading ? (
               <TableSkeleton columns={5} rows={5} />
             ) : documentosFiltrados.length === 0 ? (
-              <div className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+              <div className="px-6 py-12 text-center text-sm font-medium text-outline">
                 No se encontraron documentos que coincidan con los filtros aplicados
               </div>
             ) : (
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
+              <table className="min-w-full border-collapse text-left">
+                <thead>
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nombre</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Descripción</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Usuario</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</th>
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                      Nombre
+                    </th>
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                      Descripción
+                    </th>
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                      Usuario
+                    </th>
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                      Fecha
+                    </th>
+                    <th className="px-6 py-4 text-right text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="bg-card-bg divide-y divide-gray-200 dark:divide-gray-700">
-                  {documentosFiltrados.map((documento) => (
-                    <tr 
-                      key={documento.id} 
+                <tbody>
+                  {documentosFiltrados.map((documento, index) => (
+                    <tr
+                      key={documento.id}
                       onClick={() => handleVerDocumento(documento.url)}
-                      className="hover:bg-table-row-hover dark:hover:bg-gray-700 transition-colors cursor-pointer group"
+                      className={`group cursor-pointer border-b border-outline-variant/10 transition ${
+                        index % 2 ? 'bg-surface-container-low/25 hover:bg-surface-container-low' : 'hover:bg-surface-container-low'
+                      }`}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex items-center">
-                          <span className="font-medium text-gray-900 dark:text-gray-100 group-hover:text-primary dark:group-hover:text-primary-light transition-colors">{documento.nombre}</span>
+                      <td className="px-6 py-4 text-sm">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="rounded-lg border border-outline-variant/30 bg-surface-container-low p-1.5">
+                            <DocumentIcon className="h-4 w-4 text-outline" />
+                          </span>
+                          <span className="truncate font-semibold text-on-surface group-hover:text-primary transition-colors">
+                            {documento.nombre}
+                          </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">
+                      <td className="px-6 py-4 text-sm text-on-surface-variant">
                         {documento.descripcion || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">
+                      <td className="px-6 py-4 text-sm text-on-surface-variant">
                         {documento.usuario ? `${documento.usuario.nombre} ${documento.usuario.apellidos}` : '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">
-                        {new Date(getDocumentoFecha(documento)).toLocaleDateString()}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant">
+                        {formatearFechaDocumento(documento)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex justify-end space-x-2">
-                          <a 
-                            href={documento.url} 
-                            target="_blank" 
+                      <td
+                        className="px-6 py-4 text-right text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex justify-end gap-2">
+                          <a
+                            href={documento.url}
+                            target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1.5 rounded-full text-primary-dark dark:text-primary-light bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-container-low text-primary-dark transition hover:border-primary/30 hover:text-primary"
                             title="Ver"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
+                            <EyeIcon className="h-4.5 w-4.5" />
                           </a>
-                          <button 
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEliminarDocumento(documento);
                             }}
-                            className="p-1.5 rounded-full text-red-600 dark:text-red-500 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 cursor-pointer" 
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100"
                             title="Eliminar"
                             disabled={isDeleting}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isDeleting ? 'opacity-50' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
+                            <TrashIcon className={`h-4.5 w-4.5 ${isDeleting ? 'opacity-50' : ''}`} />
                           </button>
                         </div>
                       </td>
@@ -212,7 +241,7 @@ export default function DocumentosPage() {
               </table>
             )}
           </div>
-        </Card>
+        </section>
 
         <SubirDocumentoModal
           isOpen={isModalOpen}
@@ -234,8 +263,9 @@ export default function DocumentosPage() {
           mensaje={`¿Estás seguro de que quieres eliminar el documento "${documentoAEliminar?.nombre}"? Esta acción no se puede deshacer.`}
           textoConfirmar="Eliminar"
           textoCancelar="Cancelar"
+          variante="documentos-v2"
         />
       </div>
     </ProtectedRoute>
   );
-} 
+}
