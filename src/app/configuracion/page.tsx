@@ -1,25 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Button } from '@/shared/components';
+import {
+  LockClosedIcon,
+  ShieldCheckIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+import { Button } from '@/shared/components';
 import { useUserData } from '@/hooks/useUserData';
-
-const LockIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-  </svg>
-);
 
 export default function ConfiguracionPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [nuevaContraseña, setNuevaContraseña] = useState('');
+  const [nuevaContrasena, setNuevaContrasena] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { updatePassword } = useUserData();
 
-  const handleCambiarContraseña = async () => {
-    if (!nuevaContraseña) {
+  const handleCambiarContrasena = async () => {
+    if (!nuevaContrasena) {
       setError('Por favor, introduce una nueva contraseña');
       return;
     }
@@ -28,12 +27,11 @@ export default function ConfiguracionPage() {
     setError(null);
     setSuccess(null);
 
-    const result = await updatePassword(nuevaContraseña);
+    const result = await updatePassword(nuevaContrasena);
 
     if (result.success) {
       setSuccess('Contraseña actualizada correctamente');
-      setNuevaContraseña('');
-      // Cerramos el modal después de 2 segundos
+      setNuevaContrasena('');
       setTimeout(() => {
         setIsModalOpen(false);
         setSuccess(null);
@@ -47,75 +45,130 @@ export default function ConfiguracionPage() {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    setNuevaContraseña('');
+    setNuevaContrasena('');
     setError(null);
     setSuccess(null);
   };
 
   return (
     <>
-      <div className={`p-6 space-y-6 ${isModalOpen ? 'blur-sm pointer-events-none' : ''}`}>
-        <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Configuración</h1>
-        
-        <div>
-          <div className="w-full max-w-md">
-            <Card title="Seguridad" icon={<LockIcon />}>
-              <div className="space-y-4">
-                <Button variant="primary" className="w-full" onClick={() => setIsModalOpen(true)}>
-                  Cambiar Contraseña
-                </Button>
-              </div>
-            </Card>
+      <div className="space-y-6 p-6 lg:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">
+              Configuración
+            </h1>
+            <p className="mt-1 text-sm text-on-surface-variant">
+              Gestiona la seguridad de tu cuenta.
+            </p>
           </div>
+
+          <Button
+            variant="primary"
+            onClick={() => setIsModalOpen(true)}
+            icon={<LockClosedIcon className="h-5 w-5" />}
+            className="primary-gradient rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+          >
+            Cambiar contraseña
+          </Button>
         </div>
+
+        <section className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-card-ambient">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <ShieldCheckIcon className="h-6 w-6" />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="font-headline text-xl font-extrabold text-primary-dark">
+                Seguridad
+              </h2>
+              <p className="max-w-2xl text-sm text-on-surface-variant">
+                Cambia tu contraseña cuando lo necesites para mantener protegida tu cuenta.
+                Esta acción actualiza tus credenciales sin modificar el resto de ajustes.
+              </p>
+              <p className="inline-flex rounded-full border border-outline-variant/35 bg-surface-container-low px-3 py-1 text-xs font-semibold text-on-surface-variant">
+                Estado: protección activa
+              </p>
+            </div>
+          </div>
+        </section>
       </div>
 
-      {/* Modal de Cambio de Contraseña */}
-      {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md shadow-xl border border-gray-200 dark:border-gray-700 transform transition-all">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Cambiar Contraseña</h2>
-            
-            <div className="mb-4">
-              <label htmlFor="nuevaContraseña" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Nueva Contraseña
-              </label>
-              <input
-                type="password"
-                id="nuevaContraseña"
-                value={nuevaContraseña}
-                onChange={(e) => setNuevaContraseña(e.target.value)}
-                autoComplete="new-password"
-                className="w-full px-3 py-2 border border-input-border dark:border-input-border bg-input-bg dark:bg-input-bg rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Ingrese su nueva contraseña"
-              />
-              {error && (
-                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
-              )}
-              {success && (
-                <p className="mt-2 text-sm text-green-600 dark:text-green-400">{success}</p>
-              )}
+      {isModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl">
+            <div className="primary-gradient flex items-center justify-between px-6 py-4">
+              <h2 className="font-headline text-xl font-extrabold tracking-tight text-white">
+                Cambiar contraseña
+              </h2>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="rounded-md text-white/85 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                <span className="sr-only">Cerrar</span>
+                <XMarkIcon className="h-6 w-6" />
+              </button>
             </div>
 
-            <div className="flex justify-end space-x-3">
-              <Button
-                variant="outline"
-                onClick={handleCloseModal}
-                disabled={loading}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleCambiarContraseña}
-                disabled={loading}
-              >
-                {loading ? 'Actualizando...' : 'Aceptar'}
-              </Button>
+            <div className="space-y-5 p-6">
+              <div>
+                <label
+                  htmlFor="nueva-contrasena"
+                  className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline"
+                >
+                  Nueva contraseña
+                </label>
+                <input
+                  type="password"
+                  id="nueva-contrasena"
+                  value={nuevaContrasena}
+                  onChange={(e) => setNuevaContrasena(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder="Introduce tu nueva contraseña"
+                  className="h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                />
+                <p className="mt-2 text-xs text-on-surface-variant">
+                  Se aplicará en tu siguiente inicio de sesión.
+                </p>
+              </div>
+
+              {error ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </div>
+              ) : null}
+
+              {success ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                  {success}
+                </div>
+              ) : null}
+
+              <div className="flex justify-end gap-3 border-t border-outline-variant/20 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={handleCloseModal}
+                  disabled={loading}
+                  className="rounded-full border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleCambiarContrasena}
+                  loading={loading}
+                  disabled={loading}
+                  className="primary-gradient rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+                >
+                  {loading ? 'Actualizando...' : 'Aceptar'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
-} 
+}

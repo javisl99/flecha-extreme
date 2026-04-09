@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Button } from '@/shared/components';
+import { Button } from '@/shared/components';
 import { Cliente } from '@/shared/types';
 import { useClientes } from '@/hooks/useClientes';
 import ModalCliente from '@/components/Clientes/modalCliente';
@@ -21,6 +21,12 @@ const TrashIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
   </svg>
 );
+
+const initials = (nombre: string, apellidos: string) => {
+  const first = nombre?.charAt(0) || '';
+  const second = apellidos?.charAt(0) || '';
+  return `${first}${second}`.toUpperCase() || 'CL';
+};
 
 export default function ClientesPage() {
   const [filtros, setFiltros] = useState<FiltrosClienteState>({
@@ -52,7 +58,7 @@ export default function ClientesPage() {
     setClienteSeleccionado(updatedClient);
   };
 
-  const handleEliminarCliente = async () => {
+  const handleEliminarCliente = () => {
     if (!clienteSeleccionado) return;
     setIsModalConfirmacionOpen(true);
   };
@@ -84,154 +90,172 @@ export default function ClientesPage() {
   }
   
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Clientes</h1>
-        <Button 
+    <div className="space-y-6 p-6 lg:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Clientes</h1>
+        <Button
           variant="primary"
           icon={<UserIcon />}
-          className="cursor-pointer"
-          onClick={() => { setModoModal('nuevo'); setIsModalOpen(true); }}
+          className="primary-gradient rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+          onClick={() => {
+            setModoModal('nuevo');
+            setIsModalOpen(true);
+          }}
         >
           Nuevo Cliente
         </Button>
       </div>
       
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="w-full md:w-2/3">
-          <Card>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+        <section className="xl:col-span-2 overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
+          <div className="px-6 py-6">
             <FiltrosClientes onFiltrosChange={setFiltros} />
-            
-            <div className="overflow-x-auto">
-              {loading ? (
-                <TableSkeleton columns={5} rows={5} />
-              ) : (
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead>
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          </div>
+
+          <div className="border-t border-outline-variant/20" />
+
+          <div className="overflow-x-auto">
+            {loading ? (
+              <TableSkeleton columns={4} rows={5} />
+            ) : (
+              <table className="min-w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-surface-container-low/70 backdrop-blur-md">
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
                         Cliente
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    </th>
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
                         Email
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    </th>
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
                         Móvil
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    </th>
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
                         DNI
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-card-bg divide-y divide-gray-200 dark:divide-gray-700">
-                    {clientesFiltrados.map((cliente) => (
-                      <tr 
-                        key={cliente.id} 
-                        className={`transition-colors cursor-pointer ${
-                          clienteSeleccionado?.id === cliente.id 
-                            ? 'bg-primary/10 hover:bg-primary/20' 
-                            : 'hover:bg-table-row-hover dark:hover:bg-gray-700'
-                        }`}
-                        onClick={() => setClienteSeleccionado(cliente)}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary-light text-white flex items-center justify-center">
-                              {cliente.nombre?.charAt(0)}{cliente.apellidos?.charAt(0)}
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                {cliente.nombre} {cliente.apellidos}
-                              </div>
-                            </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientesFiltrados.map((cliente, index) => (
+                    <tr
+                      key={cliente.id}
+                      className={`cursor-pointer border-b border-outline-variant/10 transition ${
+                        clienteSeleccionado?.id === cliente.id
+                          ? 'bg-primary/10 hover:bg-primary/15'
+                          : index % 2
+                            ? 'bg-surface-container-low/25 hover:bg-surface-container-low'
+                            : 'hover:bg-surface-container-low'
+                      }`}
+                      onClick={() => setClienteSeleccionado(cliente)}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-black text-white">
+                            {initials(cliente.nombre, cliente.apellidos)}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {cliente.email}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {cliente.movil || 'No especificado'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {cliente.dni || 'No especificado'}
-                        </td>
-                      </tr>
-                    ))}
-                    
-                    {clientesFiltrados.length === 0 && !loading && (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                          No se encontraron clientes con esos criterios
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </Card>
-        </div>
+                          <div>
+                            <div className="text-sm font-semibold text-on-surface">
+                              {cliente.nombre} {cliente.apellidos}
+                            </div>
+                            <div className="text-xs text-outline">Cliente</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant">
+                        {cliente.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant">
+                        {cliente.movil || 'No especificado'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant">
+                        {cliente.dni || 'No especificado'}
+                      </td>
+                    </tr>
+                  ))}
+                  
+                  {clientesFiltrados.length === 0 && !loading ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-sm font-medium text-outline">
+                        No se encontraron clientes con esos criterios.
+                      </td>
+                    </tr>
+                    ) : null}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </section>
         
-        <div className="w-full md:w-1/3">
-          <Card title="Detalles del Cliente" className="h-full">
+        <section className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-card-ambient">
+          <h2 className="font-headline text-xl font-extrabold text-primary-dark">Detalles del Cliente</h2>
+
+          <div className="mt-5">
             {clienteSeleccionado ? (
               <div className="space-y-4">
-                <div className="text-center mb-4">
-                  <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-primary-light text-white text-xl font-bold">
-                    {clienteSeleccionado.nombre.charAt(0)}{clienteSeleccionado.apellidos.charAt(0)}
+                <div className="text-center">
+                  <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-primary-light text-2xl font-black text-white">
+                    {initials(clienteSeleccionado.nombre, clienteSeleccionado.apellidos)}
                   </div>
-                  <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+                  <h3 className="mt-2 text-lg font-bold text-on-surface">
                     {clienteSeleccionado.nombre} {clienteSeleccionado.apellidos}
                   </h3>
                 </div>
                 
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Email:</span>
-                    <span className="text-gray-900 dark:text-gray-100">{clienteSeleccionado.email}</span>
+                <div className="space-y-3 rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                  <div className="flex justify-between gap-3 text-sm">
+                    <span className="font-semibold text-outline">Email:</span>
+                    <span className="text-right text-on-surface">{clienteSeleccionado.email}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Móvil:</span>
-                    <span className="text-gray-900 dark:text-gray-100">{clienteSeleccionado.movil || 'No especificado'}</span>
+                  <div className="flex justify-between gap-3 text-sm">
+                    <span className="font-semibold text-outline">Móvil:</span>
+                    <span className="text-right text-on-surface">{clienteSeleccionado.movil || 'No especificado'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">DNI:</span>
-                    <span className="text-gray-900 dark:text-gray-100">{clienteSeleccionado.dni || 'No especificado'}</span>
+                  <div className="flex justify-between gap-3 text-sm">
+                    <span className="font-semibold text-outline">DNI:</span>
+                    <span className="text-right text-on-surface">{clienteSeleccionado.dni || 'No especificado'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Fecha de registro:</span>
-                    <span className="text-gray-900 dark:text-gray-100">
+                  <div className="flex justify-between gap-3 text-sm">
+                    <span className="font-semibold text-outline">Fecha de registro:</span>
+                    <span className="text-right text-on-surface">
                       {new Date(clienteSeleccionado.fechaRegistro).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
                 
                 {clienteSeleccionado.notas && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notas:</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded">
+                  <div>
+                    <h4 className="mb-2 text-[11px] font-black uppercase tracking-[0.12em] text-outline">Notas</h4>
+                    <p className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3 text-sm text-on-surface-variant">
                       {clienteSeleccionado.notas}
                     </p>
                   </div>
                 )}
                 
-                <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 flex space-x-2">
-                  <Button variant="outline" size="sm" className="flex-1">
+                <div className="mt-2 flex gap-2 border-t border-outline-variant/25 pt-4">
+                  <Button variant="outline" size="sm" className="flex-1 rounded-full border-outline-variant/45 bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high hover:text-primary">
                     Ver Reservas
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button variant="outline" size="sm" className="flex-1 rounded-full border-outline-variant/45 bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high hover:text-primary">
                     Ver Pagos
                   </Button>
                 </div>
                 
-                <div className="pt-4 flex space-x-2">
-                  <Button variant="primary" size="sm" className="flex-1" onClick={() => { setModoModal('editar'); setIsModalOpen(true); }}>
+                <div className="flex gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="primary-gradient flex-1 rounded-full border border-primary-light/10 text-white shadow-lg shadow-primary/20 hover:brightness-110"
+                    onClick={() => {
+                      setModoModal('editar');
+                      setIsModalOpen(true);
+                    }}
+                  >
                     Editar
                   </Button>
                   <Button 
                     variant="accent" 
                     size="sm" 
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                    className="flex-1 rounded-full bg-red-600 text-white hover:bg-red-700"
                     onClick={handleEliminarCliente}
                     icon={<TrashIcon />}
                   >
@@ -240,12 +264,12 @@ export default function ClientesPage() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-                Selecciona un cliente para ver sus detalles
+              <div className="rounded-xl border border-dashed border-outline-variant/40 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+                Selecciona un cliente para ver sus detalles.
               </div>
             )}
-          </Card>
-        </div>
+          </div>
+        </section>
       </div>
 
       <ModalCliente
@@ -264,6 +288,7 @@ export default function ClientesPage() {
         mensaje={`¿Estás seguro de que quieres eliminar al cliente ${clienteSeleccionado?.nombre} ${clienteSeleccionado?.apellidos}? Esta acción no se puede deshacer.`}
         textoConfirmar="Eliminar"
         textoCancelar="Cancelar"
+        variante="clientes-v2"
       />
     </div>
   );

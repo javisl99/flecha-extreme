@@ -120,11 +120,11 @@ export default function ModalDetalleReserva({
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
-      case 'confirmada': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case 'pendiente': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'cancelada': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      case 'completada': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+      case 'confirmada': return 'bg-green-100 text-green-700';
+      case 'pendiente': return 'bg-amber-100 text-amber-700';
+      case 'cancelada': return 'bg-red-100 text-red-700';
+      case 'completada': return 'bg-blue-100 text-blue-700';
+      default: return 'bg-surface-container-high text-on-surface-variant';
     }
   };
 
@@ -392,69 +392,71 @@ export default function ModalDetalleReserva({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-card-bg dark:bg-card-bg border border-card-border dark:border-card-border rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header con fondo azul */}
-        <div className="bg-primary text-white p-4 flex items-center justify-between rounded-t-lg">
-          <h2 className="text-xl font-bold">Detalles de la Reserva</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl">
+        <div className="primary-gradient flex items-center justify-between rounded-t-2xl p-5 text-white">
+          <h2 className="font-headline text-2xl font-extrabold tracking-tight">Detalles de la reserva</h2>
           <button 
-            className="text-white hover:text-gray-200 cursor-pointer text-xl font-bold"
+            type="button"
+            className="cursor-pointer rounded-md text-white transition hover:text-gray-200"
             onClick={onClose}
           >
+            <span className="sr-only">Cerrar</span>
             ✕
           </button>
         </div>
         
         <div className="p-6">
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Cliente</label>
-                <p className="font-medium text-gray-900 dark:text-gray-100">{mostrarCliente(reserva)}</p>
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Cliente</label>
+                <p className="mt-1 font-semibold text-on-surface">{mostrarCliente(reserva)}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Estado</label>
-                <span className={`inline-block mt-1 text-sm px-2 py-1 rounded-full ${getEstadoColor(reserva.estado)}`}>
+              <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Estado</label>
+                <span className={`mt-1 inline-block rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${getEstadoColor(reserva.estado)}`}>
                   {formatearEstado(reserva.estado)}
                 </span>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Actividad</label>
-                <p className="text-gray-900 dark:text-gray-100">{mostrarActividad(reserva)}</p>
+              <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Actividad</label>
+                <p className="mt-1 font-medium text-on-surface">{mostrarActividad(reserva)}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Empresa</label>
-                <p className="text-gray-900 dark:text-gray-100">{mostrarEmpresa(reserva)}</p>
+              <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Empresa</label>
+                <p className="mt-1 font-medium text-on-surface">{mostrarEmpresa(reserva)}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Fecha</label>
-                <p className="text-gray-900 dark:text-gray-100">{formatearFecha(reserva.fecha_inicio)}</p>
+              <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Fecha</label>
+                <p className="mt-1 font-medium text-on-surface">{formatearFecha(reserva.fecha_inicio)}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Horario</label>
-                <p className="text-gray-900 dark:text-gray-100">{formatearHora(reserva.fecha_inicio)} - {formatearHora(reserva.fecha_fin)}</p>
+              <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Horario</label>
+                <p className="mt-1 font-medium text-on-surface">{formatearHora(reserva.fecha_inicio)} - {formatearHora(reserva.fecha_fin)}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Cantidad</label>
-                <p className="text-gray-900 dark:text-gray-100">{reserva.cantidad_reservada}</p>
+              <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Cantidad</label>
+                <p className="mt-1 font-medium text-on-surface">{reserva.cantidad_reservada}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Precio</label>
-                <p className="font-medium text-gray-900 dark:text-gray-100">{reserva.precio} €</p>
+              <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Precio</label>
+                <p className="mt-1 font-bold text-on-surface">{reserva.precio} €</p>
               </div>
             </div>
             
             {reserva.nota && (
               <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Notas</label>
-                <p className="text-sm bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 p-3 rounded">{reserva.nota}</p>
+                <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Notas</label>
+                <p className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3 text-sm text-on-surface-variant">{reserva.nota}</p>
               </div>
             )}
             
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-2 border-t border-outline-variant/25 pt-4">
               {reserva.estado !== 'confirmada' && (
                 <button 
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="button"
+                  className="flex-1 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={() => handleConfirmarPago(reserva)}
                   disabled={isLoadingPago}
                 >
@@ -463,13 +465,18 @@ export default function ModalDetalleReserva({
               )}
               {reserva.estado !== 'cancelada' && (
                 <button 
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors cursor-pointer"
+                  type="button"
+                  className="flex-1 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
                   onClick={() => onActualizarEstado(reserva, 'cancelada')}
                 >
                   Cancelar
                 </button>
               )}
-              <Button variant="outline" className="flex-1" onClick={onClose}>
+              <Button
+                variant="outline"
+                className="flex-1 rounded-full border-outline-variant/45 bg-surface-container-low py-2.5 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+                onClick={onClose}
+              >
                 Cerrar
               </Button>
             </div>
