@@ -3,7 +3,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useClientes } from '@/hooks/useClientes';
 
-type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
+type MetodoPago = 'efectivo' | 'tpv' | 'tpv_online' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 
 interface TarifaParking {
@@ -64,6 +64,7 @@ export default function ReservaForm({ isOpen, onClose, onSubmit, plazaCodigo, ta
   const metodosPago: { value: MetodoPago; label: string }[] = [
     { value: 'efectivo', label: 'Efectivo' },
     { value: 'tpv', label: 'Tarjeta (TPV)' },
+    { value: 'tpv_online', label: 'Tarjeta Online' },
     { value: 'bizum_alfonso', label: 'Bizum Alfonso' },
     { value: 'bizum_robe', label: 'Bizum Robe' },
     { value: 'bizum_alba', label: 'Bizum Alba' },
