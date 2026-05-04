@@ -349,7 +349,7 @@ export default function PagoReservaModal({
           try {
             const supabase = (await import('@/lib/supabaseClient')).default;
             await supabase
-              .from('reserva')
+              .from('reserva_servicio')
               .update({ ticket_url: result.url })
               .eq('id', processedPaymentData.reservaId);
           } catch (err) {

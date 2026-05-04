@@ -3,7 +3,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import ReservaForm from './ReservaForm';
 
-type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
+type MetodoPago = 'efectivo' | 'tpv' | 'tpv_online' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 type EstadoPlazaVisual = 'disponible' | 'reservada' | 'ocupada';
 
@@ -114,6 +114,7 @@ export default function PlazaInfoModal({
     const labels: Record<MetodoPago, string> = {
       efectivo: 'Efectivo',
       tpv: 'Tarjeta (TPV)',
+      tpv_online: 'Tarjeta Online',
       bizum_alfonso: 'Bizum Alfonso',
       bizum_robe: 'Bizum Robe',
       bizum_alba: 'Bizum Alba',
