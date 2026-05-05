@@ -339,14 +339,14 @@ export default function ReservasPage() {
   
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex min-h-screen-safe items-center justify-center">
         <div className="text-lg text-red-500">{error}</div>
       </div>
     );
   }
   
   return (
-    <div className="space-y-6 p-6 lg:p-8">
+    <div className="page-container space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Actividades</h1>
 
@@ -360,7 +360,7 @@ export default function ReservasPage() {
             variant="primary"
             icon={<NewReservationIcon />}
             onClick={() => setShowModalReserva(true)}
-            className="primary-gradient rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+            className="primary-gradient min-h-11 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
           >
             Nueva
           </Button>
@@ -369,13 +369,13 @@ export default function ReservasPage() {
 
       {vistaActual === 'lista' ? (
         <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-          <div className="px-6 py-6">
+          <div className="px-4 py-4 sm:px-6 sm:py-6">
             <FiltrosReservas onFiltrosChange={setFiltros} />
           </div>
 
           <div className="border-t border-outline-variant/20" />
 
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             {loading || recargandoLista ? (
               <div className="flex items-center justify-center py-16">
                 <SurfSpinner size="lg" showText={true} text="Cargando actividades..." />
@@ -483,9 +483,94 @@ export default function ReservasPage() {
               </table>
             )}
           </div>
+
+          <div className="space-y-3 p-4 md:hidden">
+            {loading || recargandoLista ? (
+              <div className="flex items-center justify-center rounded-xl border border-outline-variant/20 bg-surface-container-low px-4 py-10">
+                <SurfSpinner size="lg" showText={true} text="Cargando actividades..." />
+              </div>
+            ) : reservasFiltradas.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+                No se encontraron reservas con los filtros seleccionados.
+              </div>
+            ) : (
+              reservasFiltradas.map((reserva) => (
+                <div
+                  key={reserva.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleFilaClick(reserva)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleFilaClick(reserva);
+                    }
+                  }}
+                  className="w-full rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4 text-left transition hover:bg-surface-container-high"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-on-surface">{mostrarCliente(reserva)}</p>
+                      <p className="mt-1 text-sm font-semibold text-primary-dark">{mostrarActividad(reserva)}</p>
+                      <p className="mt-1 text-sm text-on-surface-variant">{mostrarEmpresa(reserva)}</p>
+                    </div>
+                    <span className={`${getEstadoColor(reserva.estado)} rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em]`}>
+                      {formatearEstado(reserva.estado)}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-on-surface-variant">
+                    <p>{formatearFecha(reserva.fecha_inicio)}</p>
+                    <p className="text-right text-primary">{formatearHora(reserva.fecha_inicio)} - {formatearHora(reserva.fecha_fin)}</p>
+                  </div>
+                  <p className="mt-2 text-sm font-bold text-on-surface">
+                    {new Intl.NumberFormat('es-ES', {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 2,
+                    }).format(reserva.precio)}{' '}
+                    €
+                  </p>
+
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      className="min-h-11 flex-1 rounded-full border border-outline-variant/35 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleVerReserva(reserva);
+                      }}
+                    >
+                      Ver
+                    </button>
+
+                    {reserva.ticket_url || reserva.ticket_url_reserva ? (
+                      <button
+                        type="button"
+                        className="min-h-11 flex-1 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                        onClick={(e) => handleDescargarTicket(reserva, e)}
+                      >
+                        Ticket
+                      </button>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      className="min-h-11 flex-1 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEliminarReserva(reserva);
+                      }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </section>
       ) : (
-        <section className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-card-ambient">
+        <section className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-4 shadow-card-ambient sm:p-6">
           {loading ? (
             <div className="flex h-96 items-center justify-center">
               <SurfSpinner size="lg" showText={true} text="Cargando calendario..." />

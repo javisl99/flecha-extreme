@@ -52,7 +52,7 @@ export default function ConfiguracionPage() {
 
   return (
     <>
-      <div className="space-y-6 p-6 lg:p-8">
+      <div className="page-container space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">
@@ -67,7 +67,7 @@ export default function ConfiguracionPage() {
             variant="primary"
             onClick={() => setIsModalOpen(true)}
             icon={<LockClosedIcon className="h-5 w-5" />}
-            className="primary-gradient rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+            className="primary-gradient min-h-11 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
           >
             Cambiar contraseña
           </Button>
@@ -96,8 +96,8 @@ export default function ConfiguracionPage() {
       </div>
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-4 backdrop-blur-sm sm:items-center">
+          <div className="max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[1.5rem] border border-outline-variant/35 bg-surface-container-lowest shadow-xl sm:rounded-2xl">
             <div className="primary-gradient flex items-center justify-between px-6 py-4">
               <h2 className="font-headline text-xl font-extrabold tracking-tight text-white">
                 Cambiar contraseña
@@ -146,12 +146,12 @@ export default function ConfiguracionPage() {
                 </div>
               ) : null}
 
-              <div className="flex justify-end gap-3 border-t border-outline-variant/20 pt-4">
+              <div className="flex flex-col-reverse gap-3 border-t border-outline-variant/20 pt-4 sm:flex-row sm:justify-end">
                 <Button
                   variant="outline"
                   onClick={handleCloseModal}
                   disabled={loading}
-                  className="rounded-full border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+                  className="min-h-11 rounded-full border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
                 >
                   Cancelar
                 </Button>
@@ -160,7 +160,7 @@ export default function ConfiguracionPage() {
                   onClick={handleCambiarContrasena}
                   loading={loading}
                   disabled={loading}
-                  className="primary-gradient rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+                  className="primary-gradient min-h-11 rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 hover:brightness-110"
                 >
                   {loading ? 'Actualizando...' : 'Aceptar'}
                 </Button>

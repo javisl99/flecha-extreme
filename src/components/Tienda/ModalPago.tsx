@@ -418,8 +418,8 @@ export default function ModalPago({
             <div className="fixed inset-0 bg-gray-500/75 transition-opacity" />
         </Transition.Child>
 
-        <div className="fixed inset-0 z-10 flex items-center justify-center">
-          <div className="flex min-h-full w-full items-center justify-center p-4">
+        <div className="fixed inset-0 z-10 flex items-end justify-center sm:items-center">
+          <div className="flex min-h-full w-full items-end justify-center p-4 sm:items-center">
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-150"
@@ -429,7 +429,7 @@ export default function ModalPago({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative w-full max-w-4xl max-h-[90vh] transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-lg transition-transform">
+              <Dialog.Panel className="relative max-h-[90svh] w-full max-w-4xl transform overflow-hidden rounded-t-[1.5rem] bg-white shadow-lg transition-transform dark:bg-gray-800 sm:rounded-xl">
                 <form onSubmit={handleSubmit}>
                   {/* Header */}
                   <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -459,8 +459,8 @@ export default function ModalPago({
                   </div>
 
                   {/* Contenido */}
-                  <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-200px)]">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="max-h-[calc(90svh-200px)] overflow-y-auto px-4 py-4 sm:px-6">
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                       {/* Columna izquierda - Información del cliente */}
                       <div className="space-y-6">
                         {/* Selector de cliente */}
@@ -629,11 +629,11 @@ export default function ModalPago({
                   </div>
 
                   {/* Footer */}
-                  <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex justify-end space-x-3">
+                  <div className="border-t border-gray-200 px-4 py-4 dark:border-gray-700 sm:px-6">
+                    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:space-x-3">
                       <button
                         type="button"
-                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-md transition-colors duration-75 cursor-pointer"
+                        className="min-h-11 rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors duration-75 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                         onClick={onClose}
                         disabled={isProcessing || isCompletingPayment}
                       >
@@ -643,7 +643,7 @@ export default function ModalPago({
                         <button
                           type="submit"
                           disabled={cartItems.length === 0 || !selectedClienteId || isProcessing}
-                          className="px-6 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          className="min-h-11 rounded-md bg-green-600 px-6 py-2 text-sm font-bold text-white transition-colors duration-75 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {isProcessing ? (
                             <div className="flex items-center gap-2">
@@ -658,7 +658,7 @@ export default function ModalPago({
                       {readOnly && pedidoData && pedidoData.estado === 'pendiente' && (
                         <button
                           type="button"
-                          className="px-6 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          className="min-h-11 rounded-md bg-green-600 px-6 py-2 text-sm font-bold text-white transition-colors duration-75 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                           onClick={handleCompletarPago}
                           disabled={isCompletingPayment}
                         >
@@ -699,8 +699,8 @@ export default function ModalPago({
             <div className="fixed inset-0 bg-gray-500/75 transition-opacity" />
           </Transition.Child>
 
-          <div className="fixed inset-0 z-10 flex items-center justify-center">
-            <div className="flex min-h-full w-full items-center justify-center p-4">
+          <div className="fixed inset-0 z-10 flex items-end justify-center sm:items-center">
+            <div className="flex min-h-full w-full items-end justify-center p-4 sm:items-center">
               <Transition.Child
                 as={Fragment}
                 enter="ease-out duration-150"
@@ -710,7 +710,7 @@ export default function ModalPago({
                 leaveFrom="opacity-100 translate-y-0 sm:scale-100"
                 leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
               >
-                <Dialog.Panel className="relative w-full max-w-lg transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-lg transition-transform">
+                <Dialog.Panel className="relative w-full max-w-lg transform overflow-hidden rounded-t-[1.5rem] bg-white shadow-lg transition-transform dark:bg-gray-800 sm:rounded-xl">
                   <div className="px-6 py-8">
                     <div className="text-center">
                       {/* Spinner de carga */}
@@ -749,11 +749,11 @@ export default function ModalPago({
                       
                       
                       {/* Botones */}
-                      <div className="flex flex-col space-y-3">
-                      <div className="flex space-x-3">
+                      <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:space-x-3">
                         <button
                           type="button"
-                          className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md transition-colors duration-75 cursor-pointer"
+                          className="min-h-11 flex-1 rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors duration-75 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                           onClick={handleCancelPayment}
                           disabled={isProcessing}
                         >
@@ -761,7 +761,7 @@ export default function ModalPago({
                         </button>
                         <button
                           type="button"
-                            className="flex-1 px-4 py-2 text-sm font-bold text-white bg-yellow-600 hover:bg-yellow-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            className="min-h-11 flex-1 rounded-md bg-yellow-600 px-4 py-2 text-sm font-bold text-white transition-colors duration-75 hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-50"
                             onClick={() => handleConfirmPaymentWithState('pendiente')}
                             disabled={isProcessing}
                           >

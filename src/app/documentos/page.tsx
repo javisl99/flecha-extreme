@@ -131,12 +131,12 @@ export default function DocumentosPage() {
 
   return (
     <ProtectedRoute>
-      <div className="space-y-6 p-6 lg:p-8">
+      <div className="page-container space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Documentos</h1>
           <Button
             variant="primary"
-            className="primary-gradient flex cursor-pointer items-center gap-2 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+            className="primary-gradient flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
             onClick={() => setIsModalOpen(true)}
             disabled={isInitialLoading}
           >
@@ -146,13 +146,13 @@ export default function DocumentosPage() {
         </div>
 
         <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-          <div className="px-6 py-6">
+          <div className="px-4 py-4 sm:px-6 sm:py-6">
             <FiltrosDocumentos onFiltrosChange={setFiltros} />
           </div>
 
           <div className="border-t border-outline-variant/20" />
 
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             {isInitialLoading || userLoading ? (
               <TableSkeleton columns={5} rows={5} />
             ) : documentosFiltrados.length === 0 ? (
@@ -239,6 +239,76 @@ export default function DocumentosPage() {
                   ))}
                 </tbody>
               </table>
+            )}
+          </div>
+
+          <div className="space-y-3 p-4 md:hidden">
+            {isInitialLoading || userLoading ? (
+              <TableSkeleton columns={1} rows={4} />
+            ) : documentosFiltrados.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+                No se encontraron documentos que coincidan con los filtros aplicados
+              </div>
+            ) : (
+              documentosFiltrados.map((documento) => (
+                <div
+                  key={documento.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleVerDocumento(documento.url)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleVerDocumento(documento.url);
+                    }
+                  }}
+                  className="group w-full rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4 text-left transition hover:bg-surface-container-high"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="rounded-lg border border-outline-variant/30 bg-surface-container-lowest p-1.5">
+                          <DocumentIcon className="h-4 w-4 text-outline" />
+                        </span>
+                        <span className="truncate text-sm font-semibold text-on-surface transition-colors group-hover:text-primary">
+                          {documento.nombre}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm text-on-surface-variant">{documento.descripcion || '-'}</p>
+                    </div>
+                    <span className="rounded-full bg-surface-container-lowest px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-primary">
+                      Ver
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-1 text-sm text-on-surface-variant">
+                    <p>{documento.usuario ? `${documento.usuario.nombre} ${documento.usuario.apellidos}` : '-'}</p>
+                    <p>{formatearFechaDocumento(documento)}</p>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <a
+                      href={documento.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-primary-dark transition hover:border-primary/30 hover:text-primary"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Ver documento
+                    </a>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEliminarDocumento(documento);
+                      }}
+                      className="min-h-11 flex-1 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+                      disabled={isDeleting}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </section>
