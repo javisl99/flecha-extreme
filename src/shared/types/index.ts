@@ -107,6 +107,18 @@ export interface MovimientoCaja {
   notas?: string;
 }
 
+export type LegacyMetodoPagoCode =
+  | 'efectivo'
+  | 'tpv'
+  | 'tpv_online'
+  | 'bizum_alfonso'
+  | 'bizum_robe'
+  | 'bizum_alba'
+  | 'bizum_maria'
+  | 'bizum_jm'
+  | 'angeles'
+  | 'transferencia';
+
 export type CajaContable = 'efectivo' | 'santander' | 'bbva' | 'personal';
 
 export type MetodoContable =
@@ -135,7 +147,49 @@ export type TipoGastoContable =
   | 'alquiler_robe'
   | 'otros';
 
-export type DeducibleContable = 'si' | 'no' | 'preguntar';
+export type DeducibleContable = boolean;
+
+export type TipoCuentaContable = 'caja' | 'banco';
+
+export type ClaseMetodoPagoContable = 'efectivo' | 'tpv' | 'transferencia' | 'bizum' | 'otro';
+
+export interface BancoContable {
+  id: string;
+  codigo: string;
+  nombre: string;
+  activo: boolean;
+  orden: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CuentaContable {
+  id: string;
+  codigo: string;
+  nombre: string;
+  tipo: TipoCuentaContable;
+  banco_id?: string | null;
+  activo: boolean;
+  visible_efe: boolean;
+  orden: number;
+  banco?: BancoContable | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MetodoPagoContable {
+  id: string;
+  codigo: string;
+  nombre: string;
+  clase: ClaseMetodoPagoContable;
+  cuenta_liquidacion_id?: string | null;
+  activo: boolean;
+  permite_pendiente: boolean;
+  orden: number;
+  cuenta_liquidacion?: CuentaContable | null;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface DetalleGastoContable {
   id_movimiento_contable: string;
@@ -164,7 +218,11 @@ export interface MovimientoContable {
   tipo: TipoMovimientoContable;
   estado: EstadoMovimientoContable;
   caja: CajaContable;
+  cuenta_id?: string | null;
+  cuenta?: CuentaContable | null;
   metodo?: MetodoContable | null;
+  metodo_pago_id?: string | null;
+  metodo_pago?: MetodoPagoContable | null;
   concepto: string;
   comentario?: string | null;
   importe_total: number;
@@ -185,11 +243,23 @@ export interface MovimientoContable {
   documentos?: Documento[];
 }
 
-export interface ResumenCaja {
-  caja: CajaContable;
+export interface ResumenCuentaContable {
+  cuenta_id: string;
+  cuenta: CuentaContable;
   saldo: number;
   ingresos_operativos: number;
   gastos_operativos: number;
+}
+
+export interface ResumenEfeCuenta {
+  cuenta_id: string;
+  cuenta: CuentaContable;
+  saldo_inicial: number;
+  ingresos: number;
+  gastos: number;
+  saldo_cierre: number;
+  comentario_ajuste?: string | null;
+  movimientos: MovimientoContable[];
 }
 
 export interface ResumenEfeDiario {
@@ -197,9 +267,16 @@ export interface ResumenEfeDiario {
   ingresos: number;
   gastos: number;
   saldo: number;
-  bizum_alfonso: number;
-  bizum_robe: number;
-  tarjeta: number;
-  transferencia: number;
+  cuentas: ResumenEfeCuenta[];
   movimientos: MovimientoContable[];
+}
+
+export interface SaldoInicialContable {
+  fecha: string;
+  cuenta_id: string;
+  saldo_inicial: number;
+  comentario?: string | null;
+  updated_by?: string | null;
+  updated_at?: string;
+  cuenta?: CuentaContable | null;
 }

@@ -17,6 +17,7 @@ const formatearMetodoPago = (metodo: Pago['metodo']) => {
     efectivo: 'Efectivo',
     tpv: 'Tarjeta',
     tpv_online: 'Tarjeta Online',
+    transferencia: 'Transferencia',
     bizum_alfonso: 'Bizum Alfonso',
     bizum_robe: 'Bizum Robe',
     bizum_alba: 'Bizum Alba',
