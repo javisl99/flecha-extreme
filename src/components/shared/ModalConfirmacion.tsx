@@ -49,7 +49,7 @@ const ModalConfirmacion = ({
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center">
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-150"
@@ -59,7 +59,7 @@ const ModalConfirmacion = ({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className={`w-full max-w-md transform overflow-hidden rounded-2xl text-left align-middle shadow-xl transition-all ${
+              <Dialog.Panel className={`w-full max-w-md transform overflow-hidden rounded-t-[1.5rem] text-left align-middle shadow-xl transition-all sm:rounded-2xl ${
                 esV2
                   ? 'border border-outline-variant/35 bg-surface-container-lowest'
                   : 'bg-white dark:bg-gray-800'
@@ -89,13 +89,13 @@ const ModalConfirmacion = ({
                     </p>
                   </div>
 
-                  <div className="flex justify-end space-x-3">
+                  <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                     {esV2 ? (
                       <>
                         <button
                           type="button"
                           onClick={onClose}
-                          className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary"
+                          className="min-h-11 w-full rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary sm:w-auto"
                         >
                           {textoCancelar}
                         </button>
@@ -105,7 +105,7 @@ const ModalConfirmacion = ({
                             onConfirm();
                             onClose();
                           }}
-                          className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                          className="min-h-11 w-full rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 sm:w-auto"
                         >
                           {textoConfirmar}
                         </button>

@@ -434,7 +434,7 @@ export default function ContabilidadPage() {
   if (error) {
     return (
       <ProtectedRoute allowedRoles={['admin', 'fl-admin']}>
-        <div className="p-6 lg:p-8">
+        <div className="page-container">
           <div className="rounded-[1.5rem] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">{error}</div>
         </div>
       </ProtectedRoute>
@@ -443,7 +443,7 @@ export default function ContabilidadPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'fl-admin']}>
-      <div className="space-y-6 p-6 lg:p-8">
+      <div className="page-container space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="max-w-3xl">
             <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Contabilidad</h1>
@@ -451,12 +451,12 @@ export default function ContabilidadPage() {
               Libro contable real en Supabase con trazabilidad de pagos, gastos, devoluciones, traspasos y documentos.
             </p>
           </div>
-          <div className="ml-auto flex w-full items-center justify-end gap-2 md:w-auto md:flex-nowrap">
+          <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 md:w-auto md:flex-nowrap">
             <Button
               variant="primary"
               type="button"
               onClick={abrirNuevoIngreso}
-              className="primary-gradient shrink-0 whitespace-nowrap rounded-full border border-primary-light/10 px-3.5 py-2 text-[13px] font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+              className="primary-gradient min-h-11 shrink-0 whitespace-nowrap rounded-full border border-primary-light/10 px-3.5 py-2 text-[13px] font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
               icon={<PlusIcon className="h-3.5 w-3.5" />}
             >
               Nuevo ingreso
@@ -465,7 +465,7 @@ export default function ContabilidadPage() {
               variant="primary"
               type="button"
               onClick={abrirNuevoGasto}
-              className="primary-gradient shrink-0 whitespace-nowrap rounded-full border border-primary-light/10 px-3.5 py-2 text-[13px] font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+              className="primary-gradient min-h-11 shrink-0 whitespace-nowrap rounded-full border border-primary-light/10 px-3.5 py-2 text-[13px] font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
               icon={<PlusIcon className="h-3.5 w-3.5" />}
             >
               Nuevo gasto
@@ -474,7 +474,7 @@ export default function ContabilidadPage() {
               variant="primary"
               type="button"
               onClick={abrirNuevoTraspaso}
-              className="primary-gradient shrink-0 whitespace-nowrap rounded-full border border-primary-light/10 px-3.5 py-2 text-[13px] font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+              className="primary-gradient min-h-11 shrink-0 whitespace-nowrap rounded-full border border-primary-light/10 px-3.5 py-2 text-[13px] font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
               icon={<PlusIcon className="h-3.5 w-3.5" />}
             >
               Nuevo traspaso
@@ -581,7 +581,7 @@ export default function ContabilidadPage() {
             <h2 className="font-headline text-xl font-extrabold text-primary-dark">Movimientos contables</h2>
           </header>
 
-          <div className="space-y-5 p-6">
+          <div className="space-y-5 p-4 sm:p-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
               <label className="text-sm text-on-surface">
                 <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Desde</span>
@@ -666,7 +666,7 @@ export default function ContabilidadPage() {
                 Cargando movimientos contables...
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="hidden overflow-x-auto md:block">
                 <table className="min-w-full border-collapse text-left">
                   <thead>
                     <tr className="bg-surface-container-low/70 backdrop-blur-md">
@@ -813,6 +813,124 @@ export default function ContabilidadPage() {
                 </table>
               </div>
             )}
+
+            {!loading ? (
+              <div className="space-y-3 md:hidden">
+                {movimientosFiltrados.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+                    No hay movimientos para los filtros actuales.
+                  </div>
+                ) : (
+                  movimientosFiltrados.map((movimiento) => {
+                    const esTraspaso = movimiento.tipo === 'traspaso_entrada' || movimiento.tipo === 'traspaso_salida';
+                    const puedeEditar = isManualMovement(movimiento) && movimiento.estado === 'confirmado';
+                    const puedeRegistrarDevolucion =
+                      movimiento.estado === 'confirmado' &&
+                      movimiento.tipo === 'ingreso' &&
+                      !movimiento.es_devolucion &&
+                      movimiento.importe_total > 0;
+
+                    return (
+                      <div
+                        key={movimiento.id}
+                        className="rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-bold text-on-surface">{movimiento.concepto}</p>
+                            <p className="mt-1 text-sm text-on-surface-variant">{movimiento.fecha_operacion}</p>
+                          </div>
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoPillClass(movimiento)}`}>
+                            {getSourceLabel(movimiento)}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span className="inline-flex rounded-full bg-surface-container-high px-2.5 py-1 text-xs font-semibold text-on-surface-variant">
+                            {accountingTypeLabel(movimiento.tipo)}
+                          </span>
+                          {movimiento.estado === 'anulado' ? (
+                            <span className="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                              Anulado
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-on-surface-variant">
+                          <p>Caja: {accountingBoxLabel(movimiento.caja)}</p>
+                          <p>Método: {accountingMethodLabel(movimiento.metodo)}</p>
+                          <p>IVA: {movimiento.iva_pct}%</p>
+                          <p className={`font-bold ${getAmountTone(movimiento)}`}>{formatCurrency(movimiento.importe_total)}</p>
+                          {movimiento.comentario ? <p>{movimiento.comentario}</p> : null}
+                          {movimiento.documentos?.[0] ? (
+                            <a
+                              href={movimiento.documentos[0].url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-semibold text-primary hover:underline"
+                            >
+                              Ver documento
+                            </a>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-4 flex flex-col gap-2">
+                          {puedeEditar && !movimiento.id_pago && movimiento.tipo === 'gasto' ? (
+                            <button
+                              type="button"
+                              onClick={() => cargarGastoEnFormulario(movimiento)}
+                              className="min-h-11 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                            >
+                              Editar gasto
+                            </button>
+                          ) : null}
+
+                          {puedeEditar && !movimiento.id_pago && movimiento.tipo === 'ingreso' ? (
+                            <button
+                              type="button"
+                              onClick={() => cargarIngresoEnFormulario(movimiento)}
+                              className="min-h-11 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                            >
+                              Editar ingreso
+                            </button>
+                          ) : null}
+
+                          {puedeEditar && esTraspaso && movimiento.tipo === 'traspaso_salida' ? (
+                            <button
+                              type="button"
+                              onClick={() => cargarTraspasoEnFormulario(movimiento)}
+                              className="min-h-11 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                            >
+                              Editar traspaso
+                            </button>
+                          ) : null}
+
+                          {puedeRegistrarDevolucion ? (
+                            <button
+                              type="button"
+                              onClick={() => prepararDevolucion(movimiento)}
+                              className="min-h-11 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                            >
+                              Registrar devolución
+                            </button>
+                          ) : null}
+
+                          {puedeEditar && (!esTraspaso || movimiento.tipo === 'traspaso_salida') ? (
+                            <button
+                              type="button"
+                              onClick={() => setMovimientoAAnular(movimiento)}
+                              className="min-h-11 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                            >
+                              Anular movimiento
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : null}
           </div>
         </section>
 

@@ -42,8 +42,8 @@ export default function TraspasoModalV2({
   const title = form.id ? 'Editar traspaso' : 'Nuevo traspaso';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-4 backdrop-blur-sm sm:items-center">
+      <div className="max-h-[90svh] w-full max-w-2xl overflow-y-auto rounded-t-[1.5rem] border border-outline-variant/35 bg-surface-container-lowest shadow-xl sm:rounded-2xl">
         <div className="primary-gradient flex items-center justify-between px-6 py-4">
           <h3 className="font-headline text-xl font-extrabold tracking-tight text-white">{title}</h3>
           <button
@@ -126,13 +126,13 @@ export default function TraspasoModalV2({
             </label>
           </div>
 
-          <div className="flex flex-wrap justify-end gap-3 border-t border-outline-variant/20 pt-5">
+          <div className="flex flex-col-reverse gap-3 border-t border-outline-variant/20 pt-5 sm:flex-row sm:flex-wrap sm:justify-end">
             <Button
               variant="outline"
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="rounded-full border-outline-variant/45 bg-surface-container-low px-5 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+              className="min-h-11 rounded-full border-outline-variant/45 bg-surface-container-low px-5 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
             >
               Cerrar
             </Button>
@@ -142,7 +142,7 @@ export default function TraspasoModalV2({
                 type="button"
                 onClick={onReset}
                 disabled={saving}
-                className="rounded-full border-outline-variant/45 bg-surface-container-low px-5 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+                className="min-h-11 rounded-full border-outline-variant/45 bg-surface-container-low px-5 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
               >
                 Limpiar edición
               </Button>
@@ -152,7 +152,7 @@ export default function TraspasoModalV2({
               type="button"
               loading={saving}
               onClick={onSubmit}
-              className="primary-gradient rounded-full border border-primary-light/10 px-5 text-white shadow-lg shadow-primary/20 hover:brightness-110"
+              className="primary-gradient min-h-11 rounded-full border border-primary-light/10 px-5 text-white shadow-lg shadow-primary/20 hover:brightness-110"
             >
               {form.id ? 'Actualizar traspaso' : 'Registrar traspaso'}
             </Button>

@@ -45,8 +45,8 @@ export default function DashboardPage() {
     <div className="min-h-screen-safe bg-surface text-on-surface">
       <TopbarV2 title="Dashboard" badge="Base Tarifa Live" ctaLabel="Nuevo registro" ctaHref="/actividades" />
 
-      <section className="mx-auto max-w-7xl space-y-8 px-10 py-8">
-        <div className="grid h-[420px] grid-cols-12 gap-6">
+      <section className="page-container-narrow space-y-6 lg:space-y-8">
+        <div className="grid gap-6 lg:h-[420px] lg:grid-cols-12">
           <KpiHeroCardV2
             title="Ingresos del día"
             value={heroValue}
@@ -57,7 +57,7 @@ export default function DashboardPage() {
           <WindConditionCardV2 />
         </div>
 
-        <div className="grid grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
           <MetricCardV2
             title="Alquileres activos"
             value={String(reservasConfirmadas)}
