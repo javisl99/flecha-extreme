@@ -62,8 +62,8 @@ export default function GastoModalV2({
   const ivaEsCustom = ![0, 4, 10, 21].includes(Number(form.detalle.iva_pct));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-5xl overflow-hidden rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-4 backdrop-blur-sm sm:items-center">
+      <div className="max-h-[90svh] w-full max-w-5xl overflow-hidden rounded-t-[1.5rem] border border-outline-variant/35 bg-surface-container-lowest shadow-xl sm:rounded-2xl">
         <div className="primary-gradient flex items-center justify-between px-6 py-4">
           <h3 className="font-headline text-xl font-extrabold tracking-tight text-white">{title}</h3>
           <button
@@ -76,7 +76,7 @@ export default function GastoModalV2({
           </button>
         </div>
 
-        <div className="max-h-[80vh] space-y-5 overflow-y-auto p-6">
+        <div className="max-h-[calc(90svh-5rem)] space-y-5 overflow-y-auto p-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <label className="text-sm text-on-surface">
               <span className={labelClassName}>Fecha registro</span>
@@ -393,13 +393,13 @@ export default function GastoModalV2({
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-end gap-3 border-t border-outline-variant/20 p-6">
+        <div className="flex flex-col-reverse gap-3 border-t border-outline-variant/20 p-6 sm:flex-row sm:flex-wrap sm:justify-end">
           <Button
             variant="outline"
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded-full border-outline-variant/45 bg-surface-container-low px-5 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+            className="min-h-11 rounded-full border-outline-variant/45 bg-surface-container-low px-5 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
           >
             Cerrar
           </Button>
@@ -409,7 +409,7 @@ export default function GastoModalV2({
               type="button"
               onClick={onReset}
               disabled={saving}
-              className="rounded-full border-outline-variant/45 bg-surface-container-low px-5 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+              className="min-h-11 rounded-full border-outline-variant/45 bg-surface-container-low px-5 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
             >
               Limpiar edición
             </Button>
@@ -419,7 +419,7 @@ export default function GastoModalV2({
             type="button"
             loading={saving}
             onClick={onSubmit}
-            className="primary-gradient rounded-full border border-primary-light/10 px-5 text-white shadow-lg shadow-primary/20 hover:brightness-110"
+            className="primary-gradient min-h-11 rounded-full border border-primary-light/10 px-5 text-white shadow-lg shadow-primary/20 hover:brightness-110"
           >
             {form.id ? 'Actualizar gasto' : 'Guardar gasto'}
           </Button>

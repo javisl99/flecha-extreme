@@ -120,8 +120,8 @@ export default function ModalEditProduct({
   if (!isOpen || !product) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-white/30 dark:bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transition-all duration-500 ease-in-out">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-white/30 p-4 backdrop-blur-sm dark:bg-black/30 sm:items-center">
+      <div className="max-h-[90svh] w-full max-w-2xl overflow-y-auto rounded-t-[1.5rem] bg-white shadow-2xl transition-all duration-500 ease-in-out dark:bg-gray-800 sm:rounded-xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -144,7 +144,7 @@ export default function ModalEditProduct({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Imagen del Producto
             </label>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:space-x-4">
               <label className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 transition-all duration-300 hover:scale-105 cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary relative bg-gray-100 dark:bg-gray-700">
                 {imagePreview && imagePreview.trim() !== '' ? (
                   <Image
@@ -206,7 +206,7 @@ export default function ModalEditProduct({
           </div>
 
           {/* Precio y Stock */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Precio (€)
@@ -251,7 +251,7 @@ export default function ModalEditProduct({
           </div>
 
           {/* Botones */}
-          <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col gap-3 border-t border-gray-200 pt-4 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={handleDeleteProduct}
@@ -265,7 +265,7 @@ export default function ModalEditProduct({
               </div>
             </button>
             
-            <div className="flex space-x-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:space-x-3">
               <button
                 type="button"
                 onClick={handleClose}

@@ -214,7 +214,7 @@ export default function ParkingPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 lg:p-8">
+    <div className="page-container space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Parking</h1>
       </div>
@@ -232,7 +232,7 @@ export default function ParkingPage() {
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {tiposParking.map((tipoParking) => {
           const plazasTipo = getPlazasPorTipo(tipoParking.tipo);
           const plazasDisponibles = plazasTipo.filter(plaza => plaza.disponible !== false && !plaza.reservada);
@@ -274,8 +274,8 @@ export default function ParkingPage() {
               </div>
               
               <div className={`transition-all duration-300 ease-in-out ${!estaExpandida ? 'h-0 overflow-hidden lg:h-auto' : ''}`}>
-                <div className="p-5">
-                  <div className="grid grid-cols-4 gap-3">
+                <div className="p-4 sm:p-5">
+                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
                     {plazasTipo.map((plaza) => {
                       const estadoPlaza = getEstadoPlaza(plaza);
                       const estiloEstado = ESTADO_PLAZA_STYLES[estadoPlaza];
@@ -293,7 +293,7 @@ export default function ParkingPage() {
                           title={estiloEstado.etiqueta}
                           onClick={() => handleClickPlaza(plaza)}
                         >
-                          <span className={`text-lg font-bold ${estiloEstado.codigo}`}>
+                          <span className={`text-base font-bold sm:text-lg ${estiloEstado.codigo}`}>
                             {plaza.codigo}
                           </span>
                         </button>

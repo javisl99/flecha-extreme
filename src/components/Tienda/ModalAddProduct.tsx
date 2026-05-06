@@ -107,8 +107,8 @@ export default function ModalAddProduct({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-white/30 dark:bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transition-all duration-500 ease-in-out">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-white/30 p-4 backdrop-blur-sm dark:bg-black/30 sm:items-center">
+      <div className="max-h-[90svh] w-full max-w-2xl overflow-y-auto rounded-t-[1.5rem] bg-white shadow-2xl transition-all duration-500 ease-in-out dark:bg-gray-800 sm:rounded-xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -131,7 +131,7 @@ export default function ModalAddProduct({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Tipo de operación
             </label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <button
                 type="button"
                 autoFocus // Esto asegura que el botón "Nuevo Producto" esté enfocado por defecto
@@ -229,7 +229,7 @@ export default function ModalAddProduct({
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Imagen del Producto
                   </label>
-                  <div className="flex items-center space-x-4 overflow-visible">
+                  <div className="flex flex-col gap-4 overflow-visible sm:flex-row sm:items-center sm:space-x-4">
                     <label className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-visible flex-shrink-0 transition-all duration-300 hover:scale-105 cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary relative">
                       {imagePreview ? (
                         <Image
@@ -272,7 +272,7 @@ export default function ModalAddProduct({
                 </div>
 
                 {/* Precio y Stock */}
-                <div className="grid grid-cols-2 gap-4 animate-slideInUp">
+                <div className="grid grid-cols-1 gap-4 animate-slideInUp sm:grid-cols-2">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Precio (€)

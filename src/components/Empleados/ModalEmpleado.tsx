@@ -179,13 +179,13 @@ export default function ModalEmpleado({ isOpen, onClose, onSuccess, modo, emplea
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm transition-all duration-300 ease-out ${
+      className={`fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-4 backdrop-blur-sm transition-all duration-300 ease-out sm:items-center ${
         isVisible ? 'opacity-100' : 'opacity-0'
       }`}
       onClick={handleBackdropClick}
     >
       <div
-        className={`w-full max-w-2xl transform overflow-hidden rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl transition-all duration-300 ease-out ${
+        className={`max-h-[90svh] w-full max-w-2xl transform overflow-y-auto rounded-t-[1.5rem] border border-outline-variant/35 bg-surface-container-lowest shadow-xl transition-all duration-300 ease-out sm:rounded-2xl ${
           isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         }`}
         style={{
@@ -316,13 +316,13 @@ export default function ModalEmpleado({ isOpen, onClose, onSuccess, modo, emplea
 
           {errors.submit ? <p className="text-center text-sm text-red-600">{errors.submit}</p> : null}
 
-          <div className="flex justify-end gap-3 border-t border-outline-variant/20 pt-4">
+          <div className="flex flex-col-reverse gap-3 border-t border-outline-variant/20 pt-4 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
               disabled={loading}
-              className="rounded-full border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+              className="min-h-11 rounded-full border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
             >
               Cancelar
             </Button>
@@ -330,7 +330,7 @@ export default function ModalEmpleado({ isOpen, onClose, onSuccess, modo, emplea
               type="submit"
               variant="primary"
               loading={loading}
-              className="primary-gradient rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+              className="primary-gradient min-h-11 rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 hover:brightness-110"
             >
               {ctaLabel}
             </Button>

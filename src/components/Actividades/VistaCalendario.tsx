@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ModalDetalleReserva from './ModalDetalleReserva';
 
 type CalendarView = 'month' | 'week' | 'day';
@@ -157,6 +157,12 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
   const [currentDate, setCurrentDate] = useState(new Date());
   const [reservaSeleccionada, setReservaSeleccionada] = useState<Reserva | null>(null);
 
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setView('day');
+    }
+  }, []);
+
   const eventos = useMemo(
     () =>
       reservas
@@ -242,7 +248,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
 
   return (
     <section className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-outline-variant/30 bg-surface-container-low px-3 py-2">
           <button
             type="button"
@@ -267,7 +273,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
           </button>
         </div>
 
-        <h2 className="font-headline text-2xl font-extrabold text-primary-dark">{title}</h2>
+        <h2 className="font-headline text-xl font-extrabold text-primary-dark sm:text-2xl">{title}</h2>
 
         <div className="inline-flex items-center rounded-2xl border border-outline-variant/30 bg-surface-container-low p-1">
           {[
@@ -306,81 +312,83 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
       </div>
 
       {view === 'month' ? (
-        <div className="overflow-hidden rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-          <div className="grid grid-cols-7 border-b border-outline-variant/20 bg-surface-container-low">
-            {WEEK_DAYS.map((day) => (
-              <div key={day} className="px-3 py-3 text-center text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7">
-            {monthDays.map((day) => {
-              const dailyEvents = eventosDelDia(day);
-              const inCurrentMonth = isSameMonth(day, currentDate);
-              const isToday = isSameDay(day, today);
-
-              return (
-                <div
-                  key={day.toISOString()}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleDayFocus(day)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      handleDayFocus(day);
-                    }
-                  }}
-                  className={`min-h-36 border-b border-r border-outline-variant/20 p-2 transition ${
-                    inCurrentMonth ? 'bg-surface-container-lowest' : 'bg-surface-container-low/55'
-                  } hover:bg-surface-container-low cursor-pointer`}
-                >
-                  <div className="mb-2 flex justify-end">
-                    <span
-                      className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-bold ${
-                        isToday ? 'bg-primary text-white' : 'text-on-surface-variant'
-                      }`}
-                    >
-                      {day.getDate()}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1">
-                    {dailyEvents.slice(0, 3).map((evento) => {
-                      const estadoStyles = getEstadoClasses(evento.estado);
-                      return (
-                        <button
-                          key={evento.id}
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setReservaSeleccionada(evento.resource);
-                          }}
-                          className={`w-full rounded-lg border px-2 py-1 text-left transition hover:scale-[1.01] ${estadoStyles.event}`}
-                        >
-                          <p className="truncate text-[10px] font-black uppercase tracking-[0.08em]">
-                            {TIME_FORMATTER.format(evento.start)}
-                          </p>
-                          <p className="truncate text-xs font-semibold">{evento.title}</p>
-                        </button>
-                      );
-                    })}
-                    {dailyEvents.length > 3 ? (
-                      <p className="px-1 text-[11px] font-semibold text-primary">+{dailyEvents.length - 3} más</p>
-                    ) : null}
-                  </div>
+        <div className="overflow-x-auto rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
+          <div className="min-w-[48rem]">
+            <div className="grid grid-cols-7 border-b border-outline-variant/20 bg-surface-container-low">
+              {WEEK_DAYS.map((day) => (
+                <div key={day} className="px-3 py-3 text-center text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                  {day}
                 </div>
-              );
-            })}
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7">
+              {monthDays.map((day) => {
+                const dailyEvents = eventosDelDia(day);
+                const inCurrentMonth = isSameMonth(day, currentDate);
+                const isToday = isSameDay(day, today);
+
+                return (
+                  <div
+                    key={day.toISOString()}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleDayFocus(day)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        handleDayFocus(day);
+                      }
+                    }}
+                    className={`min-h-36 border-b border-r border-outline-variant/20 p-2 transition ${
+                      inCurrentMonth ? 'bg-surface-container-lowest' : 'bg-surface-container-low/55'
+                    } hover:bg-surface-container-low cursor-pointer`}
+                  >
+                    <div className="mb-2 flex justify-end">
+                      <span
+                        className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-bold ${
+                          isToday ? 'bg-primary text-white' : 'text-on-surface-variant'
+                        }`}
+                      >
+                        {day.getDate()}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      {dailyEvents.slice(0, 3).map((evento) => {
+                        const estadoStyles = getEstadoClasses(evento.estado);
+                        return (
+                          <button
+                            key={evento.id}
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setReservaSeleccionada(evento.resource);
+                            }}
+                            className={`w-full rounded-lg border px-2 py-1 text-left transition hover:scale-[1.01] ${estadoStyles.event}`}
+                          >
+                            <p className="truncate text-[10px] font-black uppercase tracking-[0.08em]">
+                              {TIME_FORMATTER.format(evento.start)}
+                            </p>
+                            <p className="truncate text-xs font-semibold">{evento.title}</p>
+                          </button>
+                        );
+                      })}
+                      {dailyEvents.length > 3 ? (
+                        <p className="px-1 text-[11px] font-semibold text-primary">+{dailyEvents.length - 3} más</p>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       ) : null}
 
       {view === 'week' ? (
-        <div className="rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-lowest p-4 shadow-card-ambient">
-          <div className="grid grid-cols-7 gap-3">
+        <div className="overflow-x-auto rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-lowest p-4 shadow-card-ambient">
+          <div className="grid min-w-[48rem] grid-cols-7 gap-3">
             {weekDays.map((day) => {
               const dailyEvents = eventosDelDia(day);
               const isToday = isSameDay(day, today);

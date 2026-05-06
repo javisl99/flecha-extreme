@@ -127,6 +127,10 @@ body {
   min-height: 100dvh;
 }
 
+body.app-lock-scroll {
+  overflow: hidden;
+}
+
 h1, h2, h3, h4, h5, h6,
 .font-headline {
   font-family: var(--font-headline);
@@ -257,6 +261,26 @@ h1, h2, h3, h4, h5, h6,
   max-height: 100dvh;
 }
 
+.page-container {
+  width: 100%;
+  padding: 1.25rem 1rem 1.5rem;
+}
+
+.page-container-narrow {
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 1.5rem;
+}
+
+.app-safe-top {
+  padding-top: max(env(safe-area-inset-top), 0px);
+}
+
+.app-safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
 /* Asegurar que el contenido se ajuste correctamente en móviles */
 @media (max-width: 768px) {
   .h-screen-safe {
@@ -267,6 +291,26 @@ h1, h2, h3, h4, h5, h6,
   .min-h-screen-safe {
     min-height: 100vh;
     min-height: 100svh;
+  }
+}
+
+@media (min-width: 640px) {
+  .page-container,
+  .page-container-narrow {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    padding-top: 1.5rem;
+    padding-bottom: 1.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-container,
+  .page-container-narrow {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-top: 1.75rem;
+    padding-bottom: 2rem;
   }
 }
 

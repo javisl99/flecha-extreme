@@ -188,7 +188,7 @@ export default function VistaPedidos() {
       <FiltrosPedidos onFiltrosChange={setFiltros} />
 
       <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           {loading ? (
             <TableSkeleton columns={7} rows={5} />
           ) : (
@@ -276,6 +276,72 @@ export default function VistaPedidos() {
                 ) : null}
               </tbody>
             </table>
+          )}
+        </div>
+
+        <div className="space-y-3 p-4 md:hidden">
+          {loading ? (
+            <TableSkeleton columns={1} rows={4} />
+          ) : pedidosFiltrados.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+              No se encontraron pedidos con los filtros seleccionados.
+            </div>
+          ) : (
+            pedidosFiltrados.map((pedido) => (
+              <div
+                key={pedido.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => handleFilaClick(pedido)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    handleFilaClick(pedido);
+                  }
+                }}
+                className="w-full rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4 text-left transition hover:bg-surface-container-high"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-on-surface">{mostrarCliente(pedido)}</p>
+                    <p className="mt-1 text-sm text-on-surface-variant">{formatearFecha(pedido.fecha)}</p>
+                  </div>
+                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-[0.08em] ${getEstadoColor(pedido.estado)}`}>
+                    {formatearEstado(pedido.estado)}
+                  </span>
+                </div>
+
+                <div className="mt-3 space-y-1 text-sm text-on-surface-variant">
+                  <p className="font-medium text-on-surface">{pedido.concepto || '-'}</p>
+                  <p>Descuento: {pedido.descuento > 0 ? `${pedido.descuento}%` : '-'}</p>
+                  <p className="font-bold text-primary-dark">{formatPrice(pedido.total)}</p>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <button
+                    className="min-h-11 flex-1 rounded-full border border-outline-variant/35 bg-surface-container-low px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary/30 hover:bg-primary/10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleVerPedido(pedido);
+                    }}
+                  >
+                    Ver pedido
+                  </button>
+                  <button
+                    className="min-h-11 flex-1 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                    onClick={(e) => handleDescargarTicket(pedido, e)}
+                  >
+                    Ticket
+                  </button>
+                  <button
+                    className="min-h-11 flex-1 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                    onClick={(e) => handleEliminarClick(pedido, e)}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </section>
