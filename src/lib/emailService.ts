@@ -3,6 +3,16 @@ import resend from './resend';
 // Configuración del remitente
 const FROM_EMAIL = 'Flecha Extreme <noreply@flechaextreme.com>';
 
+function isEmailEnabled() {
+  const value = process.env.EMAIL_ENABLED?.trim().toLowerCase();
+
+  if (!value) {
+    return true;
+  }
+
+  return ['1', 'true', 'yes', 'on'].includes(value);
+}
+
 // Tipos para los emails
 export interface EmailOptions {
   to: string | string[];
@@ -12,9 +22,26 @@ export interface EmailOptions {
   react?: React.ReactElement;
 }
 
+export interface EmailResult {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+  message?: string;
+  skipped?: boolean;
+}
+
 // Función principal para enviar emails
-export async function sendEmail(options: EmailOptions) {
+export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   try {
+    if (!isEmailEnabled()) {
+      return {
+        success: true,
+        skipped: true,
+        message: 'Envio de emails desactivado por configuracion',
+        data: { id: 'email-disabled' },
+      };
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const emailData: any = {
       from: FROM_EMAIL,

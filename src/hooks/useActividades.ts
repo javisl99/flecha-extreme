@@ -18,13 +18,22 @@ export interface ActividadDB {
   id: string;
   nombre: string;
   tipo: 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros';
+  modo_precio: 'por_persona' | 'fijo';
+  modo_agenda: 'libre' | 'horario_recurrente' | 'sesion_manual';
+  requiere_sesion: boolean;
   numero_personas: number | null;
   fecha: string | null;
   hora_inicio: string | null;
   hora_fin: string | null;
   reserva: boolean;
+  deposito_permitido: boolean;
+  deposito_obligatorio: boolean;
   precio_reserva: number | null;
   uni_disponibles: number | null;
+  duracion_minima_min: number | null;
+  duracion_maxima_min: number | null;
+  intervalo_reserva_min: number | null;
+  usa_pool_inventario: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -82,6 +91,7 @@ export interface Reserva {
   precio: number;
   estado: string;
   cantidad_reservada: number;
+  numero_personas_reserva?: number;
   nota?: string;
   ticket_url?: string;
   ticket_url_reserva?: string;
@@ -95,11 +105,47 @@ export interface Pago {
   estado: string;
   origen_tipo: string;
   origen_id: string;
+  metodo_pago_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
   cliente?: {
     id: string;
     nombre: string;
     apellidos: string;
   };
+}
+
+export interface PagoReembolso {
+  id: string;
+  pago_id: string;
+  reserva_id: string;
+  importe: number;
+  metodo: string;
+  metodo_pago_id?: string | null;
+  fecha_operacion: string;
+  comentario?: string | null;
+  movimiento_contable_id?: string | null;
+  created_at: string;
+}
+
+export type EstadoReembolsoPago = 'sin_reembolso' | 'parcial' | 'total';
+
+export interface PagoReservaConReembolsos extends Pago {
+  importe_reembolsado: number;
+  importe_reembolsable: number;
+  estado_reembolso: EstadoReembolsoPago;
+  reembolsos: PagoReembolso[];
+}
+
+export interface CancelarReservaConReembolsosInput {
+  reservaId: string;
+  reembolsos: Array<{
+    pagoId: string;
+    importe: number;
+    comentario?: string;
+  }>;
+  comentario?: string;
+  cancelarPendientes?: boolean;
 }
 
 type CategoriaServicio = 'actividad' | 'alquiler' | 'ruta' | 'curso' | 'campamento' | 'otro';
@@ -131,23 +177,49 @@ function mapServicioToActividadDB(servicio: {
   id: string;
   nombre: string;
   categoria: CategoriaServicio;
+  modo_precio: 'por_persona' | 'fijo';
+  modo_agenda: 'libre' | 'horario_recurrente' | 'sesion_manual';
+  requiere_sesion: boolean;
   reservable: boolean;
+  deposito_permitido: boolean;
+  deposito_obligatorio: boolean;
   deposito_default: number | null;
   capacidad_max: number | null;
+  duracion_minima_min: number | null;
+  duracion_maxima_min: number | null;
+  intervalo_reserva_min: number | null;
+  servicio_consumo_pool?: Array<{
+    pool_id?: string | null;
+    obligatorio?: boolean | null;
+    activo?: boolean | null;
+  }> | null;
   created_at: string;
   updated_at: string;
 }): ActividadDB {
+  const poolsActivosObligatorios = (servicio.servicio_consumo_pool ?? []).filter(
+    (pool) => pool?.activo !== false && pool?.obligatorio !== false && !!pool?.pool_id
+  );
+
   return {
     id: servicio.id,
     nombre: servicio.nombre,
     tipo: CATEGORIA_TO_TIPO[servicio.categoria] ?? 'otros',
+    modo_precio: servicio.modo_precio,
+    modo_agenda: servicio.modo_agenda,
+    requiere_sesion: servicio.requiere_sesion,
     numero_personas: servicio.capacidad_max,
     fecha: null,
     hora_inicio: null,
     hora_fin: null,
     reserva: servicio.reservable,
+    deposito_permitido: servicio.deposito_permitido,
+    deposito_obligatorio: servicio.deposito_obligatorio,
     precio_reserva: servicio.deposito_default ?? 0,
     uni_disponibles: servicio.capacidad_max,
+    duracion_minima_min: servicio.duracion_minima_min,
+    duracion_maxima_min: servicio.duracion_maxima_min,
+    intervalo_reserva_min: servicio.intervalo_reserva_min,
+    usa_pool_inventario: poolsActivosObligatorios.length > 0,
     created_at: servicio.created_at,
     updated_at: servicio.updated_at
   };
@@ -247,7 +319,7 @@ export function useActividades() {
 
       const { data, error: fetchError } = await supabase
         .from('servicio')
-        .select('id,nombre,categoria,reservable,deposito_default,capacidad_max,created_at,updated_at')
+        .select('id,nombre,categoria,modo_precio,modo_agenda,requiere_sesion,reservable,deposito_permitido,deposito_obligatorio,deposito_default,capacidad_max,duracion_minima_min,duracion_maxima_min,intervalo_reserva_min,created_at,updated_at,servicio_consumo_pool(pool_id,obligatorio,activo)')
         .order('created_at', { ascending: false });
 
       if (fetchError) {
@@ -273,9 +345,10 @@ export function useActividades() {
 
       const { data, error: fetchError } = await supabase
         .from('servicio')
-        .select('id,nombre,categoria,reservable,deposito_default,capacidad_max,created_at,updated_at')
+        .select('id,nombre,categoria,modo_precio,modo_agenda,requiere_sesion,reservable,deposito_permitido,deposito_obligatorio,deposito_default,capacidad_max,duracion_minima_min,duracion_maxima_min,intervalo_reserva_min,created_at,updated_at,servicio_consumo_pool(pool_id,obligatorio,activo)')
         .eq('categoria', categoria)
         .eq('activo', true)
+        .eq('reservable', true)
         .order('nombre', { ascending: true });
 
       if (fetchError) {
@@ -387,6 +460,7 @@ export function useActividades() {
     id_actividad: string;
     id_empresa: string;
     cantidad_reservada: number;
+    numero_personas?: number;
     precio: number;
     fecha_inicio: string;
     fecha_fin: string;
@@ -437,7 +511,10 @@ export function useActividades() {
           deposito_requerido: 0,
           deposito_cobrado: 0,
           estado: datosReserva.estado,
-          notas: datosReserva.nota ?? null
+          notas: datosReserva.nota ?? null,
+          metadata: datosReserva.numero_personas && datosReserva.numero_personas > 0
+            ? { numero_personas: datosReserva.numero_personas }
+            : {}
         }
       ]);
 
@@ -595,6 +672,7 @@ export function useActividades() {
             cantidad,
             subtotal,
             estado,
+            metadata,
             servicio:servicio(id, nombre, categoria)
           )
         `)
@@ -628,6 +706,7 @@ export function useActividades() {
           precio: Number(r.total_neto ?? firstItem?.subtotal ?? 0),
           estado: r.estado,
           cantidad_reservada: Number(firstItem?.cantidad ?? 1),
+          numero_personas_reserva: Number((firstItem?.metadata as { numero_personas?: number } | null)?.numero_personas ?? firstItem?.cantidad ?? 1),
           nota: r.observaciones ?? undefined,
           ticket_url: r.ticket_url ?? undefined,
           ticket_url_reserva: r.ticket_url_reserva ?? undefined
@@ -907,6 +986,161 @@ export function useActividades() {
     }
   };
 
+  const obtenerPagosReservaConReembolsos = useCallback(
+    async (reservaId: string): Promise<{ success: boolean; pagos?: PagoReservaConReembolsos[]; message: string }> => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { data, error: fetchError } = await supabase
+          .from('pago')
+          .select(`
+            id,
+            id_cliente,
+            origen_tipo,
+            origen_id,
+            concepto,
+            importe,
+            metodo,
+            metodo_pago_id,
+            estado,
+            created_at,
+            updated_at,
+            cliente:cliente(id, nombre, apellidos),
+            reembolsos:pago_reembolso(
+              id,
+              pago_id,
+              reserva_id,
+              importe,
+              metodo,
+              metodo_pago_id,
+              fecha_operacion,
+              comentario,
+              movimiento_contable_id,
+              created_at
+            )
+          `)
+          .eq('origen_tipo', 'reserva')
+          .eq('origen_id', reservaId)
+          .order('created_at', { ascending: true });
+
+        if (fetchError) {
+          throw fetchError;
+        }
+
+        const pagos = (data ?? []).map((pago) => {
+          const clienteRaw = Array.isArray(pago.cliente) ? pago.cliente[0] : pago.cliente;
+          const reembolsos = ((pago.reembolsos ?? []) as PagoReembolso[]).map((reembolso) => ({
+            ...reembolso,
+            importe: Number(reembolso.importe ?? 0)
+          }));
+          const importe = Number(pago.importe ?? 0);
+          const importeReembolsado = reembolsos.reduce((total, reembolso) => total + Number(reembolso.importe ?? 0), 0);
+          const importeReembolsable = pago.estado === 'completado' ? Math.max(importe - importeReembolsado, 0) : 0;
+          const estadoReembolso: EstadoReembolsoPago =
+            importeReembolsado <= 0
+              ? 'sin_reembolso'
+              : importeReembolsable <= 0
+                ? 'total'
+                : 'parcial';
+
+          return {
+            ...pago,
+            importe,
+            cliente: clienteRaw
+              ? {
+                  id: clienteRaw.id,
+                  nombre: clienteRaw.nombre,
+                  apellidos: clienteRaw.apellidos
+                }
+              : undefined,
+            importe_reembolsado: Number(importeReembolsado.toFixed(2)),
+            importe_reembolsable: Number(importeReembolsable.toFixed(2)),
+            estado_reembolso: estadoReembolso,
+            reembolsos
+          };
+        });
+
+        return {
+          success: true,
+          pagos,
+          message: 'Pagos y reembolsos de la reserva obtenidos correctamente'
+        };
+      } catch (err: unknown) {
+        console.error('Error al obtener pagos con reembolsos:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Error al obtener pagos con reembolsos';
+        setError(errorMessage);
+        return { success: false, message: errorMessage };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [supabase]
+  );
+
+  const cancelarReservaConReembolsos = useCallback(
+    async (
+      input: CancelarReservaConReembolsosInput
+    ): Promise<{
+      success: boolean;
+      message: string;
+      data?: {
+        totalReembolsado: number;
+        reembolsosCreados: number;
+        pagosPendientesCancelados: number;
+      };
+    }> => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const payload = input.reembolsos
+          .filter((reembolso) => reembolso.importe > 0)
+          .map((reembolso) => ({
+            pago_id: reembolso.pagoId,
+            importe: Number(reembolso.importe.toFixed(2)),
+            ...(reembolso.comentario ? { comentario: reembolso.comentario } : {})
+          }));
+
+        const { data, error: rpcError } = await supabase.rpc('rpc_cancelar_reserva_con_reembolsos', {
+          p_reserva_id: input.reservaId,
+          p_reembolsos: payload,
+          p_cancelar_pendientes: input.cancelarPendientes ?? true,
+          p_comentario: input.comentario ?? null
+        });
+
+        if (rpcError) {
+          throw rpcError;
+        }
+
+        const response = data as {
+          success?: boolean;
+          total_reembolsado?: number | string;
+          reembolsos_creados?: number;
+          pagos_pendientes_cancelados?: number;
+        } | null;
+
+        return {
+          success: Boolean(response?.success ?? true),
+          message: 'Reserva cancelada correctamente',
+          data: {
+            totalReembolsado: Number(response?.total_reembolsado ?? 0),
+            reembolsosCreados: Number(response?.reembolsos_creados ?? 0),
+            pagosPendientesCancelados: Number(response?.pagos_pendientes_cancelados ?? 0)
+          }
+        };
+      } catch (err: unknown) {
+        console.error('Error al cancelar reserva con reembolsos:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Error al cancelar la reserva';
+        setError(errorMessage);
+        return { success: false, message: errorMessage };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [supabase]
+  );
+
   const actualizarTicketUrlReserva = async (reservaId: string, ticketUrl: string): Promise<{ success: boolean; message: string }> => {
     try {
       setLoading(true);
@@ -978,6 +1212,8 @@ export function useActividades() {
     buscarSiguienteDisponibilidadServicio,
     obtenerPagosPendientesReserva,
     obtenerTodosLosPagosReserva,
+    obtenerPagosReservaConReembolsos,
+    cancelarReservaConReembolsos,
     actualizarTicketUrlReserva,
     actualizarEstadoPago
   };

@@ -59,7 +59,11 @@ export function useTickets() {
       const emailResult = await sendTicketEmail(cliente, ticketData, ticketUrl, estadoPago);
 
       if (emailResult.success) {
-        return { success: true, message: 'Email enviado exitosamente' };
+        return {
+          success: true,
+          skipped: emailResult.skipped,
+          message: emailResult.message || 'Email enviado exitosamente'
+        };
       } else {
         console.error('Error enviando email:', emailResult.error);
         return { success: false, error: emailResult.error };
@@ -357,7 +361,7 @@ export function useTickets() {
         try {
           const emailResult = await sendPurchaseEmail(data.clienteId, data, publicUrl, data.estadoPago);
           if (emailResult.success) {
-            emailSent = true;
+            emailSent = !emailResult.skipped;
             emailMessage = emailResult.message || 'Email enviado exitosamente';
           } else {
             emailSent = false;

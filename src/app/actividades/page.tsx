@@ -30,6 +30,7 @@ interface Reserva {
   precio: number;
   estado: string;
   cantidad_reservada: number;
+  numero_personas_reserva?: number;
   ticket_url?: string;
   ticket_url_reserva?: string;
 }
@@ -576,7 +577,11 @@ export default function ReservasPage() {
               <SurfSpinner size="lg" showText={true} text="Cargando calendario..." />
             </div>
           ) : (
-            <VistaCalendario reservas={reservasFiltradas} onActualizarEstado={handleActualizarEstado} />
+            <VistaCalendario
+              reservas={reservasFiltradas}
+              onActualizarEstado={handleActualizarEstado}
+              onReservaActualizada={cargarReservas}
+            />
           )}
         </section>
       )}
@@ -601,6 +606,7 @@ export default function ReservasPage() {
         reserva={reservaSeleccionada}
         onClose={() => setReservaSeleccionada(null)}
         onActualizarEstado={handleActualizarEstado}
+        onReservaActualizada={cargarReservas}
       />
 
       {/* Modal Nueva Reserva */}
