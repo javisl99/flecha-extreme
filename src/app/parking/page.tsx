@@ -5,7 +5,7 @@ import { useParking } from '@/hooks/useParking';
 import { useClientes } from '@/hooks/useClientes';
 import PlazaInfoModal from '@/components/Parking/PlazaInfoModal';
 
-type MetodoPago = 'efectivo' | 'tpv' | 'tpv_online' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
+type MetodoPago = 'efectivo' | 'tpv' | 'transferencia' | 'bizum_alfonso';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 
 interface PagoParking {

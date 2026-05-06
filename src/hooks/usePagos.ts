@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSupabase } from './useSupabase';
 import { useProductos } from './useProductos';
+import { resolvePaymentMethodIdByCode } from '@/lib/contabilidadCatalogos';
 
 interface CartItem {
   id: string;
@@ -43,7 +44,8 @@ export interface Pago {
   origen_id: string | null;
   concepto: string;
   importe: number;
-  metodo: 'efectivo' | 'tpv' | 'tpv_online' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
+  metodo: 'efectivo' | 'tpv' | 'tpv_online' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles' | 'transferencia';
+  metodo_pago_id?: string | null;
   estado: 'completado' | 'pendiente' | 'cancelado';
   created_at: string;
   updated_at: string;
@@ -101,9 +103,17 @@ export function usePagos() {
       setLoading(true);
       setError(null);
 
+      const metodo_pago_id =
+        updates.metodo !== undefined
+          ? await resolvePaymentMethodIdByCode(supabase, updates.metodo)
+          : undefined;
+
       const { error: updateError } = await supabase
         .from('pago')
-        .update(updates)
+        .update({
+          ...updates,
+          ...(metodo_pago_id !== undefined ? { metodo_pago_id } : {}),
+        })
         .eq('id', id);
 
       if (updateError) {
@@ -225,6 +235,7 @@ export function usePagos() {
       }
 
       // 4. Crear el registro de pago
+      const metodoPagoId = await resolvePaymentMethodIdByCode(supabase, data.pago.metodo);
       const { data: pagoData, error: pagoError } = await supabase
         .from('pago')
         .insert([{
@@ -234,6 +245,7 @@ export function usePagos() {
           concepto: data.concepto,
           importe: data.total,
           metodo: data.pago.metodo,
+          metodo_pago_id: metodoPagoId,
           estado: data.pago.estado
         }])
         .select()
