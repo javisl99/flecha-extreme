@@ -32,10 +32,35 @@ export interface ActividadDB {
 export interface TarifaActividad {
   id: string;
   id_actividad: string;
+  codigo?: string;
+  nombre_tarifa?: string;
   duracion_valor: number;
   duracion_unidad: string;
   precio: number;
   descuento: number | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DisponibilidadServicio {
+  success: boolean;
+  disponible?: boolean;
+  stockDisponible?: number;
+  stockTotal?: number;
+  reservadas?: number;
+  message: string;
+  motivo?: string;
+}
+
+export interface SiguienteDisponibilidadServicio {
+  success: boolean;
+  encontrado?: boolean;
+  inicioSugerido?: string;
+  finSugerido?: string;
+  stockDisponible?: number;
+  stockTotal?: number;
+  reservadas?: number;
+  message: string;
+  motivo?: string;
 }
 
 export interface Reserva {
@@ -274,7 +299,7 @@ export function useActividades() {
 
       const { data, error: fetchError } = await supabase
         .from('servicio_tarifa')
-        .select('id,servicio_id,duracion_min,precio')
+        .select('id,servicio_id,codigo,nombre_tarifa,duracion_min,precio,metadata')
         .eq('servicio_id', idActividad)
         .eq('activo', true)
         .order('duracion_min', { ascending: true, nullsFirst: true });
@@ -289,10 +314,13 @@ export function useActividades() {
         return {
           id: tarifa.id,
           id_actividad: tarifa.servicio_id,
+          codigo: tarifa.codigo,
+          nombre_tarifa: tarifa.nombre_tarifa,
           duracion_valor,
           duracion_unidad,
           precio: Number(tarifa.precio ?? 0),
-          descuento: null
+          descuento: null,
+          metadata: tarifa.metadata ?? {}
         };
       });
     } catch {
@@ -700,57 +728,128 @@ export function useActividades() {
     }
   };
 
-  const consultarStockDisponible = async (
-    idActividad: string,
-    fecha: string,
-    horaInicio?: string,
-    horaFin?: string
-  ): Promise<{ success: boolean; stockDisponible?: number; stockTotal?: number; reservadas?: number; message: string }> => {
-    try {
-      setLoading(true);
-      setError(null);
+  const consultarStockDisponible = useCallback(
+    async (
+      idActividad: string,
+      fecha: string,
+      horaInicio?: string,
+      horaFin?: string,
+      cantidad = 1
+    ): Promise<DisponibilidadServicio> => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      const inicio = toISOWithFallback(fecha, horaInicio, false);
-      const fin = horaFin ? toISOWithFallback(fecha, horaFin, true) : toISOWithFallback(fecha, '23:59', true);
+        const inicio = toISOWithFallback(fecha, horaInicio, false);
+        const fin = horaFin ? toISOWithFallback(fecha, horaFin, true) : toISOWithFallback(fecha, '23:59', true);
 
-      const { data, error: rpcError } = await supabase.rpc('rpc_consultar_disponibilidad_servicio', {
-        p_servicio_id: idActividad,
-        p_inicio: inicio,
-        p_fin: fin,
-        p_cantidad: 1
-      });
+        const { data, error: rpcError } = await supabase.rpc('rpc_consultar_disponibilidad_servicio', {
+          p_servicio_id: idActividad,
+          p_inicio: inicio,
+          p_fin: fin,
+          p_cantidad: cantidad
+        });
 
-      if (rpcError) {
-        throw rpcError;
-      }
+        if (rpcError) {
+          throw rpcError;
+        }
 
-      const row = Array.isArray(data) ? data[0] : null;
-      if (!row) {
+        const row = Array.isArray(data) ? data[0] : null;
+        if (!row) {
+          return {
+            success: true,
+            stockDisponible: 0,
+            stockTotal: 0,
+            reservadas: 0,
+            message: 'Sin información de disponibilidad'
+          };
+        }
+
         return {
           success: true,
-          stockDisponible: 0,
-          stockTotal: 0,
-          reservadas: 0,
-          message: 'Sin información de disponibilidad'
+          disponible: Boolean(row.disponible),
+          stockDisponible: Number(row.stock_disponible ?? 0),
+          stockTotal: Number(row.stock_total ?? 0),
+          reservadas: Number(row.reservadas ?? 0),
+          message: row.disponible ? 'Stock consultado correctamente' : `No disponible: ${row.motivo ?? 'sin_detalle'}`,
+          motivo: row.motivo ?? undefined
         };
+      } catch (err: unknown) {
+        console.error('Error al consultar stock:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Error al consultar stock disponible';
+        setError(errorMessage);
+        return { success: false, message: errorMessage };
+      } finally {
+        setLoading(false);
       }
+    },
+    [supabase]
+  );
 
-      return {
-        success: true,
-        stockDisponible: Number(row.stock_disponible ?? 0),
-        stockTotal: Number(row.stock_total ?? 0),
-        reservadas: Number(row.reservadas ?? 0),
-        message: row.disponible ? 'Stock consultado correctamente' : `No disponible: ${row.motivo ?? 'sin_detalle'}`
-      };
-    } catch (err: unknown) {
-      console.error('Error al consultar stock:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Error al consultar stock disponible';
-      setError(errorMessage);
-      return { success: false, message: errorMessage };
-    } finally {
-      setLoading(false);
-    }
-  };
+  const buscarSiguienteDisponibilidadServicio = useCallback(
+    async (
+      idActividad: string,
+      fecha: string,
+      horaInicio: string,
+      duracionMin: number,
+      cantidad: number,
+      stepMin = 60,
+      horizonHours = 720
+    ): Promise<SiguienteDisponibilidadServicio> => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const inicioSolicitado = toISOWithFallback(fecha, horaInicio, false);
+
+        const { data, error: rpcError } = await supabase.rpc('rpc_buscar_siguiente_disponibilidad_servicio', {
+          p_servicio_id: idActividad,
+          p_inicio_solicitado: inicioSolicitado,
+          p_duracion_min: duracionMin,
+          p_cantidad: cantidad,
+          p_step_min: stepMin,
+          p_horizon_hours: horizonHours
+        });
+
+        if (rpcError) {
+          throw rpcError;
+        }
+
+        const row = Array.isArray(data) ? data[0] : null;
+        if (!row) {
+          return {
+            success: true,
+            encontrado: false,
+            stockDisponible: 0,
+            stockTotal: 0,
+            reservadas: 0,
+            message: 'Sin sugerencias de disponibilidad',
+            motivo: 'sin_datos'
+          };
+        }
+
+        return {
+          success: true,
+          encontrado: Boolean(row.encontrado),
+          inicioSugerido: row.inicio_sugerido ?? undefined,
+          finSugerido: row.fin_sugerido ?? undefined,
+          stockDisponible: Number(row.stock_disponible ?? 0),
+          stockTotal: Number(row.stock_total ?? 0),
+          reservadas: Number(row.reservadas ?? 0),
+          message: row.encontrado ? 'Siguiente hueco encontrado' : 'No se encontraron huecos en el horizonte configurado',
+          motivo: row.motivo ?? undefined
+        };
+      } catch (err: unknown) {
+        console.error('Error al buscar siguiente disponibilidad:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Error al buscar siguiente disponibilidad';
+        setError(errorMessage);
+        return { success: false, message: errorMessage };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [supabase]
+  );
 
   const obtenerPagosPendientesReserva = async (reservaId: string): Promise<{ success: boolean; pagos?: Pago[]; message: string }> => {
     try {
@@ -876,6 +975,7 @@ export function useActividades() {
     actualizarReserva,
     eliminarReserva,
     consultarStockDisponible,
+    buscarSiguienteDisponibilidadServicio,
     obtenerPagosPendientesReserva,
     obtenerTodosLosPagosReserva,
     actualizarTicketUrlReserva,
