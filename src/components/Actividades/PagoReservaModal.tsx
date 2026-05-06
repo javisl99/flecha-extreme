@@ -29,6 +29,10 @@ interface ActividadReserva {
   horaInicio: string;
   horaFin: string;
   nota?: string;
+  modoPrecio?: 'por_persona' | 'fijo';
+  depositoPermitido?: boolean;
+  depositoObligatorio?: boolean;
+  precioReserva?: number;
 }
 
 interface PagoReservaModalProps {
@@ -71,8 +75,8 @@ export default function PagoReservaModal({
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [concepto, setConcepto] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [esReserva, setEsReserva] = useState(false);
-  const [precioReserva, setPrecioReserva] = useState<number>(0);
+  const [esReservaOverride, setEsReservaOverride] = useState<boolean | null>(null);
+  const [precioReservaOverride, setPrecioReservaOverride] = useState<number | null>(null);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [isSavingTicket, setIsSavingTicket] = useState(false);
@@ -107,6 +111,10 @@ export default function PagoReservaModal({
     metodosPago.find(m => m.value === metodoPago), 
     [metodoPago, metodosPago]
   );
+  const depositoPermitido = actividad.depositoPermitido ?? false;
+  const depositoObligatorio = actividad.depositoObligatorio ?? false;
+  const esReserva = esReservaOverride ?? depositoObligatorio;
+  const precioReserva = precioReservaOverride ?? Math.max(actividad.precioReserva ?? 0, 0);
 
   // Cálculos de precios optimizados con useMemo
   const { subtotal, descuento, iva, total, precioRestante } = useMemo(() => {
@@ -180,6 +188,7 @@ export default function PagoReservaModal({
           id_actividad: actividad.id,
           id_empresa: resultadoEmpresa.empresaId!,
           cantidad_reservada: actividad.cantidad,
+          numero_personas: actividad.numeroPersonas,
           precio: actividad.precio,
           fecha_inicio: fechaInicio.toISOString(),
           fecha_fin: fechaFin.toISOString(),
@@ -314,14 +323,21 @@ export default function PagoReservaModal({
     setIsSavingTicket(true);
 
     try {
+      const ticketQuantity = actividad.modoPrecio === 'por_persona'
+        ? Math.max(actividad.numeroPersonas, 1)
+        : Math.max(actividad.cantidad, 1);
+      const ticketUnitPrice = ticketQuantity > 0
+        ? processedPaymentData.actividad.precio / ticketQuantity
+        : processedPaymentData.actividad.precio;
+
       const ticketData = {
         cartItems: [{
           id: processedPaymentData.actividad.id,
           name: esReserva 
             ? `Reserva - ${processedPaymentData.actividad.nombre}`
             : processedPaymentData.actividad.nombre,
-          price: processedPaymentData.actividad.precio / processedPaymentData.actividad.numeroPersonas,
-          quantity: processedPaymentData.actividad.numeroPersonas,
+          price: ticketUnitPrice,
+          quantity: ticketQuantity,
           image: '',
         }],
         subtotal: processedPaymentData.subtotal,
@@ -373,7 +389,7 @@ export default function PagoReservaModal({
         // Cerrar el modal del ticket después de guardar exitosamente
         setShowTicketModal(false);
         setProcessedPaymentData(null);
-        onClose();
+        handleCloseModal();
       } else {
         toast.error(`❌ Error al guardar el ticket: ${result.error}`);
       }
@@ -392,12 +408,20 @@ export default function PagoReservaModal({
     setSelectedClienteId(null);
     setMetodoPago('efectivo');
     setConcepto('');
+    setEsReservaOverride(null);
+    setPrecioReservaOverride(null);
+    onClose();
+  };
+
+  const handleCloseModal = () => {
+    setEsReservaOverride(null);
+    setPrecioReservaOverride(null);
     onClose();
   };
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-[60]" onClose={onClose}>
+      <Dialog as="div" className="relative z-[60]" onClose={handleCloseModal}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-150"
@@ -442,7 +466,7 @@ export default function PagoReservaModal({
                       <button
                         type="button"
                         className="rounded-lg p-1 hover:bg-black/10 transition-colors cursor-pointer"
-                        onClick={onClose}
+                        onClick={handleCloseModal}
                       >
                         <span className="sr-only">Cerrar</span>
                         <XMarkIcon className="h-6 w-6" />
@@ -479,14 +503,16 @@ export default function PagoReservaModal({
                             <div className="flex items-center">
                               <button
                                 type="button"
-                                onClick={() => setEsReserva(!esReserva)}
-                                disabled={readOnly}
+                                onClick={() => setEsReservaOverride(!esReserva)}
+                                disabled={readOnly || !depositoPermitido || depositoObligatorio}
                                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer ${
                                   esReserva 
                                     ? 'bg-primary' 
                                     : 'bg-gray-200 dark:bg-gray-700'
                                 } ${
-                                  readOnly ? 'opacity-50 cursor-not-allowed' : ''
+                                  readOnly || !depositoPermitido || depositoObligatorio
+                                    ? 'opacity-50 cursor-not-allowed'
+                                    : ''
                                 }`}
                               >
                                 <span
@@ -496,9 +522,18 @@ export default function PagoReservaModal({
                                 />
                               </button>
                             <span className="ml-3 text-sm text-gray-600 dark:text-gray-400">
-                              {esReserva ? 'Activado' : 'Desactivado'}
+                              {depositoObligatorio
+                                ? 'Obligatorio'
+                                : depositoPermitido
+                                  ? (esReserva ? 'Activado' : 'Desactivado')
+                                  : 'No disponible'}
                             </span>
                           </div>
+                          {!readOnly && depositoObligatorio && (
+                            <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                              Esta actividad exige anticipo para confirmar la reserva.
+                            </p>
+                          )}
                           </div>
 
                           {/* Precio de Reserva */}
@@ -512,12 +547,12 @@ export default function PagoReservaModal({
                                   type="number"
                                   id="precioReserva"
                                   value={precioReserva}
-                                  onChange={(e) => setPrecioReserva(parseFloat(e.target.value) || 0)}
-                                  disabled={readOnly}
+                                  onChange={(e) => setPrecioReservaOverride(parseFloat(e.target.value) || 0)}
+                                  disabled={readOnly || depositoObligatorio}
                                   min="0"
                                   step="0.01"
                                   className={`w-full px-3 py-2 pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                                    readOnly 
+                                    readOnly || depositoObligatorio
                                       ? 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' 
                                       : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                                   } border-gray-300 dark:border-gray-600`}
@@ -528,7 +563,9 @@ export default function PagoReservaModal({
                                 </div>
                               </div>
                               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Pago inmediato al realizar la reserva
+                                {depositoObligatorio
+                                  ? 'Se usa el anticipo configurado en la actividad'
+                                  : 'Pago inmediato al realizar la reserva'}
                               </p>
                             </div>
                           )}
@@ -689,7 +726,7 @@ export default function PagoReservaModal({
                       <button
                         type="button"
                         className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-md transition-colors duration-75 cursor-pointer"
-                        onClick={onClose}
+                        onClick={handleCloseModal}
                         disabled={isProcessing}
                       >
                         {readOnly ? 'Cerrar' : 'Cancelar'}

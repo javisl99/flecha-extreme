@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/shared/components';
-import { useActividades } from '@/hooks/useActividades';
+import { useActividades, type PagoReservaConReembolsos } from '@/hooks/useActividades';
 import { useTickets } from '@/hooks/useTickets';
 import { useEmailAPI } from '@/hooks/useEmailAPI';
 import { useSupabase } from '@/hooks/useSupabase';
@@ -29,6 +29,7 @@ interface Reserva {
   estado: string;
   precio: number;
   cantidad_reservada: number;
+  numero_personas_reserva?: number;
   nota?: string;
   ticket_url?: string;
   ticket_url_reserva?: string;
@@ -38,14 +39,149 @@ interface ModalDetalleReservaProps {
   isOpen: boolean;
   reserva: Reserva | null;
   onClose: () => void;
-  onActualizarEstado: (reserva: Reserva, nuevoEstado: string) => void;
+  onActualizarEstado: (reserva: Reserva, nuevoEstado: string) => Promise<void> | void;
+  onReservaActualizada: () => Promise<void> | void;
 }
 
-export default function ModalDetalleReserva({ 
-  isOpen, 
-  reserva, 
-  onClose, 
-  onActualizarEstado 
+const euroFormatter = new Intl.NumberFormat('es-ES', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
+function formatearImporte(importe: number) {
+  return euroFormatter.format(importe);
+}
+
+function formatearEstado(estado: string) {
+  return estado.charAt(0).toUpperCase() + estado.slice(1);
+}
+
+function getEstadoColor(estado: string) {
+  switch (estado) {
+    case 'confirmada':
+      return 'bg-green-100 text-green-700';
+    case 'pendiente':
+      return 'bg-amber-100 text-amber-700';
+    case 'cancelada':
+      return 'bg-red-100 text-red-700';
+    case 'completada':
+      return 'bg-blue-100 text-blue-700';
+    default:
+      return 'bg-surface-container-high text-on-surface-variant';
+  }
+}
+
+function getEstadoPagoColor(estado: string) {
+  switch (estado) {
+    case 'completado':
+      return 'bg-emerald-100 text-emerald-700';
+    case 'pendiente':
+      return 'bg-amber-100 text-amber-700';
+    case 'cancelado':
+      return 'bg-red-100 text-red-700';
+    default:
+      return 'bg-surface-container-high text-on-surface-variant';
+  }
+}
+
+function getEstadoReembolsoLabel(estado: PagoReservaConReembolsos['estado_reembolso']) {
+  switch (estado) {
+    case 'total':
+      return 'Reembolso total';
+    case 'parcial':
+      return 'Reembolso parcial';
+    default:
+      return 'Sin reembolso';
+  }
+}
+
+function getEstadoReembolsoColor(estado: PagoReservaConReembolsos['estado_reembolso']) {
+  switch (estado) {
+    case 'total':
+      return 'bg-sky-100 text-sky-700';
+    case 'parcial':
+      return 'bg-violet-100 text-violet-700';
+    default:
+      return 'bg-slate-100 text-slate-700';
+  }
+}
+
+function formatearMetodoPago(metodo: string) {
+  const metodosFormateados: Record<string, string> = {
+    efectivo: 'Efectivo',
+    tpv: 'Tarjeta',
+    tpv_online: 'Tarjeta online',
+    transferencia: 'Transferencia',
+    bizum_alfonso: 'Bizum Alfonso',
+    bizum_robe: 'Bizum Robe',
+    bizum_alba: 'Bizum Alba',
+    bizum_maria: 'Bizum Maria',
+    bizum_jm: 'Bizum JM',
+    angeles: 'Angeles'
+  };
+
+  return metodosFormateados[metodo] ?? metodo;
+}
+
+function formatearFecha(fecha: string) {
+  return new Date(fecha).toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Europe/Madrid'
+  });
+}
+
+function formatearHora(fecha: string) {
+  return new Date(fecha).toLocaleTimeString('es-ES', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Madrid'
+  });
+}
+
+function getCantidadDetalle(reserva: Reserva) {
+  const personas = reserva.numero_personas_reserva;
+
+  if (personas && personas !== reserva.cantidad_reservada) {
+    return {
+      primaryLabel: 'Material',
+      primaryValue: reserva.cantidad_reservada,
+      secondaryLabel: 'Personas',
+      secondaryValue: personas
+    };
+  }
+
+  if (personas) {
+    return {
+      primaryLabel: 'Personas',
+      primaryValue: personas
+    };
+  }
+
+  return {
+    primaryLabel: 'Cantidad',
+    primaryValue: reserva.cantidad_reservada
+  };
+}
+
+function buildInitialRefundInputs(pagos: PagoReservaConReembolsos[]) {
+  return pagos.reduce<Record<string, string>>((acc, pago) => {
+    if (pago.estado === 'completado' && pago.importe_reembolsable > 0) {
+      acc[pago.id] = pago.importe_reembolsable.toFixed(2);
+    }
+    return acc;
+  }, {});
+}
+
+export default function ModalDetalleReserva({
+  isOpen,
+  reserva,
+  onClose,
+  onActualizarEstado,
+  onReservaActualizada
 }: ModalDetalleReservaProps) {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [pagoPendiente, setPagoPendiente] = useState<{
@@ -57,35 +193,125 @@ export default function ModalDetalleReserva({
   } | null>(null);
   const [isLoadingPago, setIsLoadingPago] = useState(false);
   const [isSavingTicket, setIsSavingTicket] = useState(false);
-  
-  const { obtenerPagosPendientesReserva, obtenerTodosLosPagosReserva, actualizarTicketUrlReserva, actualizarEstadoPago } = useActividades();
+  const [pagosReserva, setPagosReserva] = useState<PagoReservaConReembolsos[]>([]);
+  const [isLoadingPagosReserva, setIsLoadingPagosReserva] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
+  const [refundInputs, setRefundInputs] = useState<Record<string, string>>({});
+  const [cancelComment, setCancelComment] = useState('');
+
+  const {
+    obtenerPagosPendientesReserva,
+    obtenerTodosLosPagosReserva,
+    obtenerPagosReservaConReembolsos,
+    cancelarReservaConReembolsos,
+    actualizarTicketUrlReserva,
+    actualizarEstadoPago
+  } = useActividades();
   const { saveTicket } = useTickets();
   const { sendTicketEmail } = useEmailAPI();
   const { supabase } = useSupabase();
 
+  useEffect(() => {
+    if (!isOpen || !reserva) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const cargarPagosReserva = async () => {
+      setIsLoadingPagosReserva(true);
+      const result = await obtenerPagosReservaConReembolsos(reserva.id);
+      if (!cancelled) {
+        if (result.success && result.pagos) {
+          setPagosReserva(result.pagos);
+        } else {
+          setPagosReserva([]);
+        }
+        setIsLoadingPagosReserva(false);
+      }
+    };
+
+    cargarPagosReserva();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, obtenerPagosReservaConReembolsos, reserva]);
+
+  const resumenPagos = useMemo(() => {
+    const totalCobrado = pagosReserva
+      .filter((pago) => pago.estado === 'completado')
+      .reduce((total, pago) => total + pago.importe, 0);
+    const totalReembolsado = pagosReserva.reduce((total, pago) => total + pago.importe_reembolsado, 0);
+    const totalReembolsable = pagosReserva.reduce((total, pago) => total + pago.importe_reembolsable, 0);
+    const pagosPendientes = pagosReserva.filter((pago) => pago.estado === 'pendiente');
+
+    return {
+      totalCobrado,
+      totalReembolsado,
+      totalReembolsable,
+      pagosPendientes,
+      pagosCompletados: pagosReserva.filter((pago) => pago.estado === 'completado')
+    };
+  }, [pagosReserva]);
+  const showRefundReadModel = reserva?.estado === 'cancelada';
+
+  const refundValidation = useMemo(() => {
+    const errores: Record<string, string> = {};
+    let total = 0;
+
+    for (const pago of resumenPagos.pagosCompletados) {
+      const rawValue = refundInputs[pago.id];
+      if (rawValue === undefined || rawValue.trim() === '') {
+        continue;
+      }
+
+      const importe = Number(rawValue);
+      if (!Number.isFinite(importe)) {
+        errores[pago.id] = 'Introduce un importe valido.';
+        continue;
+      }
+
+      if (importe < 0) {
+        errores[pago.id] = 'El importe no puede ser negativo.';
+        continue;
+      }
+
+      if (importe > pago.importe_reembolsable) {
+        errores[pago.id] = `Maximo ${formatearImporte(pago.importe_reembolsable)}.`;
+        continue;
+      }
+
+      total += importe;
+    }
+
+    return {
+      errores,
+      total: Number(total.toFixed(2))
+    };
+  }, [refundInputs, resumenPagos.pagosCompletados]);
+
+  const reservaEstado = reserva?.estado;
+  const canOpenRefundFlow = resumenPagos.pagosCompletados.length > 0 || resumenPagos.pagosPendientes.length > 0 || reservaEstado !== 'cancelada';
+  const hasRefundableBalance = resumenPagos.totalReembolsable > 0;
+  const canRegisterRefundOnCancelled = reservaEstado === 'cancelada' && hasRefundableBalance;
+  const hasValidationErrors = Object.keys(refundValidation.errores).length > 0;
+
   if (!isOpen || !reserva) return null;
 
-  // Función para obtener el email del cliente
   const obtenerEmailCliente = async (clienteId: string): Promise<string | null> => {
-    // Validar que el clienteId no esté vacío y sea un UUID válido
     if (!clienteId || clienteId.trim() === '') {
-      console.warn('⚠️ ID de cliente vacío o inválido:', clienteId);
       return null;
     }
 
-    // Validar formato básico de UUID (8-4-4-4-12 caracteres hexadecimales)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(clienteId)) {
-      console.warn('⚠️ ID de cliente no tiene formato UUID válido:', clienteId);
       return null;
     }
 
     try {
-      const { data, error } = await supabase
-        .from('cliente')
-        .select('email')
-        .eq('id', clienteId)
-        .single();
+      const { data, error } = await supabase.from('cliente').select('email').eq('id', clienteId).single();
 
       if (error) {
         console.error('Error obteniendo email del cliente:', error);
@@ -99,101 +325,53 @@ export default function ModalDetalleReserva({
     }
   };
 
-  const mostrarCliente = (reserva: Reserva) => {
+  const mostrarCliente = () => {
     if (!reserva.cliente) return 'Cliente no establecido';
     return `${reserva.cliente.nombre} ${reserva.cliente.apellidos}`;
   };
 
-  const mostrarActividad = (reserva: Reserva) => {
-    if (!reserva.actividad) return 'Actividad no encontrada';
-    return reserva.actividad.nombre;
-  };
+  const mostrarActividad = () => reserva.actividad?.nombre || 'Actividad no encontrada';
+  const mostrarEmpresa = () => reserva.empresa?.nombre || 'Empresa no establecida';
+  const cantidadDetalle = getCantidadDetalle(reserva);
 
-  const mostrarEmpresa = (reserva: Reserva) => {
-    if (!reserva.empresa) return 'Empresa no establecida';
-    return reserva.empresa.nombre;
-  };
-
-  const formatearEstado = (estado: string) => {
-    return estado.charAt(0).toUpperCase() + estado.slice(1);
-  };
-
-  const getEstadoColor = (estado: string) => {
-    switch (estado) {
-      case 'confirmada': return 'bg-green-100 text-green-700';
-      case 'pendiente': return 'bg-amber-100 text-amber-700';
-      case 'cancelada': return 'bg-red-100 text-red-700';
-      case 'completada': return 'bg-blue-100 text-blue-700';
-      default: return 'bg-surface-container-high text-on-surface-variant';
+  const refreshResumenPagos = async () => {
+    if (!reserva) return;
+    setIsLoadingPagosReserva(true);
+    const result = await obtenerPagosReservaConReembolsos(reserva.id);
+    if (result.success && result.pagos) {
+      setPagosReserva(result.pagos);
     }
+    setIsLoadingPagosReserva(false);
+    return result;
   };
 
-  const formatearFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      timeZone: 'Europe/Madrid'
-    });
-  };
-
-  const formatearHora = (fecha: string) => {
-    return new Date(fecha).toLocaleTimeString('es-ES', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Europe/Madrid'
-    });
-  };
-
-  const handleConfirmarPago = async (reserva: Reserva) => {
+  const handleConfirmarPago = async () => {
     try {
       setIsLoadingPago(true);
-      
-      // Primero verificar cuántos pagos hay en total para esta reserva
+
       const resultadoTodos = await obtenerTodosLosPagosReserva(reserva.id);
-      
+
       if (!resultadoTodos.success || !resultadoTodos.pagos) {
         toast.error('Error al obtener información de pagos');
         return;
       }
 
-      // Si solo hay un pago (o ninguno), no generar ticket
       if (resultadoTodos.pagos.length <= 1) {
-        // Si hay exactamente un pago, actualizar su estado a 'completado'
         if (resultadoTodos.pagos.length === 1) {
           const pagoUnico = resultadoTodos.pagos[0];
-          console.log('🔄 Actualizando estado del único pago a completado:', pagoUnico.id);
-          
           const resultadoActualizacion = await actualizarEstadoPago(pagoUnico.id, 'completado');
-          
+
           if (!resultadoActualizacion.success) {
-            console.error('❌ Error al actualizar estado del pago:', resultadoActualizacion.message);
             toast.error('Error al actualizar el estado del pago');
             return;
           }
-          
-          console.log('✅ Estado del pago actualizado correctamente');
         }
-        
-        toast.success('No hay pagos adicionales pendientes. La reserva se ha confirmado correctamente.');
-        
-        // Verificar si ticket_url_reserva es NULL y enviar correo con ticket_url si existe
-        console.log('🔍 Verificando condiciones para envío de email:');
-        console.log('- ticket_url_reserva es NULL:', !reserva.ticket_url_reserva);
-        console.log('- ticket_url existe:', !!reserva.ticket_url);
-        console.log('- ticket_url:', reserva.ticket_url);
-        
+
         if (!reserva.ticket_url_reserva && reserva.ticket_url) {
-          console.log('✅ Condiciones básicas se cumplen, obteniendo email del cliente...');
-          
-          // Obtener el email del cliente desde la base de datos
           const clienteEmail = await obtenerEmailCliente(reserva.id_cliente || '');
-          console.log('📧 Email del cliente obtenido:', clienteEmail);
-          
+
           if (clienteEmail) {
-            console.log('✅ Email del cliente encontrado, procediendo a enviar email...');
             try {
-              // Crear datos del ticket para el email
               const ticketData = {
                 cartItems: [{
                   id: 'reserva-actividad',
@@ -207,18 +385,13 @@ export default function ModalDetalleReserva({
                 discountPercentage: 0,
                 iva: 0,
                 total: reserva.precio,
-                metodoPago: 'efectivo', // Valor por defecto
+                metodoPago: 'efectivo',
                 fecha: new Date(reserva.fecha_inicio),
                 pedidoId: undefined,
                 clienteId: clienteEmail,
                 estadoPago: 'completado' as const
               };
 
-              console.log('📧 Datos del ticket preparados:', ticketData);
-              console.log('📧 Enviando email a:', clienteEmail);
-              console.log('📧 URL del ticket:', reserva.ticket_url);
-
-              // Enviar email con el ticket
               const emailResult = await sendTicketEmail(
                 {
                   id: clienteEmail,
@@ -231,45 +404,35 @@ export default function ModalDetalleReserva({
                 'completado'
               );
 
-              console.log('📧 Resultado del envío de email:', emailResult);
-
-              if (emailResult.success) {
-                console.log('✅ Email enviado exitosamente');
+              if (emailResult.success && !emailResult.skipped) {
                 toast.success('Reserva confirmada y ticket enviado por correo al cliente');
+              } else if (emailResult.success) {
+                toast.success(emailResult.message || 'Reserva confirmada correctamente');
               } else {
-                console.log('❌ Error al enviar email:', emailResult.error);
                 toast.success('Reserva confirmada, pero hubo un error al enviar el correo');
               }
             } catch (emailError) {
-              console.error('❌ Error enviando email:', emailError);
+              console.error('Error enviando email:', emailError);
               toast.success('Reserva confirmada, pero hubo un error al enviar el correo');
             }
           } else {
-            console.log('❌ No se pudo obtener el email del cliente');
             toast.success('Reserva confirmada correctamente');
           }
         } else {
-          console.log('❌ No se cumplen las condiciones para envío de email:');
-          console.log('- ticket_url_reserva es NULL:', !reserva.ticket_url_reserva);
-          console.log('- ticket_url existe:', !!reserva.ticket_url);
-          // Si no hay ticket_url, solo confirmar
           toast.success('Reserva confirmada correctamente');
         }
-        
-        // Actualizar el estado de la reserva a confirmada
-        onActualizarEstado(reserva, 'confirmada');
+
+        await Promise.resolve(onActualizarEstado(reserva, 'confirmada'));
         return;
       }
 
-      // Si hay múltiples pagos, buscar los pendientes
       const resultadoPendientes = await obtenerPagosPendientesReserva(reserva.id);
-      
+
       if (!resultadoPendientes.success || !resultadoPendientes.pagos || resultadoPendientes.pagos.length === 0) {
         toast.error('No se encontraron pagos pendientes para esta reserva');
         return;
       }
 
-      // Tomar el primer pago pendiente
       const pago = resultadoPendientes.pagos[0];
       setPagoPendiente({
         id: pago.id,
@@ -279,9 +442,6 @@ export default function ModalDetalleReserva({
         id_cliente: pago.cliente?.id || ''
       });
       setShowTicketModal(true);
-      
-      // NO actualizar el estado de la reserva aquí - se hará después de completar el ticket
-      
     } catch (error) {
       console.error('Error al buscar pagos:', error);
       toast.error('Error al buscar información de pagos');
@@ -291,11 +451,10 @@ export default function ModalDetalleReserva({
   };
 
   const handleGuardarTicket = async () => {
-    if (!pagoPendiente || !reserva) return;
+    if (!pagoPendiente) return;
 
     setIsSavingTicket(true);
     try {
-      // Crear los datos del ticket para el pago pendiente
       const ticketData = {
         cartItems: [{
           id: 'pago-pendiente',
@@ -316,31 +475,17 @@ export default function ModalDetalleReserva({
         estadoPago: 'pendiente' as const
       };
 
-      console.log('💳 Guardando ticket de pago pendiente...');
-      console.log('💳 Datos del ticket:', ticketData);
-
       const result = await saveTicket(ticketData);
-      
+
       if (result.success && result.url) {
-        console.log('✅ Ticket guardado exitosamente, URL:', result.url);
-        
-        // Actualizar la reserva con la URL del ticket
         const updateReservaResult = await actualizarTicketUrlReserva(reserva.id, result.url);
-        
-        // Actualizar el estado del pago a 'completado'
         const updatePagoResult = await actualizarEstadoPago(pagoPendiente.id, 'completado');
-        
+
         if (updateReservaResult.success && updatePagoResult.success) {
-          console.log('✅ Reserva y pago actualizados correctamente');
-          
-          // Obtener el email del cliente para enviar el ticket
           const clienteEmail = await obtenerEmailCliente(pagoPendiente.id_cliente);
-          console.log('📧 Email del cliente obtenido:', clienteEmail);
-          
+
           if (clienteEmail) {
-            console.log('📧 Enviando email con ticket de pago pendiente...');
             try {
-              // Enviar email con el ticket del pago pendiente
               const emailResult = await sendTicketEmail(
                 {
                   id: clienteEmail,
@@ -353,30 +498,25 @@ export default function ModalDetalleReserva({
                 'completado'
               );
 
-              console.log('📧 Resultado del envío de email:', emailResult);
-
-              if (emailResult.success) {
-                console.log('✅ Email con ticket de pago pendiente enviado exitosamente');
+              if (emailResult.success && !emailResult.skipped) {
                 toast.success('Ticket de pago pendiente generado y enviado por correo al cliente');
+              } else if (emailResult.success) {
+                toast.success(emailResult.message || 'Ticket de pago pendiente generado correctamente');
               } else {
-                console.log('❌ Error al enviar email:', emailResult.error);
                 toast.success('Ticket de pago pendiente generado, pero hubo un error al enviar el correo');
               }
             } catch (emailError) {
-              console.error('❌ Error enviando email:', emailError);
+              console.error('Error enviando email:', emailError);
               toast.success('Ticket de pago pendiente generado, pero hubo un error al enviar el correo');
             }
           } else {
-            console.log('❌ No se pudo obtener el email del cliente');
             toast.success('Ticket de pago pendiente generado correctamente');
           }
-          
-          // Actualizar el estado de la reserva a confirmada DESPUÉS de completar el ticket
-          onActualizarEstado(reserva, 'confirmada');
-          
+
+          await Promise.resolve(onActualizarEstado(reserva, 'confirmada'));
           setShowTicketModal(false);
           setPagoPendiente(null);
-          onClose(); // Cerrar el modal de detalles
+          onClose();
         } else {
           toast.error('Error al actualizar la reserva o el pago');
         }
@@ -391,12 +531,85 @@ export default function ModalDetalleReserva({
     }
   };
 
+  const handleOpenCancelFlow = async () => {
+    const result = await refreshResumenPagos();
+    if (result && !result.success) {
+      toast.error(result.message);
+      return;
+    }
+
+    setRefundInputs(buildInitialRefundInputs(result?.pagos ?? pagosReserva));
+    setCancelComment('');
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancelFlow = async () => {
+    if (hasValidationErrors) {
+      toast.error('Revisa los importes del reembolso antes de continuar.');
+      return;
+    }
+
+    if (reserva.estado === 'cancelada' && refundValidation.total <= 0) {
+      toast.error('Introduce al menos un importe a reembolsar.');
+      return;
+    }
+
+    const reembolsos = resumenPagos.pagosCompletados
+      .map((pago) => ({
+        pagoId: pago.id,
+        importe: Number(refundInputs[pago.id] ?? 0)
+      }))
+      .filter((reembolso) => Number.isFinite(reembolso.importe) && reembolso.importe > 0);
+
+    try {
+      setIsSubmittingCancel(true);
+
+      const result = await cancelarReservaConReembolsos({
+        reservaId: reserva.id,
+        reembolsos,
+        comentario: cancelComment.trim() || undefined,
+        cancelarPendientes: true
+      });
+
+      if (!result.success) {
+        toast.error(result.message);
+        return;
+      }
+
+      const totalReembolsado = result.data?.totalReembolsado ?? 0;
+      const pagosPendientesCancelados = result.data?.pagosPendientesCancelados ?? 0;
+      const baseMessage =
+        totalReembolsado > 0
+          ? `Reserva cancelada y reembolso registrado por ${formatearImporte(totalReembolsado)}.`
+          : 'Reserva cancelada sin reembolso.';
+      const detailMessage =
+        pagosPendientesCancelados > 0 ? ` ${pagosPendientesCancelados} pago(s) pendiente(s) anulados.` : '';
+
+      toast.success(`${baseMessage}${detailMessage}`);
+      await Promise.resolve(onReservaActualizada());
+      setShowCancelModal(false);
+      onClose();
+    } catch (error) {
+      console.error('Error al cancelar la reserva:', error);
+      toast.error('Error al cancelar la reserva');
+    } finally {
+      setIsSubmittingCancel(false);
+    }
+  };
+
+  const cancelActionLabel =
+    reserva.estado === 'cancelada'
+      ? `Registrar reembolso de ${formatearImporte(refundValidation.total)}`
+      : refundValidation.total > 0
+        ? `Cancelar reserva y reembolsar ${formatearImporte(refundValidation.total)}`
+        : 'Cancelar reserva sin reembolso';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl">
         <div className="primary-gradient flex items-center justify-between rounded-t-2xl p-5 text-white">
           <h2 className="font-headline text-2xl font-extrabold tracking-tight">Detalles de la reserva</h2>
-          <button 
+          <button
             type="button"
             className="cursor-pointer rounded-md text-white transition hover:text-gray-200"
             onClick={onClose}
@@ -405,13 +618,13 @@ export default function ModalDetalleReserva({
             ✕
           </button>
         </div>
-        
+
         <div className="p-6">
           <div className="space-y-5">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
                 <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Cliente</label>
-                <p className="mt-1 font-semibold text-on-surface">{mostrarCliente(reserva)}</p>
+                <p className="mt-1 font-semibold text-on-surface">{mostrarCliente()}</p>
               </div>
               <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
                 <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Estado</label>
@@ -421,11 +634,11 @@ export default function ModalDetalleReserva({
               </div>
               <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
                 <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Actividad</label>
-                <p className="mt-1 font-medium text-on-surface">{mostrarActividad(reserva)}</p>
+                <p className="mt-1 font-medium text-on-surface">{mostrarActividad()}</p>
               </div>
               <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
                 <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Empresa</label>
-                <p className="mt-1 font-medium text-on-surface">{mostrarEmpresa(reserva)}</p>
+                <p className="mt-1 font-medium text-on-surface">{mostrarEmpresa()}</p>
               </div>
               <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
                 <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Fecha</label>
@@ -436,42 +649,165 @@ export default function ModalDetalleReserva({
                 <p className="mt-1 font-medium text-on-surface">{formatearHora(reserva.fecha_inicio)} - {formatearHora(reserva.fecha_fin)}</p>
               </div>
               <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
-                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Cantidad</label>
-                <p className="mt-1 font-medium text-on-surface">{reserva.cantidad_reservada}</p>
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">{cantidadDetalle.primaryLabel}</label>
+                <p className="mt-1 font-medium text-on-surface">{cantidadDetalle.primaryValue}</p>
               </div>
+              {cantidadDetalle.secondaryLabel && cantidadDetalle.secondaryValue ? (
+                <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                  <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">{cantidadDetalle.secondaryLabel}</label>
+                  <p className="mt-1 font-medium text-on-surface">{cantidadDetalle.secondaryValue}</p>
+                </div>
+              ) : null}
               <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
                 <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Precio</label>
-                <p className="mt-1 font-bold text-on-surface">{reserva.precio} €</p>
+                <p className="mt-1 font-bold text-on-surface">{formatearImporte(reserva.precio)}</p>
               </div>
             </div>
-            
-            {reserva.nota && (
+
+            {reserva.nota ? (
               <div>
                 <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Notas</label>
                 <p className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3 text-sm text-on-surface-variant">{reserva.nota}</p>
               </div>
-            )}
-            
+            ) : null}
+
+            <section className="space-y-4 rounded-2xl border border-outline-variant/25 bg-surface-container-low p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-headline text-lg font-bold text-on-surface">Pagos vinculados</h3>
+                  <p className="text-sm text-on-surface-variant">Cobros, pendientes y devoluciones registradas para esta reserva.</p>
+                </div>
+                {isLoadingPagosReserva ? <span className="text-sm text-on-surface-variant">Cargando...</span> : null}
+              </div>
+
+              <div className={`grid grid-cols-1 gap-3 ${showRefundReadModel ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+                <div className="rounded-xl border border-outline-variant/25 bg-surface-container-lowest p-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Cobrado</p>
+                  <p className="mt-1 text-lg font-bold text-on-surface">{formatearImporte(resumenPagos.totalCobrado)}</p>
+                </div>
+                {showRefundReadModel ? (
+                  <>
+                    <div className="rounded-xl border border-outline-variant/25 bg-surface-container-lowest p-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Reembolsado</p>
+                      <p className="mt-1 text-lg font-bold text-on-surface">{formatearImporte(resumenPagos.totalReembolsado)}</p>
+                    </div>
+                    <div className="rounded-xl border border-outline-variant/25 bg-surface-container-lowest p-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Saldo reembolsable</p>
+                      <p className="mt-1 text-lg font-bold text-on-surface">{formatearImporte(resumenPagos.totalReembolsable)}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-xl border border-outline-variant/25 bg-surface-container-lowest p-3">
+                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Completados</p>
+                    <p className="mt-1 text-lg font-bold text-on-surface">{resumenPagos.pagosCompletados.length}</p>
+                  </div>
+                )}
+                <div className="rounded-xl border border-outline-variant/25 bg-surface-container-lowest p-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Pendientes</p>
+                  <p className="mt-1 text-lg font-bold text-on-surface">{resumenPagos.pagosPendientes.length}</p>
+                </div>
+              </div>
+
+              {pagosReserva.length > 0 ? (
+                <div className="space-y-3">
+                  {pagosReserva.map((pago) => (
+                    <div key={pago.id} className="rounded-xl border border-outline-variant/25 bg-surface-container-lowest p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="space-y-1">
+                          <p className="font-semibold text-on-surface">{pago.concepto}</p>
+                          <p className="text-sm text-on-surface-variant">{formatearMetodoPago(pago.metodo)} · {formatearFecha(pago.created_at || reserva.fecha_inicio)}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${getEstadoPagoColor(pago.estado)}`}>
+                            {formatearEstado(pago.estado)}
+                          </span>
+                          {showRefundReadModel ? (
+                            <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${getEstadoReembolsoColor(pago.estado_reembolso)}`}>
+                              {getEstadoReembolsoLabel(pago.estado_reembolso)}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className={`mt-3 grid grid-cols-1 gap-3 ${showRefundReadModel ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Importe cobrado</p>
+                          <p className="mt-1 font-semibold text-on-surface">{formatearImporte(pago.importe)}</p>
+                        </div>
+                        {showRefundReadModel ? (
+                          <>
+                            <div>
+                              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Ya reembolsado</p>
+                              <p className="mt-1 font-semibold text-on-surface">{formatearImporte(pago.importe_reembolsado)}</p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Pendiente de devolver</p>
+                              <p className="mt-1 font-semibold text-on-surface">{formatearImporte(pago.importe_reembolsable)}</p>
+                            </div>
+                          </>
+                        ) : (
+                          <div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Estado del cobro</p>
+                            <p className="mt-1 font-semibold text-on-surface">{formatearEstado(pago.estado)}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {showRefundReadModel && pago.reembolsos.length > 0 ? (
+                        <div className="mt-3 rounded-xl border border-outline-variant/20 bg-surface-container-low p-3">
+                          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Reembolsos registrados</p>
+                          <div className="mt-2 space-y-2">
+                            {pago.reembolsos.map((reembolso) => (
+                              <div key={reembolso.id} className="flex items-center justify-between gap-3 text-sm">
+                                <span className="text-on-surface-variant">{formatearFecha(reembolso.fecha_operacion)} · {formatearMetodoPago(reembolso.metodo)}</span>
+                                <span className="font-semibold text-on-surface">{formatearImporte(reembolso.importe)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : !isLoadingPagosReserva ? (
+                <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-lowest p-4 text-sm text-on-surface-variant">
+                  No hay pagos vinculados a esta reserva.
+                </div>
+              ) : null}
+            </section>
+
             <div className="mt-2 flex flex-wrap gap-2 border-t border-outline-variant/25 pt-4">
-              {reserva.estado !== 'confirmada' && (
-                <button 
+              {reserva.estado !== 'confirmada' ? (
+                <button
                   type="button"
-                  className="flex-1 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  onClick={() => handleConfirmarPago(reserva)}
+                  className="flex-1 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                  onClick={handleConfirmarPago}
                   disabled={isLoadingPago}
                 >
                   {isLoadingPago ? 'Buscando pagos...' : 'Confirmar pago'}
                 </button>
-              )}
-              {reserva.estado !== 'cancelada' && (
-                <button 
+              ) : null}
+
+              {reserva.estado !== 'cancelada' ? (
+                <button
                   type="button"
-                  className="flex-1 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
-                  onClick={() => onActualizarEstado(reserva, 'cancelada')}
+                  className="flex-1 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                  onClick={handleOpenCancelFlow}
+                  disabled={!canOpenRefundFlow || isLoadingPagosReserva}
                 >
                   Cancelar
                 </button>
-              )}
+              ) : canRegisterRefundOnCancelled ? (
+                <button
+                  type="button"
+                  className="flex-1 rounded-full bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                  onClick={handleOpenCancelFlow}
+                  disabled={isLoadingPagosReserva}
+                >
+                  Registrar reembolso
+                </button>
+              ) : null}
+
               <Button
                 variant="outline"
                 className="flex-1 rounded-full border-outline-variant/45 bg-surface-container-low py-2.5 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
@@ -484,8 +820,142 @@ export default function ModalDetalleReserva({
         </div>
       </div>
 
-      {/* Modal de Ticket de Pago Pendiente */}
-      {showTicketModal && pagoPendiente && (
+      {showCancelModal ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-2xl">
+            <div className="primary-gradient flex items-center justify-between rounded-t-2xl p-5 text-white">
+              <div>
+                <h3 className="font-headline text-xl font-extrabold tracking-tight">
+                  {reserva.estado === 'cancelada' ? 'Registrar reembolso' : 'Cancelar reserva'}
+                </h3>
+                <p className="mt-1 text-sm text-white/80">{mostrarActividad()} · {mostrarCliente()}</p>
+              </div>
+              <button
+                type="button"
+                className="rounded-md text-white transition hover:text-gray-200"
+                onClick={() => setShowCancelModal(false)}
+              >
+                <span className="sr-only">Cerrar modal de cancelacion</span>
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-5 p-6">
+              <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4 text-sm text-on-surface-variant">
+                {reserva.estado === 'cancelada'
+                  ? 'La reserva ya esta cancelada. Puedes registrar un reembolso adicional siempre que siga quedando saldo pendiente de devolver.'
+                  : 'Puedes cancelar la reserva sin devolver importe, o registrar un reembolso total/parcial de los pagos ya cobrados. Los pagos pendientes se anularan automaticamente.'}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Cobrado</p>
+                  <p className="mt-1 text-lg font-bold text-on-surface">{formatearImporte(resumenPagos.totalCobrado)}</p>
+                </div>
+                <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Ya devuelto</p>
+                  <p className="mt-1 text-lg font-bold text-on-surface">{formatearImporte(resumenPagos.totalReembolsado)}</p>
+                </div>
+                <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Saldo a devolver</p>
+                  <p className="mt-1 text-lg font-bold text-on-surface">{formatearImporte(resumenPagos.totalReembolsable)}</p>
+                </div>
+                <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Pendientes a anular</p>
+                  <p className="mt-1 text-lg font-bold text-on-surface">{resumenPagos.pagosPendientes.length}</p>
+                </div>
+              </div>
+
+              {resumenPagos.pagosCompletados.length > 0 ? (
+                <div className="space-y-3">
+                  {resumenPagos.pagosCompletados.map((pago) => (
+                    <div key={pago.id} className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <p className="font-semibold text-on-surface">{pago.concepto}</p>
+                          <p className="text-sm text-on-surface-variant">{formatearMetodoPago(pago.metodo)}</p>
+                        </div>
+                        <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${getEstadoReembolsoColor(pago.estado_reembolso)}`}>
+                          {getEstadoReembolsoLabel(pago.estado_reembolso)}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4">
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Cobrado</p>
+                          <p className="mt-1 font-semibold text-on-surface">{formatearImporte(pago.importe)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Ya reembolsado</p>
+                          <p className="mt-1 font-semibold text-on-surface">{formatearImporte(pago.importe_reembolsado)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Maximo disponible</p>
+                          <p className="mt-1 font-semibold text-on-surface">{formatearImporte(pago.importe_reembolsable)}</p>
+                        </div>
+                        <label className="block text-sm text-on-surface">
+                          <span className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Reembolsar ahora</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max={pago.importe_reembolsable}
+                            step="0.01"
+                            value={refundInputs[pago.id] ?? ''}
+                            onChange={(event) => setRefundInputs((prev) => ({ ...prev, [pago.id]: event.target.value }))}
+                            className="mt-1 h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                            disabled={isSubmittingCancel || pago.importe_reembolsable <= 0}
+                          />
+                          {refundValidation.errores[pago.id] ? (
+                            <p className="mt-1 text-xs text-red-600">{refundValidation.errores[pago.id]}</p>
+                          ) : null}
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low p-4 text-sm text-on-surface-variant">
+                  No hay pagos completados para reembolsar.
+                </div>
+              )}
+
+              <label className="block text-sm text-on-surface">
+                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Comentario interno</span>
+                <textarea
+                  rows={3}
+                  value={cancelComment}
+                  onChange={(event) => setCancelComment(event.target.value)}
+                  className="w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 py-2 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                  placeholder="Motivo de la cancelacion o del reembolso"
+                  disabled={isSubmittingCancel}
+                />
+              </label>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-outline-variant/25 pt-5 sm:flex-row sm:justify-end">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setShowCancelModal(false)}
+                  disabled={isSubmittingCancel}
+                  className="rounded-full border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+                >
+                  Volver
+                </Button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCancelFlow}
+                  disabled={isSubmittingCancel || hasValidationErrors || (reserva.estado === 'cancelada' && refundValidation.total <= 0)}
+                  className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSubmittingCancel ? 'Procesando...' : cancelActionLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showTicketModal && pagoPendiente ? (
         <TicketCompra
           isOpen={showTicketModal}
           onClose={() => {
@@ -512,7 +982,7 @@ export default function ModalDetalleReserva({
           estadoPago="pendiente"
           isSaving={isSavingTicket}
         />
-      )}
+      ) : null}
     </div>
   );
 }

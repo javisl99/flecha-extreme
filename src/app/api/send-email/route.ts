@@ -57,7 +57,12 @@ export async function POST(request: NextRequest) {
     const result = await sendEmail(emailOptions);
 
     if (result.success) {
-      return NextResponse.json({ success: true, data: result.data });
+      return NextResponse.json({
+        success: true,
+        data: result.data,
+        message: result.message,
+        skipped: result.skipped,
+      });
     } else {
       return NextResponse.json(
         { success: false, error: result.error },

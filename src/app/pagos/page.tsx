@@ -5,7 +5,6 @@ import { usePagos, type Pago } from '@/hooks/usePagos';
 import { usePedidos, type Pedido } from '@/hooks/usePedidos';
 import { useActividades } from '@/hooks/useActividades';
 import { toast } from 'react-hot-toast';
-import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 import TableSkeleton from '@/components/shared/TableSkeleton';
 import DetallePagoModal from '@/components/Pagos/DetallePagoModal';
 import ModalPago from '@/components/Tienda/ModalPago';
@@ -21,8 +20,6 @@ export default function PagosPage() {
     estado: ''
   });
   const [pagoSeleccionado, setPagoSeleccionado] = useState<Pago | null>(null);
-  const [pagoAEliminar, setPagoAEliminar] = useState<Pago | null>(null);
-  const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
   const [isDetallePagoModalOpen, setIsDetallePagoModalOpen] = useState(false);
   const [isModalPagoOpen, setIsModalPagoOpen] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
@@ -32,12 +29,13 @@ export default function PagosPage() {
     actividad?: { nombre: string };
     precio: number;
     cantidad_reservada: number;
+    numero_personas_reserva?: number;
     empresa?: { nombre: string };
     fecha_inicio: string;
     fecha_fin: string;
     nota?: string;
   } | null>(null);
-  const { pagos, loading, error, eliminarPago, refreshPagos, actualizarPago } = usePagos();
+  const { pagos, loading, error, refreshPagos, actualizarPago } = usePagos();
   const { obtenerPedidoPorId } = usePedidos();
   const { obtenerReservas } = useActividades();
   
@@ -97,30 +95,6 @@ export default function PagosPage() {
     }
   };
 
-  const handleEliminarPago = (pago: Pago) => {
-    setPagoAEliminar(pago);
-    setIsModalConfirmacionOpen(true);
-  };
-
-  const handleConfirmarEliminacion = async () => {
-    if (!pagoAEliminar) return;
-    
-    try {
-      const result = await eliminarPago(pagoAEliminar.id);
-      if (!result.error) {
-        toast.success('Pago eliminado correctamente');
-        setPagoAEliminar(null);
-        setIsModalConfirmacionOpen(false);
-        await refreshPagos();
-      } else {
-        toast.error('Error al eliminar el pago');
-      }
-    } catch (error) {
-      console.error('Error al eliminar pago:', error);
-      toast.error('Error al eliminar el pago');
-    }
-  };
-
   const handleVerPago = async (pago: Pago) => {
     if (pago.origen_tipo === 'pedido' && pago.origen_id) {
       // Si es un pago de pedido, cargar los datos del pedido y abrir ModalPago
@@ -172,6 +146,7 @@ export default function PagosPage() {
     actividad?: { nombre: string };
     precio: number;
     cantidad_reservada: number;
+    numero_personas_reserva?: number;
     empresa?: { nombre: string };
     fecha_inicio: string;
     fecha_fin: string;
@@ -184,7 +159,7 @@ export default function PagosPage() {
       cantidad: reserva.cantidad_reservada,
       duracion: '1 hora', // Valor por defecto, se puede calcular si es necesario
       empresa: reserva.empresa?.nombre || 'Empresa no establecida',
-      numeroPersonas: reserva.cantidad_reservada,
+      numeroPersonas: reserva.numero_personas_reserva ?? reserva.cantidad_reservada,
       fechaInicio: reserva.fecha_inicio,
       fechaFin: reserva.fecha_fin,
       horaInicio: new Date(reserva.fecha_inicio).toLocaleTimeString('es-ES', {
@@ -382,19 +357,6 @@ export default function PagosPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                           </svg>
                         </button>
-                        <button
-                          type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100"
-                          title="Eliminar"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEliminarPago(pago);
-                          }}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -469,36 +431,12 @@ export default function PagosPage() {
                   >
                     Ver
                   </button>
-                  <button
-                    type="button"
-                    className="min-h-11 flex-1 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEliminarPago(pago);
-                    }}
-                  >
-                    Eliminar
-                  </button>
                 </div>
               </div>
             ))
           )}
         </div>
       </section>
-
-      <ModalConfirmacion
-        isOpen={isModalConfirmacionOpen}
-        onClose={() => {
-          setIsModalConfirmacionOpen(false);
-          setPagoAEliminar(null);
-        }}
-        onConfirm={handleConfirmarEliminacion}
-        titulo="Eliminar Pago"
-        mensaje={`¿Estás seguro de que quieres eliminar este pago? Esta acción no se puede deshacer.`}
-        textoConfirmar="Eliminar"
-        textoCancelar="Cancelar"
-        variante="pagos-v2"
-      />
 
       <DetallePagoModal
         isOpen={isDetallePagoModalOpen}

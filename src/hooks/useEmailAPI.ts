@@ -5,6 +5,8 @@ interface EmailResponse {
   success: boolean;
   error?: string;
   data?: unknown;
+  message?: string;
+  skipped?: boolean;
 }
 
 interface EmailOptions {

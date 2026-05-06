@@ -22,12 +22,14 @@ interface Reserva {
   estado: string;
   precio: number;
   cantidad_reservada: number;
+  numero_personas_reserva?: number;
   nota?: string;
 }
 
 interface VistaCalendarioProps {
   reservas: Reserva[];
   onActualizarEstado?: (reserva: Reserva, nuevoEstado: string) => void;
+  onReservaActualizada?: () => Promise<void> | void;
 }
 
 interface EventoCalendario {
@@ -152,7 +154,7 @@ const buildViewTitle = (view: CalendarView, date: Date) => {
   return dayText.charAt(0).toUpperCase() + dayText.slice(1);
 };
 
-export default function VistaCalendario({ reservas, onActualizarEstado }: VistaCalendarioProps) {
+export default function VistaCalendario({ reservas, onActualizarEstado, onReservaActualizada }: VistaCalendarioProps) {
   const [view, setView] = useState<CalendarView>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [reservaSeleccionada, setReservaSeleccionada] = useState<Reserva | null>(null);
@@ -487,6 +489,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado }: VistaC
         reserva={reservaSeleccionada}
         onClose={() => setReservaSeleccionada(null)}
         onActualizarEstado={handleActualizarEstadoReserva}
+        onReservaActualizada={onReservaActualizada ?? (() => undefined)}
       />
     </section>
   );
