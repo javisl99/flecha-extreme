@@ -108,7 +108,7 @@ export default function DetallePagoModal({ isOpen, onClose, pago, onCompletarPag
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
+          <div className="flex min-h-full items-end justify-center p-4 sm:items-center">
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-150"
@@ -118,7 +118,7 @@ export default function DetallePagoModal({ isOpen, onClose, pago, onCompletarPag
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-3 sm:scale-95"
             >
-              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl transition-all">
+              <Dialog.Panel className="max-h-[90svh] w-full max-w-2xl transform overflow-y-auto rounded-t-[1.5rem] border border-outline-variant/35 bg-surface-container-lowest shadow-xl transition-all sm:rounded-2xl">
                 <div className="primary-gradient flex items-center justify-between px-6 py-4">
                   <Dialog.Title as="h3" className="font-headline text-xl font-extrabold tracking-tight text-white">
                     Detalle del Pago
@@ -175,11 +175,11 @@ export default function DetallePagoModal({ isOpen, onClose, pago, onCompletarPag
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-end gap-3 border-t border-outline-variant/25 px-6 py-4">
+                <div className="flex flex-col-reverse gap-3 border-t border-outline-variant/25 px-6 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary"
+                    className="min-h-11 rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary"
                   >
                     Cerrar
                   </button>
@@ -189,7 +189,7 @@ export default function DetallePagoModal({ isOpen, onClose, pago, onCompletarPag
                       type="button"
                       onClick={handleCompletarPago}
                       disabled={isCompletando || isCancelando}
-                      className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                      className="min-h-11 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       {isCompletando ? 'Completando...' : 'Completar Pago'}
                     </button>
@@ -200,7 +200,7 @@ export default function DetallePagoModal({ isOpen, onClose, pago, onCompletarPag
                       type="button"
                       onClick={handleCancelarPago}
                       disabled={isCompletando || isCancelando}
-                      className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                      className="min-h-11 rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       {isCancelando ? 'Cancelando...' : 'Cancelar Pago'}
                     </button>

@@ -9,11 +9,13 @@ import ModalEditProduct from '@/components/Tienda/ModalEditProduct';
 import ModalPago from '@/components/Tienda/ModalPago';
 import SwitchVista, { type VistaTipo } from '@/components/Tienda/SwitchVista';
 import VistaPedidos from '@/components/Tienda/VistaPedidos';
+import OverlayPanel from '@/components/shared/OverlayPanel';
 import Toast from '@/shared/components/Toast';
 import { SurfSpinner } from '@/shared/components';
 import { useProductos } from '@/hooks/useProductos';
 import { usePagos } from '@/hooks/usePagos';
 import { type Product, type CartItem } from '@/components/Tienda/data';
+import { formatPrice } from '@/lib/formatUtils';
 
 export default function TiendaPage() {
   const [vistaActual, setVistaActual] = useState<VistaTipo>('tienda');
@@ -21,6 +23,7 @@ export default function TiendaPage() {
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [showEditProductModal, setShowEditProductModal] = useState(false);
   const [showPagoModal, setShowPagoModal] = useState(false);
+  const [showCartDrawer, setShowCartDrawer] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [discountPercentage, setDiscountPercentage] = useState(0);
   
@@ -48,9 +51,22 @@ export default function TiendaPage() {
     
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1280) {
+        setShowCartDrawer(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // Loading real es la combinación del loading de datos Y el tiempo mínimo
   const isLoading = loading || minLoadingTime;
+  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const cartSubtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
 
   const handleAddToCart = (product: Product, quantity: number) => {
     setCartItems(prevItems => {
@@ -105,6 +121,7 @@ export default function TiendaPage() {
 
   const handleClearCart = () => {
     setCartItems([]);
+    setShowCartDrawer(false);
   };
 
   const handleCheckout = () => {
@@ -116,6 +133,7 @@ export default function TiendaPage() {
 
   const handleProceedToPayment = (discountPercentage: number) => {
     setDiscountPercentage(discountPercentage);
+    setShowCartDrawer(false);
     setShowPagoModal(true);
   };
 
@@ -214,15 +232,15 @@ export default function TiendaPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-surface">
+    <div className="min-h-screen-safe flex flex-col bg-surface">
       {/* Header */}
-      <div className="bg-surface-container-lowest border-b border-outline-variant/40 px-6 py-3">
-        <div className="flex items-center justify-between">
+      <div className="border-b border-outline-variant/40 bg-surface-container-lowest px-4 py-3 sm:px-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-2xl font-bold text-primary-dark">
             {vistaActual === 'tienda' ? 'Tienda Flecha Extreme' : 'Pedidos Flecha Extreme'}
           </h1>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             {/* Botón flotante para añadir productos (solo en vista tienda) */}
             {vistaActual === 'tienda' && (
               <AddProductButton onAddProduct={handleAddProduct} />
@@ -235,11 +253,11 @@ export default function TiendaPage() {
       </div>
 
       {/* Contenido principal */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
         {vistaActual === 'tienda' ? (
           <>
-            {/* Área de productos (2/3 de la pantalla) */}
-            <div className="flex-1 min-w-0 overflow-y-auto p-6">
+            {/* Área de productos */}
+            <div className="flex-1 min-w-0 overflow-y-auto px-4 pb-24 pt-4 sm:px-6 xl:pb-6">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <SurfSpinner size="lg" showText={true} text="Cargando productos..." />
@@ -266,7 +284,7 @@ export default function TiendaPage() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 xl:gap-6">
                     {productos.map((product) => (
                       <ProductCard
                         key={product.id}
@@ -296,8 +314,8 @@ export default function TiendaPage() {
               )}
             </div>
 
-            {/* Cesta lateral (1/3 de la pantalla) */}
-            <div className="w-96 shrink-0 p-4 pl-0">
+            {/* Cesta lateral desktop */}
+            <div className="hidden w-96 shrink-0 p-4 pl-0 xl:block">
               <ShoppingCart
                 items={cartItems}
                 onUpdateQuantity={handleUpdateQuantity}
@@ -306,16 +324,52 @@ export default function TiendaPage() {
                 onCheckout={handleCheckout}
                 onProceedToPayment={handleProceedToPayment}
                 className="md:border-l-0"
+                mode="embedded"
               />
             </div>
           </>
         ) : (
           /* Vista de Pedidos */
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
             <VistaPedidos />
           </div>
         )}
       </div>
+
+      {vistaActual === 'tienda' ? (
+        <>
+          <div className="app-safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-outline-variant/25 bg-surface-container-lowest/95 px-4 py-3 backdrop-blur-xl xl:hidden">
+            <button
+              type="button"
+              onClick={() => setShowCartDrawer(true)}
+              className="primary-gradient flex min-h-12 w-full items-center justify-between rounded-full px-4 py-3 text-left text-sm font-bold text-white shadow-lg shadow-primary/20"
+            >
+              <span>{cartCount} {cartCount === 1 ? 'producto' : 'productos'}</span>
+              <span>{formatPrice(cartSubtotal)}</span>
+            </button>
+          </div>
+
+          <OverlayPanel
+            isOpen={showCartDrawer}
+            onClose={() => setShowCartDrawer(false)}
+            title="Cesta de compra"
+            position="right"
+            bodyClassName="h-full"
+            panelClassName="xl:hidden"
+          >
+            <ShoppingCart
+              items={cartItems}
+              onUpdateQuantity={handleUpdateQuantity}
+              onRemoveItem={handleRemoveItem}
+              onClearCart={handleClearCart}
+              onCheckout={handleCheckout}
+              onProceedToPayment={handleProceedToPayment}
+              mode="drawer"
+              className="h-full"
+            />
+          </OverlayPanel>
+        </>
+      ) : null}
 
       {/* Modal para agregar productos */}
       <ModalAddProduct

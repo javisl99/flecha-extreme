@@ -9,6 +9,7 @@ import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 import TableSkeleton from '@/components/shared/TableSkeleton';
 import ModalEmpleado from '@/components/Empleados/ModalEmpleado';
 import { FiltrosEmpleados, type FiltrosEmpleadoState } from '@/components/Empleados/FiltrosEmpleados';
+import OverlayPanel from '@/components/shared/OverlayPanel';
 
 const EmpleadosIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -35,6 +36,93 @@ const formatRegisterDate = (createdAt?: string) => {
   return date.toLocaleDateString('es-ES');
 };
 
+function EmpleadoDetailsContent({
+  empleado,
+  onEdit,
+  onDelete,
+}: {
+  empleado: Empleado | null;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  if (!empleado) {
+    return (
+      <div className="rounded-xl border border-dashed border-outline-variant/40 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+        Selecciona un empleado para ver sus detalles.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-primary-light text-2xl font-black text-white">
+          {initials(empleado.nombre, empleado.apellidos)}
+        </div>
+        <h3 className="mt-2 text-lg font-bold text-on-surface">
+          {empleado.nombre} {empleado.apellidos}
+        </h3>
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+        <div className="flex justify-between gap-3 text-sm">
+          <span className="font-semibold text-outline">Email:</span>
+          <span className="text-right text-on-surface">{empleado.email || 'No especificado'}</span>
+        </div>
+        <div className="flex justify-between gap-3 text-sm">
+          <span className="font-semibold text-outline">Móvil:</span>
+          <span className="text-right text-on-surface">{empleado.movil || 'No especificado'}</span>
+        </div>
+        <div className="flex justify-between gap-3 text-sm">
+          <span className="font-semibold text-outline">DNI:</span>
+          <span className="text-right text-on-surface">{empleado.dni || 'No especificado'}</span>
+        </div>
+        <div className="flex justify-between gap-3 text-sm">
+          <span className="font-semibold text-outline">Fecha de registro:</span>
+          <span className="text-right text-on-surface">{formatRegisterDate(empleado.created_at)}</span>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 border-t border-outline-variant/20 pt-4 sm:flex-row">
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-h-11 flex-1 rounded-full border-outline-variant/45 bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+        >
+          Ver Horarios
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-h-11 flex-1 rounded-full border-outline-variant/45 bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+        >
+          Ver Nóminas
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button
+          variant="primary"
+          size="sm"
+          className="primary-gradient min-h-11 flex-1 rounded-full border border-primary-light/10 text-white shadow-lg shadow-primary/20 hover:brightness-110"
+          onClick={onEdit}
+        >
+          Editar
+        </Button>
+        <Button
+          variant="accent"
+          size="sm"
+          className="min-h-11 flex-1 rounded-full bg-red-600 text-white hover:bg-red-700"
+          onClick={onDelete}
+          icon={<TrashIcon />}
+        >
+          Eliminar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function EmpleadosPage() {
   const [filtros, setFiltros] = useState<FiltrosEmpleadoState>({
     nombre: '',
@@ -43,10 +131,10 @@ export default function EmpleadosPage() {
     movil: '',
     dni: '',
   });
-
   const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<Empleado | null>(null);
   const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
   const [isModalEmpleadoOpen, setIsModalEmpleadoOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [modoModal, setModoModal] = useState<'nuevo' | 'editar'>('nuevo');
   const { empleados, loading, error, eliminarEmpleado, refreshEmpleados } = useEmpleados();
 
@@ -65,6 +153,19 @@ export default function EmpleadosPage() {
     setEmpleadoSeleccionado(updatedEmpleado);
   };
 
+  const handleSelectEmpleado = (empleado: Empleado) => {
+    setEmpleadoSeleccionado(empleado);
+    if (window.innerWidth < 1280) {
+      setIsDetailOpen(true);
+    }
+  };
+
+  const handleEditarEmpleado = () => {
+    setModoModal('editar');
+    setIsDetailOpen(false);
+    setIsModalEmpleadoOpen(true);
+  };
+
   const handleEliminarEmpleado = () => {
     if (!empleadoSeleccionado) return;
     setIsModalConfirmacionOpen(true);
@@ -78,6 +179,7 @@ export default function EmpleadosPage() {
       if (!result.error) {
         toast.success('Empleado eliminado correctamente');
         setEmpleadoSeleccionado(null);
+        setIsDetailOpen(false);
         await refreshEmpleados();
       } else {
         toast.error('Error al eliminar el empleado');
@@ -90,7 +192,7 @@ export default function EmpleadosPage() {
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex min-h-screen-safe items-center justify-center">
         <div className="text-lg text-red-500">{error}</div>
       </div>
     );
@@ -98,13 +200,13 @@ export default function EmpleadosPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'fl-admin']}>
-      <div className="space-y-6 p-6 lg:p-8">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="page-container space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Empleados</h1>
           <Button
             variant="primary"
             icon={<EmpleadosIcon />}
-            className="primary-gradient rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+            className="primary-gradient min-h-11 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110 sm:w-auto"
             onClick={() => {
               setModoModal('nuevo');
               setIsModalEmpleadoOpen(true);
@@ -115,14 +217,14 @@ export default function EmpleadosPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-          <section className="xl:col-span-2 overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-            <div className="px-6 py-6">
+          <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient xl:col-span-2">
+            <div className="px-4 py-4 sm:px-6 sm:py-6">
               <FiltrosEmpleados onFiltrosChange={setFiltros} />
             </div>
 
             <div className="border-t border-outline-variant/20" />
 
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               {loading ? (
                 <TableSkeleton columns={4} rows={5} />
               ) : (
@@ -146,7 +248,7 @@ export default function EmpleadosPage() {
                               ? 'bg-surface-container-low/25 hover:bg-surface-container-low'
                               : 'hover:bg-surface-container-low'
                         }`}
-                        onClick={() => setEmpleadoSeleccionado(empleado)}
+                        onClick={() => handleSelectEmpleado(empleado)}
                       >
                         <td className="whitespace-nowrap px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -178,108 +280,99 @@ export default function EmpleadosPage() {
                 </table>
               )}
             </div>
-          </section>
 
-          <section className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-card-ambient">
-            <h2 className="font-headline text-xl font-extrabold text-primary-dark">Detalles del Empleado</h2>
-
-            <div className="mt-5">
-              {empleadoSeleccionado ? (
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-primary-light text-2xl font-black text-white">
-                      {initials(empleadoSeleccionado.nombre, empleadoSeleccionado.apellidos)}
-                    </div>
-                    <h3 className="mt-2 text-lg font-bold text-on-surface">
-                      {empleadoSeleccionado.nombre} {empleadoSeleccionado.apellidos}
-                    </h3>
-                  </div>
-
-                  <div className="space-y-3 rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
-                    <div className="flex justify-between gap-3 text-sm">
-                      <span className="font-semibold text-outline">Email:</span>
-                      <span className="text-right text-on-surface">{empleadoSeleccionado.email || 'No especificado'}</span>
-                    </div>
-                    <div className="flex justify-between gap-3 text-sm">
-                      <span className="font-semibold text-outline">Móvil:</span>
-                      <span className="text-right text-on-surface">{empleadoSeleccionado.movil || 'No especificado'}</span>
-                    </div>
-                    <div className="flex justify-between gap-3 text-sm">
-                      <span className="font-semibold text-outline">DNI:</span>
-                      <span className="text-right text-on-surface">{empleadoSeleccionado.dni || 'No especificado'}</span>
-                    </div>
-                    <div className="flex justify-between gap-3 text-sm">
-                      <span className="font-semibold text-outline">Fecha de registro:</span>
-                      <span className="text-right text-on-surface">{formatRegisterDate(empleadoSeleccionado.created_at)}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 border-t border-outline-variant/20 pt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 rounded-full border-outline-variant/45 bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
-                    >
-                      Ver Horarios
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 rounded-full border-outline-variant/45 bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
-                    >
-                      Ver Nóminas
-                    </Button>
-                  </div>
-
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      className="primary-gradient flex-1 rounded-full border border-primary-light/10 text-white shadow-lg shadow-primary/20 hover:brightness-110"
-                      onClick={() => {
-                        setModoModal('editar');
-                        setIsModalEmpleadoOpen(true);
-                      }}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      variant="accent"
-                      size="sm"
-                      className="flex-1 rounded-full bg-red-600 text-white hover:bg-red-700"
-                      onClick={handleEliminarEmpleado}
-                      icon={<TrashIcon />}
-                    >
-                      Eliminar
-                    </Button>
-                  </div>
+            <div className="space-y-3 p-4 md:hidden">
+              {loading ? (
+                <TableSkeleton columns={1} rows={4} />
+              ) : empleadosFiltrados.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+                  No se encontraron empleados con esos criterios.
                 </div>
               ) : (
-                <div className="py-14 text-center text-sm font-medium text-outline">Selecciona un empleado para ver sus detalles</div>
+                empleadosFiltrados.map((empleado) => (
+                  <button
+                    key={empleado.id}
+                    type="button"
+                    onClick={() => handleSelectEmpleado(empleado)}
+                    className={`w-full rounded-[1.25rem] border px-4 py-4 text-left transition ${
+                      empleadoSeleccionado?.id === empleado.id
+                        ? 'border-primary/25 bg-primary/10'
+                        : 'border-outline-variant/20 bg-surface-container-low hover:bg-surface-container-high'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-black text-white">
+                        {initials(empleado.nombre, empleado.apellidos)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-bold text-on-surface">
+                              {empleado.nombre} {empleado.apellidos}
+                            </p>
+                            <p className="mt-0.5 text-xs text-outline">Empleado</p>
+                          </div>
+                          <span className="rounded-full bg-surface-container-lowest px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-primary">
+                            Ver
+                          </span>
+                        </div>
+                        <div className="mt-3 grid grid-cols-1 gap-1 text-sm text-on-surface-variant">
+                          <p className="truncate">{empleado.email || 'No especificado'}</p>
+                          <p>{empleado.movil || 'No especificado'}</p>
+                          <p>{empleado.dni || 'No especificado'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))
               )}
             </div>
           </section>
+
+          <section className="hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-card-ambient xl:block">
+            <h2 className="font-headline text-xl font-extrabold text-primary-dark">Detalles del Empleado</h2>
+            <div className="mt-5">
+              <EmpleadoDetailsContent
+                empleado={empleadoSeleccionado}
+                onEdit={handleEditarEmpleado}
+                onDelete={handleEliminarEmpleado}
+              />
+            </div>
+          </section>
         </div>
+
+        <OverlayPanel
+          isOpen={isDetailOpen && !!empleadoSeleccionado}
+          onClose={() => setIsDetailOpen(false)}
+          title="Detalles del empleado"
+          bodyClassName="p-5 sm:p-6 xl:hidden"
+        >
+          <EmpleadoDetailsContent
+            empleado={empleadoSeleccionado}
+            onEdit={handleEditarEmpleado}
+            onDelete={handleEliminarEmpleado}
+          />
+        </OverlayPanel>
+
+        <ModalEmpleado
+          isOpen={isModalEmpleadoOpen}
+          onClose={() => setIsModalEmpleadoOpen(false)}
+          onSuccess={handleNuevoEmpleadoSuccess}
+          modo={modoModal}
+          empleado={modoModal === 'editar' && empleadoSeleccionado ? empleadoSeleccionado : undefined}
+        />
+
+        <ModalConfirmacion
+          isOpen={isModalConfirmacionOpen}
+          onClose={() => setIsModalConfirmacionOpen(false)}
+          onConfirm={handleConfirmarEliminacion}
+          titulo="Eliminar Empleado"
+          mensaje={`¿Estás seguro de que quieres eliminar a ${empleadoSeleccionado?.nombre} ${empleadoSeleccionado?.apellidos}? Esta acción no se puede deshacer.`}
+          textoConfirmar="Eliminar"
+          textoCancelar="Cancelar"
+          variante="empleados-v2"
+        />
       </div>
-
-      <ModalEmpleado
-        isOpen={isModalEmpleadoOpen}
-        onClose={() => setIsModalEmpleadoOpen(false)}
-        onSuccess={handleNuevoEmpleadoSuccess}
-        modo={modoModal}
-        empleado={modoModal === 'editar' && empleadoSeleccionado ? empleadoSeleccionado : undefined}
-      />
-
-      <ModalConfirmacion
-        isOpen={isModalConfirmacionOpen}
-        onClose={() => setIsModalConfirmacionOpen(false)}
-        onConfirm={handleConfirmarEliminacion}
-        titulo="Eliminar Empleado"
-        mensaje={`¿Estás seguro de que quieres eliminar al empleado ${empleadoSeleccionado?.nombre} ${empleadoSeleccionado?.apellidos}? Esta acción no se puede deshacer.`}
-        textoConfirmar="Eliminar"
-        textoCancelar="Cancelar"
-        variante="empleados-v2"
-      />
     </ProtectedRoute>
   );
 }

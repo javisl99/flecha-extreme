@@ -21,6 +21,7 @@ interface ShoppingCartProps {
   onCheckout?: () => void;
   onProceedToPayment: (discountPercentage: number) => void;
   className?: string;
+  mode?: 'embedded' | 'drawer';
 }
 
 export default function ShoppingCart({
@@ -30,6 +31,7 @@ export default function ShoppingCart({
   onClearCart,
   onProceedToPayment,
   className = '',
+  mode = 'embedded',
 }: ShoppingCartProps) {
   const [discountPercentage, setDiscountPercentage] = useState(0);
 
@@ -38,7 +40,13 @@ export default function ShoppingCart({
   const total = subtotal - discountAmount;
 
   return (
-    <section className={`flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient ${className}`}>
+    <section
+      className={`flex h-full flex-col overflow-hidden ${
+        mode === 'drawer'
+          ? 'border-0 bg-surface-container-lowest shadow-none'
+          : 'rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient'
+      } ${className}`}
+    >
       <header className="border-b border-outline-variant/20 px-5 py-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-headline text-xl font-extrabold text-primary-dark">Cesta de compra</h2>

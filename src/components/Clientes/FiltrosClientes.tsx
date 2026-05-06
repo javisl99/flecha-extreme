@@ -49,7 +49,7 @@ export function FiltrosClientes({ onFiltrosChange }: FiltrosClientesProps) {
   const labelClassName = 'mb-2 block text-[11px] font-black uppercase tracking-[0.14em] text-outline';
 
   return (
-    <div className="rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-low px-6 py-5">
+    <div className="rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-low px-4 py-4 sm:px-6 sm:py-5">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div>
           <label htmlFor="filtro-nombre" className={labelClassName}>
@@ -137,11 +137,11 @@ export function FiltrosClientes({ onFiltrosChange }: FiltrosClientesProps) {
         </div>
       </div>
 
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
           type="button"
           onClick={limpiarFiltros}
-          className="rounded-full border border-outline-variant/45 bg-surface-container-lowest px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+          className="min-h-11 w-full rounded-full border border-outline-variant/45 bg-surface-container-lowest px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/15 sm:w-auto"
         >
           Limpiar filtros
         </button>

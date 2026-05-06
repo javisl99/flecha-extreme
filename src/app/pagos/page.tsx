@@ -284,26 +284,26 @@ export default function PagosPage() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex min-h-screen-safe items-center justify-center">
         <div className="text-lg text-red-500">{error}</div>
       </div>
     );
   }
   
   return (
-    <div className="space-y-6 p-6 lg:p-8">
+    <div className="page-container space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Pagos</h1>
       </div>
 
       <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-        <div className="px-6 py-6">
+        <div className="px-4 py-4 sm:px-6 sm:py-6">
           <FiltrosPagos onFiltrosChange={setFiltros} />
         </div>
 
         <div className="border-t border-outline-variant/20" />
 
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           {loading ? (
             <TableSkeleton columns={7} rows={5} />
           ) : (
@@ -409,6 +409,79 @@ export default function PagosPage() {
                 ) : null}
               </tbody>
             </table>
+          )}
+        </div>
+
+        <div className="space-y-3 p-4 md:hidden">
+          {loading ? (
+            <TableSkeleton columns={1} rows={4} />
+          ) : pagosFiltrados.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+              No se encontraron pagos con los filtros seleccionados.
+            </div>
+          ) : (
+            pagosFiltrados.map((pago) => (
+              <div
+                key={pago.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => handleFilaClick(pago)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    handleFilaClick(pago);
+                  }
+                }}
+                className="w-full rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4 text-left transition hover:bg-surface-container-high"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-[0.08em] text-primary">
+                      {capitalizarOrigen(pago.origen_tipo)}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-on-surface">{mostrarCliente(pago)}</p>
+                  </div>
+                  <span className={`${getEstadoColor(pago.estado)} rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em]`}>
+                    {formatearEstado(pago.estado)}
+                  </span>
+                </div>
+
+                <div className="mt-3 space-y-1 text-sm text-on-surface-variant">
+                  <p className="font-medium text-on-surface">{pago.concepto}</p>
+                  <p>Método: {formatearMetodoPago(pago.metodo)}</p>
+                  <p className="font-bold text-primary-dark">
+                    {new Intl.NumberFormat('es-ES', {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 2,
+                    }).format(pago.importe)}{' '}
+                    €
+                  </p>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    className="min-h-11 flex-1 rounded-full border border-outline-variant/35 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleVerPago(pago);
+                    }}
+                  >
+                    Ver
+                  </button>
+                  <button
+                    type="button"
+                    className="min-h-11 flex-1 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEliminarPago(pago);
+                    }}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </section>
