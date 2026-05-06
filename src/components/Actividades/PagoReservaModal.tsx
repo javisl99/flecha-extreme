@@ -11,8 +11,9 @@ import { SelectorCliente } from '@/components/Actividades/SelectorCliente';
 import { useClientes } from '@/hooks/useClientes';
 import { useTickets } from '@/hooks/useTickets';
 import { toast } from 'react-hot-toast';
+import { ACTIVE_PAYMENT_METHOD_OPTIONS } from '@/lib/contabilidadCatalogos';
 
-type MetodoPago = 'efectivo' | 'tpv' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
+type MetodoPago = 'efectivo' | 'tpv' | 'transferencia' | 'bizum_alfonso';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 
 interface ActividadReserva {
@@ -96,16 +97,10 @@ export default function PagoReservaModal({
     }
   }, [reservaData, readOnly]);
 
-  const metodosPago = useMemo(() => [
-    { value: 'efectivo' as MetodoPago, label: 'Efectivo' },
-    { value: 'tpv' as MetodoPago, label: 'Tarjeta (TPV)' },
-    { value: 'bizum_alfonso' as MetodoPago, label: 'Bizum Alfonso' },
-    { value: 'bizum_robe' as MetodoPago, label: 'Bizum Robe' },
-    { value: 'bizum_alba' as MetodoPago, label: 'Bizum Alba' },
-    { value: 'bizum_maria' as MetodoPago, label: 'Bizum María' },
-    { value: 'bizum_jm' as MetodoPago, label: 'Bizum JM' },
-    { value: 'angeles' as MetodoPago, label: 'Ángeles' }
-  ], []);
+  const metodosPago = useMemo(
+    () => ACTIVE_PAYMENT_METHOD_OPTIONS as Array<{ value: MetodoPago; label: string }>,
+    []
+  );
 
   // Obtener el método de pago optimizado
   const selectedMetodoPago = useMemo(() => 

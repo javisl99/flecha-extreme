@@ -3,14 +3,14 @@
 import { Dispatch, SetStateAction } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/shared/components';
-import { CajaContable } from '@/shared/types';
-import { CAJAS_CONTABLES } from '@/lib/contabilidad';
+import { CuentaContable } from '@/shared/types';
+import { accountLabel } from '@/lib/contabilidad';
 
 export type TraspasoFormState = {
   id: string | null;
   fechaOperacion: string;
-  desde: CajaContable;
-  hacia: CajaContable;
+  desdeCuentaId: string;
+  haciaCuentaId: string;
   importeTotal: string;
   comentario: string;
 };
@@ -20,6 +20,7 @@ interface TraspasoModalV2Props {
   onClose: () => void;
   form: TraspasoFormState;
   setForm: Dispatch<SetStateAction<TraspasoFormState>>;
+  cuentas: CuentaContable[];
   saving: boolean;
   onSubmit: () => void;
   onReset: () => void;
@@ -30,6 +31,7 @@ export default function TraspasoModalV2({
   onClose,
   form,
   setForm,
+  cuentas,
   saving,
   onSubmit,
   onReset,
@@ -73,13 +75,15 @@ export default function TraspasoModalV2({
               <span className={labelClassName}>Desde</span>
               <select
                 className={inputClassName}
-                value={form.desde}
-                onChange={(e) => setForm((prev) => ({ ...prev, desde: e.target.value as CajaContable }))}
+                value={form.desdeCuentaId}
+                onChange={(e) => setForm((prev) => ({ ...prev, desdeCuentaId: e.target.value }))}
                 disabled={saving}
               >
-                {CAJAS_CONTABLES.map((caja) => (
-                  <option key={caja.value} value={caja.value}>
-                    {caja.label}
+                <option value="">Selecciona una cuenta</option>
+                {cuentas.map((cuenta) => (
+                  <option key={cuenta.id} value={cuenta.id}>
+                    {accountLabel(cuenta)}
+                    {!cuenta.activo ? ' · Inactiva' : ''}
                   </option>
                 ))}
               </select>
@@ -89,13 +93,15 @@ export default function TraspasoModalV2({
               <span className={labelClassName}>Hacia</span>
               <select
                 className={inputClassName}
-                value={form.hacia}
-                onChange={(e) => setForm((prev) => ({ ...prev, hacia: e.target.value as CajaContable }))}
+                value={form.haciaCuentaId}
+                onChange={(e) => setForm((prev) => ({ ...prev, haciaCuentaId: e.target.value }))}
                 disabled={saving}
               >
-                {CAJAS_CONTABLES.map((caja) => (
-                  <option key={caja.value} value={caja.value}>
-                    {caja.label}
+                <option value="">Selecciona una cuenta</option>
+                {cuentas.map((cuenta) => (
+                  <option key={cuenta.id} value={cuenta.id}>
+                    {accountLabel(cuenta)}
+                    {!cuenta.activo ? ' · Inactiva' : ''}
                   </option>
                 ))}
               </select>
