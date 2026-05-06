@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useSupabase } from './useSupabase';
 import { useTickets } from './useTickets';
+import { resolvePaymentMethodIdByCode } from '@/lib/contabilidadCatalogos';
 
 export interface NuevaActividad {
   nombre: string;
@@ -451,6 +452,7 @@ export function useActividades() {
             concepto: datosPago.concepto,
             importe: datosPago.importe,
             metodo: datosPago.metodo,
+            metodo_pago_id: await resolvePaymentMethodIdByCode(supabase, datosPago.metodo),
             estado: datosPago.estado
           }
         ])

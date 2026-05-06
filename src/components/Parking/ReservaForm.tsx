@@ -2,8 +2,9 @@ import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useClientes } from '@/hooks/useClientes';
+import { ACTIVE_PAYMENT_METHOD_OPTIONS } from '@/lib/contabilidadCatalogos';
 
-type MetodoPago = 'efectivo' | 'tpv' | 'tpv_online' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles';
+type MetodoPago = 'efectivo' | 'tpv' | 'transferencia' | 'bizum_alfonso';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 
 interface TarifaParking {
@@ -61,17 +62,8 @@ export default function ReservaForm({ isOpen, onClose, onSubmit, plazaCodigo, ta
     onClose();
   };
 
-  const metodosPago: { value: MetodoPago; label: string }[] = [
-    { value: 'efectivo', label: 'Efectivo' },
-    { value: 'tpv', label: 'Tarjeta (TPV)' },
-    { value: 'tpv_online', label: 'Tarjeta Online' },
-    { value: 'bizum_alfonso', label: 'Bizum Alfonso' },
-    { value: 'bizum_robe', label: 'Bizum Robe' },
-    { value: 'bizum_alba', label: 'Bizum Alba' },
-    { value: 'bizum_maria', label: 'Bizum María' },
-    { value: 'bizum_jm', label: 'Bizum JM' },
-    { value: 'angeles', label: 'Ángeles' }
-  ];
+  const metodosPago: { value: MetodoPago; label: string }[] =
+    ACTIVE_PAYMENT_METHOD_OPTIONS as Array<{ value: MetodoPago; label: string }>;
 
   const estadosPago: { value: EstadoPago; label: string }[] = [
     { value: 'completado', label: 'Completado' },
