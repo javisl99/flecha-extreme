@@ -1,17 +1,13 @@
 import { useState, useCallback } from 'react';
 import supabaseClient from '@/lib/supabaseClient';
+import { resolvePaymentMethodIdByCode } from '@/lib/contabilidadCatalogos';
 
 type TipoParking = 'embarcacion' | 'tabla' | 'kayak';
 type MetodoPago =
   | 'efectivo'
   | 'tpv'
-  | 'tpv_online'
+  | 'transferencia'
   | 'bizum_alfonso'
-  | 'bizum_robe'
-  | 'bizum_alba'
-  | 'bizum_maria'
-  | 'bizum_jm'
-  | 'angeles';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 type EstadoReservaParking = 'pendiente' | 'activa' | 'cancelada' | 'finalizada';
 
@@ -395,6 +391,7 @@ export function useParking() {
               concepto,
               importe: importePago,
               metodo: data.pago.metodo,
+              metodo_pago_id: await resolvePaymentMethodIdByCode(supabaseClient, data.pago.metodo),
               estado: data.pago.estado
             }
           ])

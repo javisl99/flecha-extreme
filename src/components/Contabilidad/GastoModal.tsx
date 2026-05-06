@@ -4,13 +4,19 @@ import { Dispatch, SetStateAction } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/shared/components';
 import { DetalleGastoFormulario } from '@/hooks/useContabilidad';
-import { CajaContable } from '@/shared/types';
-import { CAJAS_CONTABLES, TIPOS_GASTO_CONTABLES } from '@/lib/contabilidad';
+import { CuentaContable, MetodoPagoContable } from '@/shared/types';
+import {
+  accountLabel,
+  IVA_OPTIONS,
+  paymentMethodLabel,
+  TIPOS_GASTO_CONTABLES,
+} from '@/lib/contabilidad';
 
 export type GastoFormState = {
   id: string | null;
   fechaOperacion: string;
-  caja: CajaContable;
+  cuentaId: string;
+  metodoPagoId: string;
   concepto: string;
   comentario: string;
   detalle: DetalleGastoFormulario;
@@ -24,6 +30,8 @@ interface GastoModalV2Props {
   onClose: () => void;
   form: GastoFormState;
   setForm: Dispatch<SetStateAction<GastoFormState>>;
+  cuentas: CuentaContable[];
+  metodosPago: MetodoPagoContable[];
   totalGastoFormulario: number;
   saving: boolean;
   onSubmit: () => void;
@@ -35,6 +43,8 @@ export default function GastoModalV2({
   onClose,
   form,
   setForm,
+  cuentas,
+  metodosPago,
   totalGastoFormulario,
   saving,
   onSubmit,
@@ -48,6 +58,8 @@ export default function GastoModalV2({
   const textareaClassName =
     'w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 py-2 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15';
   const title = form.id ? 'Editar gasto' : 'Nuevo gasto';
+  const ivaImporte = Number((totalGastoFormulario - Number(form.detalle.base_imponible || 0)).toFixed(2));
+  const ivaEsCustom = ![0, 4, 10, 21].includes(Number(form.detalle.iva_pct));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm">
@@ -78,22 +90,50 @@ export default function GastoModalV2({
             </label>
 
             <label className="text-sm text-on-surface">
-              <span className={labelClassName}>Caja</span>
+              <span className={labelClassName}>Forma de pago</span>
               <select
                 className={inputClassName}
-                value={form.caja}
-                onChange={(e) => setForm((prev) => ({ ...prev, caja: e.target.value as CajaContable }))}
+                value={form.metodoPagoId}
+                onChange={(e) => {
+                  const metodoPagoId = e.target.value;
+                  const metodo = metodosPago.find((item) => item.id === metodoPagoId);
+                  setForm((prev) => ({
+                    ...prev,
+                    metodoPagoId,
+                    cuentaId: metodo?.cuenta_liquidacion_id || prev.cuentaId,
+                  }));
+                }}
                 disabled={saving}
               >
-                {CAJAS_CONTABLES.map((caja) => (
-                  <option key={caja.value} value={caja.value}>
-                    {caja.label}
+                <option value="">Selecciona una forma de pago</option>
+                {metodosPago.map((metodo) => (
+                  <option key={metodo.id} value={metodo.id}>
+                    {paymentMethodLabel(metodo)}
+                    {!metodo.activo ? ' · Inactivo' : ''}
                   </option>
                 ))}
               </select>
             </label>
 
-            <label className="text-sm text-on-surface md:col-span-2">
+            <label className="text-sm text-on-surface">
+              <span className={labelClassName}>Cuenta afectada</span>
+              <select
+                className={inputClassName}
+                value={form.cuentaId}
+                onChange={(e) => setForm((prev) => ({ ...prev, cuentaId: e.target.value }))}
+                disabled={saving}
+              >
+                <option value="">Selecciona una cuenta</option>
+                {cuentas.map((cuenta) => (
+                  <option key={cuenta.id} value={cuenta.id}>
+                    {accountLabel(cuenta)}
+                    {!cuenta.activo ? ' · Inactiva' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm text-on-surface">
               <span className={labelClassName}>Concepto</span>
               <input
                 type="text"
@@ -105,7 +145,7 @@ export default function GastoModalV2({
               />
             </label>
 
-            <label className="text-sm text-on-surface">
+            <label className="text-sm text-on-surface md:col-span-2">
               <span className={labelClassName}>Tipo gasto</span>
               <select
                 className={inputClassName}
@@ -128,21 +168,20 @@ export default function GastoModalV2({
 
             <label className="text-sm text-on-surface">
               <span className={labelClassName}>Deducible</span>
-              <select
-                className={inputClassName}
-                value={form.detalle.deducible}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    detalle: { ...prev.detalle, deducible: e.target.value as DetalleGastoFormulario['deducible'] },
-                  }))
-                }
-                disabled={saving}
-              >
-                <option value="si">Sí</option>
-                <option value="no">No</option>
-                <option value="preguntar">Preguntar</option>
-              </select>
+              <label className="inline-flex h-11 w-full items-center gap-3 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm font-medium text-on-surface">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.detalle.deducible)}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      detalle: { ...prev.detalle, deducible: e.target.checked },
+                    }))
+                  }
+                  disabled={saving}
+                />
+                Marcar como deducible
+              </label>
             </label>
 
             <label className="text-sm text-on-surface md:col-span-2">
@@ -229,24 +268,60 @@ export default function GastoModalV2({
 
             <label className="text-sm text-on-surface">
               <span className={labelClassName}>IVA %</span>
+              <div className="space-y-2">
+                <select
+                  className={inputClassName}
+                  value={ivaEsCustom ? '-1' : String(form.detalle.iva_pct)}
+                  onChange={(e) => {
+                    const nextValue = Number(e.target.value);
+                    setForm((prev) => ({
+                      ...prev,
+                      detalle: {
+                        ...prev.detalle,
+                        iva_pct: nextValue === -1 ? prev.detalle.iva_pct || 0 : nextValue,
+                      },
+                    }));
+                  }}
+                  disabled={saving}
+                >
+                  {IVA_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {ivaEsCustom ? (
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className={inputClassName}
+                    value={form.detalle.iva_pct}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        detalle: { ...prev.detalle, iva_pct: Number(e.target.value) || 0 },
+                      }))
+                    }
+                    disabled={saving}
+                    placeholder="Introduce el IVA"
+                  />
+                ) : null}
+              </div>
+            </label>
+
+            <label className="text-sm text-on-surface">
+              <span className={labelClassName}>Total impuesto</span>
               <input
-                type="number"
-                min="0"
-                step="0.01"
-                className={inputClassName}
-                value={form.detalle.iva_pct}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    detalle: { ...prev.detalle, iva_pct: Number(e.target.value) || 0 },
-                  }))
-                }
-                disabled={saving}
+                type="text"
+                readOnly
+                className="h-11 w-full rounded-xl border border-outline-variant/40 bg-surface-container-low px-3 text-sm font-semibold text-on-surface"
+                value={`${ivaImporte.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
               />
             </label>
 
             <label className="text-sm text-on-surface">
-              <span className={labelClassName}>Total imponible</span>
+              <span className={labelClassName}>Importe total</span>
               <input
                 type="text"
                 readOnly

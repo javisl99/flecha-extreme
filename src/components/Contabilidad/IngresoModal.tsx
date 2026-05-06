@@ -4,16 +4,16 @@ import { Dispatch, SetStateAction } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/shared/components';
 import { Empleado } from '@/hooks/useEmpleados';
-import { CajaContable, MetodoContable, MovimientoContable } from '@/shared/types';
-import { accountingBoxByMethod, CAJAS_CONTABLES, METODOS_CONTABLES } from '@/lib/contabilidad';
+import { CuentaContable, MetodoPagoContable, MovimientoContable } from '@/shared/types';
+import { accountLabel, paymentMethodLabel } from '@/lib/contabilidad';
 
 export type IngresoFormState = {
   id: string | null;
   fechaOperacion: string;
   concepto: string;
   comentario: string;
-  metodo: MetodoContable;
-  caja: CajaContable;
+  metodoPagoId: string;
+  cuentaId: string;
   importeTotal: string;
   idEmpleado: string;
   esDevolucion: boolean;
@@ -26,6 +26,8 @@ interface IngresoModalV2Props {
   form: IngresoFormState;
   setForm: Dispatch<SetStateAction<IngresoFormState>>;
   movimientos: MovimientoContable[];
+  metodosPago: MetodoPagoContable[];
+  cuentas: CuentaContable[];
   empleados: Empleado[];
   empleadosLoading: boolean;
   saving: boolean;
@@ -39,6 +41,8 @@ export default function IngresoModalV2({
   form,
   setForm,
   movimientos,
+  metodosPago,
+  cuentas,
   empleados,
   empleadosLoading,
   saving,
@@ -85,20 +89,23 @@ export default function IngresoModalV2({
               <span className={labelClassName}>Método</span>
               <select
                 className={inputClassName}
-                value={form.metodo}
+                value={form.metodoPagoId}
                 onChange={(e) => {
-                  const metodo = e.target.value as MetodoContable;
+                  const metodoPagoId = e.target.value;
+                  const metodo = metodosPago.find((item) => item.id === metodoPagoId);
                   setForm((prev) => ({
                     ...prev,
-                    metodo,
-                    caja: accountingBoxByMethod(metodo),
+                    metodoPagoId,
+                    cuentaId: metodo?.cuenta_liquidacion_id || prev.cuentaId,
                   }));
                 }}
                 disabled={saving}
               >
-                {METODOS_CONTABLES.map((metodo) => (
-                  <option key={metodo.value} value={metodo.value}>
-                    {metodo.label}
+                <option value="">Selecciona una forma de pago</option>
+                {metodosPago.map((metodo) => (
+                  <option key={metodo.id} value={metodo.id}>
+                    {paymentMethodLabel(metodo)}
+                    {!metodo.activo ? ' · Inactivo' : ''}
                   </option>
                 ))}
               </select>
@@ -130,16 +137,18 @@ export default function IngresoModalV2({
             </label>
 
             <label className="text-sm text-on-surface">
-              <span className={labelClassName}>Caja destino</span>
+              <span className={labelClassName}>Cuenta afectada</span>
               <select
                 className={inputClassName}
-                value={form.caja}
-                onChange={(e) => setForm((prev) => ({ ...prev, caja: e.target.value as CajaContable }))}
+                value={form.cuentaId}
+                onChange={(e) => setForm((prev) => ({ ...prev, cuentaId: e.target.value }))}
                 disabled={saving}
               >
-                {CAJAS_CONTABLES.map((caja) => (
-                  <option key={caja.value} value={caja.value}>
-                    {caja.label}
+                <option value="">Selecciona una cuenta</option>
+                {cuentas.map((cuenta) => (
+                  <option key={cuenta.id} value={cuenta.id}>
+                    {accountLabel(cuenta)}
+                    {!cuenta.activo ? ' · Inactiva' : ''}
                   </option>
                 ))}
               </select>
