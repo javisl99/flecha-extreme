@@ -1,6 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import {
+  generateCampamentoOccurrences,
+  getCampamentoMetadata,
+  type ReservaServicioItemMetadata
+} from '@/lib/campamento';
 import ModalDetalleReserva from './ModalDetalleReserva';
 
 type CalendarView = 'month' | 'week' | 'day';
@@ -23,6 +28,7 @@ interface Reserva {
   precio: number;
   cantidad_reservada: number;
   numero_personas_reserva?: number;
+  metadata?: ReservaServicioItemMetadata;
   nota?: string;
 }
 
@@ -168,7 +174,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
   const eventos = useMemo(
     () =>
       reservas
-        .map((reserva): EventoCalendario => {
+        .flatMap((reserva): EventoCalendario[] => {
           const start = new Date(reserva.fecha_inicio);
           const end = new Date(reserva.fecha_fin);
           const actividad = reserva.actividad?.nombre || 'Actividad no encontrada';
@@ -176,8 +182,21 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
             ? `${reserva.cliente.nombre} ${reserva.cliente.apellidos}`
             : 'Cliente no establecido';
           const empresa = reserva.empresa?.nombre || 'Empresa no establecida';
+          const campamento = getCampamentoMetadata(reserva.metadata);
 
-          return {
+          if (campamento) {
+            return generateCampamentoOccurrences(campamento).map((occurrence) => ({
+              id: `${reserva.id}-${occurrence.date}-${occurrence.horaInicio}`,
+              title: actividad,
+              subtitle: `${cliente} · ${empresa}`,
+              start: occurrence.start,
+              end: occurrence.end,
+              resource: reserva,
+              estado: reserva.estado,
+            }));
+          }
+
+          return [{
             id: reserva.id,
             title: actividad,
             subtitle: `${cliente} · ${empresa}`,
@@ -185,7 +204,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
             end,
             resource: reserva,
             estado: reserva.estado,
-          };
+          }];
         })
         .sort((a, b) => a.start.getTime() - b.start.getTime()),
     [reservas]

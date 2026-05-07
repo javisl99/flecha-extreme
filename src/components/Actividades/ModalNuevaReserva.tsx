@@ -8,6 +8,16 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useActividades, ActividadDB, TarifaActividad } from '@/hooks/useActividades';
+import {
+  buildCampamentoDateRangeLabel,
+  buildCampamentoHorarioSummary,
+  buildCampamentoTurnoOptions,
+  formatDateInputForDisplay,
+  generateCampamentoOccurrences,
+  type CampamentoMetadata,
+  type CampamentoTurnoOption,
+  type ServicioHorarioRegla
+} from '@/lib/campamento';
 import PagoReservaModal from './PagoReservaModal';
 
 interface ModalNuevaReservaProps {
@@ -25,6 +35,9 @@ interface ModalNuevaReservaProps {
     horaInicio: string;
     horaFin: string;
     nota?: string;
+    campamentoMetadata?: CampamentoMetadata;
+    reservaFechaInicio?: string;
+    reservaFechaFin?: string;
   }) => void;
   onToast: (toast: { visible: boolean; message: string; type: 'success' | 'error' }) => void;
 }
@@ -64,6 +77,23 @@ function getTodayInputValue() {
 function getCurrentTimeInputValue() {
   const now = new Date();
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
+function createDefaultReservaFormData() {
+  return {
+    empresa: 'Flecha Extreme' as 'Flecha Extreme' | 'Rober',
+    tipoActividad: 'alquiler' as 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros',
+    actividad: '',
+    duracion: '',
+    cantidadReservada: 1,
+    numeroPersonas: 1,
+    precio: 0,
+    fechaInicio: getTodayInputValue(),
+    fechaFin: '',
+    horaInicio: getCurrentTimeInputValue(),
+    horaFin: '',
+    nota: ''
+  };
 }
 
 function buildRentalDurationValue(hours: number) {
@@ -237,26 +267,14 @@ export default function ModalNuevaReserva({
   const {
     obtenerActividadesPorTipo,
     obtenerTarifasActividad,
+    obtenerHorariosActividad,
     consultarStockDisponible,
     buscarSiguienteDisponibilidadServicio,
     loadingActividades,
     error: errorActividades
   } = useActividades();
 
-  const [formData, setFormData] = useState({
-    empresa: 'Flecha Extreme' as 'Flecha Extreme' | 'Rober',
-    tipoActividad: 'alquiler' as 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros',
-    actividad: '',
-    duracion: '',
-    cantidadReservada: 1,
-    numeroPersonas: 1,
-    precio: 0,
-    fechaInicio: '',
-    fechaFin: '',
-    horaInicio: '',
-    horaFin: '',
-    nota: ''
-  });
+  const [formData, setFormData] = useState(createDefaultReservaFormData);
   const [actividadesExistentes, setActividadesExistentes] = useState<ActividadDB[]>([]);
   const [tipoCargado, setTipoCargado] = useState('');
   const [tarifasActividad, setTarifasActividad] = useState<TarifaActividad[]>([]);
@@ -272,10 +290,18 @@ export default function ModalNuevaReserva({
   const [consultandoStock, setConsultandoStock] = useState(false);
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [rentalAvailability, setRentalAvailability] = useState<RentalAvailabilityState>(EMPTY_RENTAL_AVAILABILITY);
+  const [campHorarioReglas, setCampHorarioReglas] = useState<ServicioHorarioRegla[]>([]);
+  const [campTurnoSeleccionado, setCampTurnoSeleccionado] = useState('');
 
   const isRental = formData.tipoActividad === 'alquiler';
   const isCourse = formData.tipoActividad === 'curso';
   const isRoute = formData.tipoActividad === 'ruta';
+  const isCamp = formData.tipoActividad === 'campamento';
+  const isSport = formData.tipoActividad === 'sport';
+  const isBanana = isSport && (
+    actividadSeleccionada?.codigo === 'BANANA' ||
+    actividadSeleccionada?.nombre.toLowerCase() === 'banana'
+  );
   const today = getTodayInputValue();
 
   const tarifaSeleccionada = useMemo(() => {
@@ -285,8 +311,13 @@ export default function ModalNuevaReserva({
       (tarifa) => `${tarifa.duracion_valor}-${tarifa.duracion_unidad}` === formData.duracion
     ) ?? null;
   }, [formData.duracion, tarifasActividad]);
+  const bananaBaseTariff = useMemo(() => {
+    if (!isBanana) return null;
+    return tarifasActividad[0] ?? null;
+  }, [isBanana, tarifasActividad]);
 
   const hourlyBaseTariff = useMemo(() => getHourlyBaseTariff(tarifasActividad), [tarifasActividad]);
+  const campBaseTariff = useMemo(() => tarifasActividad[0] ?? null, [tarifasActividad]);
   const rentalHoursSelected = useMemo(
     () => (isRental ? parseRentalHours(formData.duracion) : null),
     [formData.duracion, isRental]
@@ -295,11 +326,19 @@ export default function ModalNuevaReserva({
     () => !isRental && (actividadSeleccionada?.modo_precio === 'por_persona' || isCourse),
     [actividadSeleccionada, isCourse, isRental]
   );
+  const syncReservedQuantityWithPeople = useMemo(
+    () => usesPerPersonPricing && !isBanana,
+    [isBanana, usesPerPersonPricing]
+  );
   const effectiveReservedQuantity = useMemo(
-    () => (usesPerPersonPricing ? formData.numeroPersonas : formData.cantidadReservada),
-    [formData.cantidadReservada, formData.numeroPersonas, usesPerPersonPricing]
+    () => (syncReservedQuantityWithPeople ? formData.numeroPersonas : formData.cantidadReservada),
+    [formData.cantidadReservada, formData.numeroPersonas, syncReservedQuantityWithPeople]
   );
   const effectiveInventoryQuantity = useMemo(() => {
+    if (isBanana) {
+      return Math.max(1, formData.cantidadReservada);
+    }
+
     if (!usesPerPersonPricing) {
       return formData.cantidadReservada;
     }
@@ -313,14 +352,23 @@ export default function ModalNuevaReserva({
     }
 
     return effectiveReservedQuantity;
-  }, [actividadSeleccionada, effectiveReservedQuantity, formData.cantidadReservada, formData.numeroPersonas, usesPerPersonPricing]);
+  }, [actividadSeleccionada, effectiveReservedQuantity, formData.cantidadReservada, formData.numeroPersonas, isBanana, usesPerPersonPricing]);
+  const bananaPoolTotal = useMemo(
+    () => (actividadSeleccionada?.pool_inventario_total && actividadSeleccionada.pool_inventario_total > 0 ? actividadSeleccionada.pool_inventario_total : 1),
+    [actividadSeleccionada]
+  );
+  const showBananaQuantitySelector = isBanana && bananaPoolTotal > 1;
   const maxNumeroPersonas = useMemo(() => {
     if (actividadSeleccionada?.numero_personas && actividadSeleccionada.numero_personas > 0) {
       return actividadSeleccionada.numero_personas;
     }
 
+    if (isCamp || isBanana) {
+      return 999;
+    }
+
     return 15;
-  }, [actividadSeleccionada]);
+  }, [actividadSeleccionada, isBanana, isCamp]);
   const usesGroupedInventory = useMemo(
     () => usesPerPersonPricing && !!actividadSeleccionada?.usa_pool_inventario && !!actividadSeleccionada?.numero_personas,
     [actividadSeleccionada, usesPerPersonPricing]
@@ -339,6 +387,16 @@ export default function ModalNuevaReserva({
       return hourlyBaseTariff.precio === 0 || hourlyBaseTariff.metadata?.precio_manual === true;
     }
 
+    if (isCamp) {
+      if (!campBaseTariff) return true;
+      return campBaseTariff.precio === 0 || campBaseTariff.metadata?.precio_manual === true;
+    }
+
+    if (isBanana) {
+      if (!bananaBaseTariff) return true;
+      return bananaBaseTariff.precio === 0 || bananaBaseTariff.metadata?.precio_manual === true;
+    }
+
     if (!tarifaSeleccionada && tarifasActividad.length === 0) {
       return true;
     }
@@ -346,7 +404,46 @@ export default function ModalNuevaReserva({
     if (!tarifaSeleccionada) return false;
 
     return tarifaSeleccionada.precio === 0 && tarifaSeleccionada.metadata?.precio_manual === true;
-  }, [hourlyBaseTariff, isRental, tarifaSeleccionada, tarifasActividad.length]);
+  }, [bananaBaseTariff, campBaseTariff, hourlyBaseTariff, isBanana, isCamp, isRental, tarifaSeleccionada, tarifasActividad.length]);
+
+  const campTurnoOptions = useMemo<CampamentoTurnoOption[]>(
+    () => buildCampamentoTurnoOptions(campHorarioReglas),
+    [campHorarioReglas]
+  );
+  const campTurnoActivo = useMemo(
+    () => campTurnoOptions.find((option) => option.key === campTurnoSeleccionado) ?? null,
+    [campTurnoOptions, campTurnoSeleccionado]
+  );
+  const campamentoMetadata = useMemo<CampamentoMetadata | null>(() => {
+    if (!isCamp || !formData.fechaInicio || !formData.fechaFin || !campTurnoActivo) {
+      return null;
+    }
+
+    return {
+      tipo: 'campamento_recurrente',
+      fecha_inicio: formData.fechaInicio,
+      fecha_fin: formData.fechaFin,
+      dias_semana: campTurnoActivo.diasSemana,
+      hora_inicio: campTurnoActivo.horaInicio,
+      hora_fin: campTurnoActivo.horaFin,
+      turno_codigo: campTurnoActivo.codigo,
+      turno_label: campTurnoActivo.label
+    };
+  }, [campTurnoActivo, formData.fechaFin, formData.fechaInicio, isCamp]);
+  const campOccurrences = useMemo(
+    () => (campamentoMetadata ? generateCampamentoOccurrences(campamentoMetadata) : []),
+    [campamentoMetadata]
+  );
+  const campFirstOccurrence = campOccurrences[0] ?? null;
+  const campLastOccurrence = campOccurrences[campOccurrences.length - 1] ?? null;
+  const campHorarioResumen = useMemo(
+    () => (campamentoMetadata ? buildCampamentoHorarioSummary(campamentoMetadata) : ''),
+    [campamentoMetadata]
+  );
+  const campRangoResumen = useMemo(
+    () => (campamentoMetadata ? buildCampamentoDateRangeLabel(campamentoMetadata) : ''),
+    [campamentoMetadata]
+  );
 
   const rentalDurationOptions = useMemo(() => {
     if (!isRental) return [];
@@ -382,21 +479,59 @@ export default function ModalNuevaReserva({
     return Array.from({ length: maxHours - minHours + 1 }, (_, index) => minHours + index);
   }, [actividadSeleccionada, formData.horaInicio, isRental]);
 
-  const resetModalState = () => {
-    setFormData({
-      empresa: 'Flecha Extreme',
-      tipoActividad: 'alquiler',
-      actividad: '',
-      duracion: '',
-      cantidadReservada: 1,
-      numeroPersonas: 1,
-      precio: 0,
-      fechaInicio: '',
-      fechaFin: '',
-      horaInicio: '',
-      horaFin: '',
-      nota: ''
+  useEffect(() => {
+    if (!isCamp) {
+      return;
+    }
+
+    const horaInicio = campTurnoActivo?.horaInicio ?? '';
+    const horaFin = campTurnoActivo?.horaFin ?? '';
+
+    setFormData((prev) => {
+      if (prev.horaInicio === horaInicio && prev.horaFin === horaFin) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        horaInicio,
+        horaFin
+      };
     });
+  }, [campTurnoActivo, isCamp]);
+
+  useEffect(() => {
+    if (!isCamp) {
+      return;
+    }
+
+    if (precioManualPendiente || !campBaseTariff) {
+      return;
+    }
+
+    const nextPrice = Number((campBaseTariff.precio * Math.max(formData.numeroPersonas, 1)).toFixed(2));
+    setFormData((prev) => (prev.precio === nextPrice ? prev : { ...prev, precio: nextPrice }));
+  }, [campBaseTariff, formData.numeroPersonas, isCamp, precioManualPendiente]);
+
+  useEffect(() => {
+    if (!isBanana || showBananaQuantitySelector) {
+      return;
+    }
+
+    setFormData((prev) => (prev.cantidadReservada === 1 ? prev : { ...prev, cantidadReservada: 1 }));
+  }, [isBanana, showBananaQuantitySelector]);
+
+  useEffect(() => {
+    if (!isBanana || precioManualPendiente || !bananaBaseTariff) {
+      return;
+    }
+
+    const nextPrice = Number((bananaBaseTariff.precio * Math.max(formData.numeroPersonas, 1)).toFixed(2));
+    setFormData((prev) => (prev.precio === nextPrice ? prev : { ...prev, precio: nextPrice }));
+  }, [bananaBaseTariff, formData.numeroPersonas, isBanana, precioManualPendiente]);
+
+  const resetModalState = () => {
+    setFormData(createDefaultReservaFormData());
     setActividadesExistentes([]);
     setTipoCargado('');
     setTarifasActividad([]);
@@ -407,8 +542,16 @@ export default function ModalNuevaReserva({
     setConsultandoStock(false);
     setCurrentStep(1);
     setRentalAvailability(EMPTY_RENTAL_AVAILABILITY);
+    setCampHorarioReglas([]);
+    setCampTurnoSeleccionado('');
     setErrors({});
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      resetModalState();
+    }
+  }, [isOpen]);
 
   const consultarStock = async (
     actividadId: string,
@@ -448,7 +591,7 @@ export default function ModalNuevaReserva({
     nombre: formData.actividad,
     precio: formData.precio,
     cantidad: effectiveInventoryQuantity,
-    duracion: formData.duracion,
+    duracion: isCamp ? `${campOccurrences.length} sesiones` : formData.duracion,
     empresa: formData.empresa,
     numeroPersonas: formData.numeroPersonas,
     fechaInicio: formData.fechaInicio,
@@ -456,6 +599,11 @@ export default function ModalNuevaReserva({
     horaInicio: formData.horaInicio,
     horaFin: formData.horaFin,
     nota: formData.nota,
+    campamentoMetadata: campamentoMetadata ?? undefined,
+    reservaFechaInicio: campFirstOccurrence?.date ?? formData.fechaInicio,
+    reservaFechaFin: campLastOccurrence?.date ?? formData.fechaFin,
+    resumenHorario: isCamp ? campHorarioResumen : undefined,
+    resumenFechas: isCamp ? campRangoResumen : undefined,
     precioReserva: actividadSeleccionada?.precio_reserva || 0,
     modoPrecio: actividadSeleccionada?.modo_precio ?? 'fijo',
     depositoPermitido: actividadSeleccionada?.deposito_permitido ?? false,
@@ -614,11 +762,21 @@ export default function ModalNuevaReserva({
 
   const handleInputChange = async (field: string, value: string | number | boolean) => {
     const nextIsRental = field === 'tipoActividad' ? value === 'alquiler' : isRental;
+    const nextIsCamp = field === 'tipoActividad' ? value === 'campamento' : isCamp;
+    const nextIsBanana = field === 'tipoActividad'
+      ? false
+      : formData.tipoActividad === 'sport' && (
+          actividadSeleccionada?.codigo === 'BANANA' ||
+          (field === 'actividad' && String(value).toLowerCase() === 'banana') ||
+          formData.actividad.toLowerCase() === 'banana'
+        );
+    const nextIsRoute = field === 'tipoActividad' ? value === 'ruta' : isRoute;
 
     setFormData((prev) => {
       const newData = { ...prev, [field]: value };
 
       if (field === 'tipoActividad') {
+        const defaults = createDefaultReservaFormData();
         return {
           ...newData,
           actividad: '',
@@ -626,28 +784,65 @@ export default function ModalNuevaReserva({
           cantidadReservada: 1,
           numeroPersonas: 1,
           precio: 0,
-          fechaInicio: '',
+          fechaInicio: defaults.fechaInicio,
           fechaFin: '',
-          horaInicio: '',
+          horaInicio: defaults.horaInicio,
           horaFin: '',
           nota: ''
         };
       }
 
+      if (nextIsCamp) {
+        if (field === 'numeroPersonas' && typeof value === 'number') {
+          newData.cantidadReservada = Math.max(1, value);
+        }
+
+        return newData;
+      }
+
+      if (nextIsBanana) {
+        if (field === 'fechaInicio' && value) {
+          newData.fechaFin = String(value);
+        } else if (field === 'fechaInicio' && !value) {
+          newData.fechaFin = '';
+          newData.horaInicio = '';
+          newData.horaFin = '';
+        }
+
+        if ((field === 'horaInicio' || field === 'duracion' || field === 'fechaInicio') && newData.duracion && newData.horaInicio) {
+          newData.horaFin = calculateGenericHoraFin(newData.horaInicio, newData.duracion);
+        } else if (field === 'horaInicio' && !newData.horaInicio) {
+          newData.horaFin = '';
+        }
+
+        if (!showBananaQuantitySelector || field === 'numeroPersonas') {
+          newData.cantidadReservada = Math.max(1, typeof newData.cantidadReservada === 'number' ? newData.cantidadReservada : 1);
+          if (!showBananaQuantitySelector) {
+            newData.cantidadReservada = 1;
+          }
+        }
+
+        if (field === 'numeroPersonas' && typeof value === 'number' && bananaBaseTariff && !precioManualPendiente) {
+          newData.precio = Number((bananaBaseTariff.precio * value).toFixed(2));
+        }
+
+        return newData;
+      }
+
       if (field === 'fechaInicio' && value) {
         newData.horaInicio = getCurrentTimeInputValue();
-        if (isRoute) {
+        if (nextIsRoute) {
           newData.fechaFin = String(value);
         }
       } else if (field === 'fechaInicio' && !value) {
         newData.horaInicio = '';
-        if (isRoute) {
+        if (nextIsRoute) {
           newData.fechaFin = '';
         }
       }
 
       if (!nextIsRental) {
-        if (usesPerPersonPricing && field === 'numeroPersonas' && typeof value === 'number') {
+        if (syncReservedQuantityWithPeople && field === 'numeroPersonas' && typeof value === 'number') {
           newData.cantidadReservada = value;
         }
 
@@ -721,19 +916,96 @@ export default function ModalNuevaReserva({
       setActividadSeleccionada(null);
       setStockInfo(null);
       setRentalAvailability(EMPTY_RENTAL_AVAILABILITY);
+      setCampHorarioReglas([]);
+      setCampTurnoSeleccionado('');
       setCurrentStep(1);
       return;
     }
 
     if (field === 'actividad' && value) {
-        const actividad = actividadesExistentes.find((item) => item.nombre === value);
-        if (!actividad) return;
+      const actividad = actividadesExistentes.find((item) => item.nombre === value);
+      if (!actividad) return;
 
-        setActividadSeleccionada(actividad);
-        const tarifas = await obtenerTarifasActividad(actividad.id);
-        setTarifasActividad(tarifas);
-        const actividadMaxPersonas = actividad.numero_personas && actividad.numero_personas > 0 ? actividad.numero_personas : 15;
-        const numeroPersonasAjustado = Math.min(formData.numeroPersonas, actividadMaxPersonas);
+      setActividadSeleccionada(actividad);
+      const tarifas = await obtenerTarifasActividad(actividad.id);
+      setTarifasActividad(tarifas);
+      const horarios = nextIsCamp ? await obtenerHorariosActividad(actividad.id) : [];
+      setCampHorarioReglas(horarios);
+      const actividadMaxPersonas = actividad.numero_personas && actividad.numero_personas > 0
+        ? actividad.numero_personas
+        : nextIsCamp || actividad.codigo === 'BANANA'
+          ? 999
+          : 15;
+      const numeroPersonasAjustado = Math.min(formData.numeroPersonas, actividadMaxPersonas);
+
+      if (nextIsCamp) {
+        const turnos = buildCampamentoTurnoOptions(horarios);
+        const campTarifa = tarifas[0] ?? null;
+        const requiresManualPrice =
+          !campTarifa ||
+          campTarifa.precio === 0 ||
+          campTarifa.metadata?.precio_manual === true;
+        const preservedTurno =
+          turnos.find((turno) => turno.key === campTurnoSeleccionado)?.key ??
+          (turnos.length === 1 ? turnos[0].key : '');
+        const selectedTurno = turnos.find((turno) => turno.key === preservedTurno) ?? null;
+
+        setCampTurnoSeleccionado(preservedTurno);
+        setFormData((prev) => ({
+          ...prev,
+          duracion: '',
+          numeroPersonas: numeroPersonasAjustado,
+          cantidadReservada: numeroPersonasAjustado,
+          horaInicio: selectedTurno?.horaInicio ?? '',
+          horaFin: selectedTurno?.horaFin ?? '',
+          precio: requiresManualPrice || !campTarifa
+            ? 0
+            : Number((campTarifa.precio * numeroPersonasAjustado).toFixed(2))
+        }));
+        setCurrentStep(1);
+        setRentalAvailability(EMPTY_RENTAL_AVAILABILITY);
+        setStockInfo(null);
+        return;
+      }
+
+      if (actividad.codigo === 'BANANA') {
+        const bananaTarifa = tarifas[0] ?? null;
+        const bananaDuration = bananaTarifa
+          ? `${bananaTarifa.duracion_valor}-${bananaTarifa.duracion_unidad}`
+          : '';
+        const requiresManualPrice =
+          !bananaTarifa ||
+          bananaTarifa.precio === 0 ||
+          bananaTarifa.metadata?.precio_manual === true;
+
+        setFormData((prev) => {
+          const nextData = {
+            ...prev,
+            duracion: bananaDuration,
+            numeroPersonas: numeroPersonasAjustado,
+            cantidadReservada: actividad.pool_inventario_total && actividad.pool_inventario_total > 1
+              ? prev.cantidadReservada
+              : 1,
+            precio: requiresManualPrice || !bananaTarifa
+              ? 0
+              : Number((bananaTarifa.precio * numeroPersonasAjustado).toFixed(2))
+          };
+
+          if (nextData.fechaInicio) {
+            nextData.fechaFin = nextData.fechaInicio;
+          }
+
+          if (nextData.horaInicio && bananaDuration) {
+            nextData.horaFin = calculateGenericHoraFin(nextData.horaInicio, bananaDuration);
+          }
+
+          return nextData;
+        });
+        setCurrentStep(1);
+        setRentalAvailability(EMPTY_RENTAL_AVAILABILITY);
+        setStockInfo(null);
+        return;
+      }
 
       if (!nextIsRental) {
         if (tarifas.length === 1) {
@@ -827,6 +1099,8 @@ export default function ModalNuevaReserva({
       setActividadSeleccionada(null);
       setStockInfo(null);
       setRentalAvailability(EMPTY_RENTAL_AVAILABILITY);
+      setCampHorarioReglas([]);
+      setCampTurnoSeleccionado('');
       setCurrentStep(1);
       setFormData((prev) => ({
         ...prev,
@@ -842,12 +1116,47 @@ export default function ModalNuevaReserva({
       return;
     }
 
+    if (nextIsCamp) {
+      return;
+    }
+
+    if (nextIsBanana) {
+      if (field === 'fechaInicio' && !value) {
+        setStockInfo(null);
+      }
+
+      if (
+        actividadSeleccionada &&
+        ['fechaInicio', 'horaInicio', 'cantidadReservada'].includes(field)
+      ) {
+        const nextFechaInicio = field === 'fechaInicio' ? String(value || '') : formData.fechaInicio;
+        const nextHoraInicio = field === 'horaInicio' ? String(value || '') : formData.horaInicio;
+        const nextCantidad = field === 'cantidadReservada'
+          ? Number(value || 1)
+          : (showBananaQuantitySelector ? formData.cantidadReservada : 1);
+        const durationToUse = formData.duracion || (bananaBaseTariff ? `${bananaBaseTariff.duracion_valor}-${bananaBaseTariff.duracion_unidad}` : '');
+
+        if (nextFechaInicio && nextHoraInicio && durationToUse) {
+          const nuevaHoraFin = calculateGenericHoraFin(nextHoraInicio, durationToUse);
+          if (nuevaHoraFin) {
+            await consultarStock(actividadSeleccionada.id, nextFechaInicio, nextHoraInicio, nuevaHoraFin, Math.max(1, nextCantidad));
+          }
+        }
+      }
+
+      if (field === 'numeroPersonas' && bananaBaseTariff && !precioManualPendiente && typeof value === 'number') {
+        setFormData((prev) => ({ ...prev, precio: Number((bananaBaseTariff.precio * value).toFixed(2)) }));
+      }
+
+      return;
+    }
+
     if (field === 'fechaInicio' && !value) {
       setStockInfo(null);
     }
 
     if (
-      isRoute &&
+      nextIsRoute &&
       actividadSeleccionada &&
       ['fechaInicio', 'fechaFin', 'horaInicio', 'horaFin', 'cantidadReservada'].includes(field)
     ) {
@@ -900,7 +1209,7 @@ export default function ModalNuevaReserva({
         setFormData((prev) => ({ ...prev, precio: precioCalculado }));
       }
 
-      if (usesPerPersonPricing && actividadSeleccionada && formData.fechaInicio && formData.horaInicio) {
+      if (syncReservedQuantityWithPeople && actividadSeleccionada && formData.fechaInicio && formData.horaInicio) {
         const horaFinCalculada = calculateGenericHoraFin(formData.horaInicio, formData.duracion);
         if (horaFinCalculada) {
           const cantidadInventario = actividadSeleccionada.usa_pool_inventario && actividadSeleccionada.numero_personas
@@ -910,6 +1219,15 @@ export default function ModalNuevaReserva({
         }
       }
     }
+  };
+
+  const handleCampTurnoChange = (turnoKey: string) => {
+    setCampTurnoSeleccionado(turnoKey);
+    setErrors((prev) => ({
+      ...prev,
+      campTurno: '',
+      fechaFin: ''
+    }));
   };
 
   const validateRentalStepOne = () => {
@@ -951,6 +1269,44 @@ export default function ModalNuevaReserva({
   };
 
   const validateRouteStepOne = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.empresa) {
+      newErrors.empresa = 'La empresa es obligatoria';
+    }
+
+    if (!formData.tipoActividad) {
+      newErrors.tipoActividad = 'El tipo de actividad es obligatorio';
+    }
+
+    if (!formData.actividad.trim()) {
+      newErrors.actividad = 'La actividad es obligatoria';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateBananaStepOne = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.empresa) {
+      newErrors.empresa = 'La empresa es obligatoria';
+    }
+
+    if (!formData.tipoActividad) {
+      newErrors.tipoActividad = 'El tipo de actividad es obligatorio';
+    }
+
+    if (!formData.actividad.trim()) {
+      newErrors.actividad = 'La actividad es obligatoria';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateCampStepOne = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.empresa) {
@@ -1187,6 +1543,118 @@ export default function ModalNuevaReserva({
     return Object.keys(newErrors).length === 0;
   };
 
+  const validateCampStepTwo = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.fechaInicio) {
+      newErrors.fechaInicio = 'La fecha de inicio es obligatoria';
+    }
+
+    if (!formData.fechaFin) {
+      newErrors.fechaFin = 'La fecha de fin es obligatoria';
+    }
+
+    if (formData.fechaInicio && formData.fechaFin && formData.fechaFin < formData.fechaInicio) {
+      newErrors.fechaFin = 'La fecha de fin debe ser igual o posterior a la fecha de inicio';
+    }
+
+    if (campTurnoOptions.length === 0) {
+      newErrors.actividad = 'Este campamento no tiene horarios recurrentes configurados.';
+    } else if (campTurnoOptions.length > 1 && !campTurnoSeleccionado) {
+      newErrors.campTurno = 'Debes seleccionar un turno para el campamento.';
+    }
+
+    if (!formData.numeroPersonas || formData.numeroPersonas < 1) {
+      newErrors.numeroPersonas = 'El número de personas debe ser al menos 1';
+    }
+
+    if (
+      actividadSeleccionada?.numero_personas &&
+      actividadSeleccionada.numero_personas > 0 &&
+      formData.numeroPersonas > actividadSeleccionada.numero_personas
+    ) {
+      newErrors.numeroPersonas = `El número máximo de personas para esta actividad es ${actividadSeleccionada.numero_personas}`;
+    }
+
+    if (precioManualPendiente && formData.precio <= 0) {
+      newErrors.precio = 'Debes indicar un precio manual mayor que 0';
+    }
+
+    if (
+      formData.fechaInicio &&
+      formData.fechaFin &&
+      campTurnoOptions.length > 0 &&
+      campOccurrences.length === 0
+    ) {
+      newErrors.fechaFin = 'El rango seleccionado no genera ninguna sesión de campamento.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateBananaStepTwo = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.fechaInicio) {
+      newErrors.fechaInicio = 'La fecha de inicio es obligatoria';
+    }
+
+    if (!formData.horaInicio) {
+      newErrors.horaInicio = 'La hora de inicio es obligatoria';
+    } else if (formData.fechaInicio === today && formData.horaInicio < getCurrentTimeInputValue()) {
+      newErrors.horaInicio = 'No se puede seleccionar una hora anterior a la hora actual';
+    }
+
+    if (!formData.duracion) {
+      newErrors.duracion = 'La duración es obligatoria';
+    }
+
+    if (!formData.numeroPersonas || formData.numeroPersonas < 1) {
+      newErrors.numeroPersonas = 'Debes indicar al menos 1 persona';
+    }
+
+    if (formData.numeroPersonas > maxNumeroPersonas) {
+      newErrors.numeroPersonas =
+        actividadSeleccionada?.numero_personas && actividadSeleccionada.numero_personas > 0
+          ? `El número máximo de personas para esta actividad es ${maxNumeroPersonas}`
+          : `El número máximo de personas es ${maxNumeroPersonas}`;
+    }
+
+    if (showBananaQuantitySelector && (!formData.cantidadReservada || formData.cantidadReservada < 1)) {
+      newErrors.cantidadReservada = 'Debes reservar al menos 1 banana';
+    }
+
+    if (precioManualPendiente && formData.precio <= 0) {
+      newErrors.precio = 'Debes indicar un precio manual mayor que 0';
+    }
+
+    if (stockInfo && stockInfo.stockDisponible < effectiveInventoryQuantity) {
+      const stockError = `Solo hay ${stockInfo.stockDisponible} bananas disponibles. Stock total: ${stockInfo.stockTotal}, Reservadas: ${stockInfo.reservadas}`;
+      if (showBananaQuantitySelector) {
+        newErrors.cantidadReservada = stockError;
+      } else {
+        newErrors.horaInicio = stockError;
+      }
+    }
+
+    if (stockInfo && stockInfo.stockDisponible === 0) {
+      newErrors.horaInicio = 'No hay bananas disponibles para esa franja';
+    }
+
+    if (
+      !stockInfo &&
+      formData.fechaInicio &&
+      formData.horaInicio &&
+      effectiveInventoryQuantity > 0
+    ) {
+      newErrors.horaInicio = 'Espera a que se compruebe la disponibilidad antes de continuar.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -1211,10 +1679,28 @@ export default function ModalNuevaReserva({
       return;
     }
 
+    if (isCamp && currentStep === 1) {
+      if (validateCampStepOne()) {
+        setCurrentStep(2);
+      }
+      return;
+    }
+
+    if (isSport && currentStep === 1) {
+      if (validateBananaStepOne()) {
+        setCurrentStep(2);
+      }
+      return;
+    }
+
     const isValid = isRental
       ? validateRentalStepTwo()
       : isRoute
         ? validateRouteStepTwo()
+        : isCamp
+          ? validateCampStepTwo()
+          : isBanana
+            ? validateBananaStepTwo()
         : validateStandardForm();
     if (!isValid || rentalAvailability.status === 'checking') {
       return;
@@ -1245,7 +1731,10 @@ export default function ModalNuevaReserva({
         fechaFin: formData.fechaFin,
         horaInicio: formData.horaInicio,
         horaFin: formData.horaFin,
-        nota: formData.nota || undefined
+        nota: formData.nota || undefined,
+        campamentoMetadata: campamentoMetadata ?? undefined,
+        reservaFechaInicio: campFirstOccurrence?.date ?? undefined,
+        reservaFechaFin: campLastOccurrence?.date ?? undefined
       });
 
       setPaymentCompleted(true);
@@ -1538,6 +2027,479 @@ export default function ModalNuevaReserva({
     );
   };
 
+  const renderBananaAvailabilityCard = () => {
+    if (currentStep !== 2) return null;
+
+    if (!actividadSeleccionada || !formData.fechaInicio || !formData.horaInicio || effectiveInventoryQuantity < 1) {
+      return (
+        <div className="rounded-2xl border border-dashed border-outline-variant/50 bg-surface-container-low px-4 py-4 text-sm text-on-surface-variant">
+          Selecciona fecha, hora y personas. En cuanto tengamos esos datos, comprobaremos si hay banana disponible para esa franja.
+        </div>
+      );
+    }
+
+    if (consultandoStock) {
+      return (
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-4 text-sm text-primary-dark">
+          Comprobando disponibilidad de banana para esa franja...
+        </div>
+      );
+    }
+
+    if (!stockInfo) {
+      return (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-200">
+          No se pudo comprobar la disponibilidad de banana para esa franja.
+        </div>
+      );
+    }
+
+    const hasAvailability = stockInfo.stockDisponible >= effectiveInventoryQuantity && stockInfo.stockDisponible > 0;
+
+    return (
+      <div className={`rounded-2xl px-4 py-4 ${hasAvailability
+        ? 'border border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-900/10'
+        : 'border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-900/10'
+      }`}>
+        <div className="flex items-start gap-3">
+          {hasAvailability
+            ? <CheckCircleIcon className="mt-0.5 h-5 w-5 text-green-600 dark:text-green-400" />
+            : <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 text-red-600 dark:text-red-400" />}
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-semibold ${hasAvailability ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+              {hasAvailability
+                ? 'Hay banana disponible para esta franja.'
+                : 'No hay suficiente banana disponible para esta franja.'}
+            </p>
+            <div className={`mt-2 grid grid-cols-3 gap-3 text-xs ${hasAvailability ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+              <div className="rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-950/20">
+                <div className="font-bold">{stockInfo.stockDisponible}</div>
+                <div>Disponibles</div>
+              </div>
+              <div className="rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-950/20">
+                <div className="font-bold">{stockInfo.stockTotal}</div>
+                <div>Stock total</div>
+              </div>
+              <div className="rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-950/20">
+                <div className="font-bold">{stockInfo.reservadas}</div>
+                <div>Reservadas</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBananaStepOne = () => (
+    <>
+      <div className="rounded-3xl border border-outline-variant/35 bg-surface-container-low p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Paso 1/2</p>
+            <p className="mt-1 text-lg font-black text-on-surface">Selecciona la actividad sport</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-black text-white">1</div>
+            <div className="h-1.5 w-10 rounded-full bg-primary/25" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container-high text-sm font-black text-on-surface-variant">2</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div>
+          <label htmlFor="empresa-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Empresa *
+          </label>
+          <select
+            id="empresa-banana"
+            value={formData.empresa}
+            onChange={(e) => handleInputChange('empresa', e.target.value as 'Flecha Extreme' | 'Rober')}
+            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+              errors.empresa ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+            } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-pointer`}
+          >
+            <option value="Flecha Extreme">Flecha Extreme</option>
+            <option value="Rober">Rober</option>
+          </select>
+          {errors.empresa && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.empresa}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="tipoActividad-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Tipo de Actividad *
+          </label>
+          <select
+            id="tipoActividad-banana"
+            value={formData.tipoActividad}
+            onChange={(e) => handleInputChange('tipoActividad', e.target.value)}
+            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+              errors.tipoActividad ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+            } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-pointer`}
+          >
+            <option value="alquiler">Alquiler</option>
+            <option value="curso">Curso</option>
+            <option value="ruta">Ruta</option>
+            <option value="campamento">Campamento</option>
+            <option value="sport">Sport</option>
+          </select>
+          {errors.tipoActividad && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.tipoActividad}</p>}
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="actividad-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Actividad *
+        </label>
+        <select
+          id="actividad-banana"
+          value={formData.actividad}
+          onChange={(e) => handleInputChange('actividad', e.target.value)}
+          disabled={loadingActividades}
+          className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+            errors.actividad ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+          } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          <option value="">
+            {loadingActividades
+              ? 'Cargando actividades...'
+              : actividadesExistentes.length === 0
+                ? 'No hay actividades de este tipo'
+                : 'Selecciona una actividad'}
+          </option>
+          {actividadesExistentes.map((actividad) => (
+            <option key={actividad.id} value={actividad.nombre}>
+              {actividad.nombre}
+            </option>
+          ))}
+        </select>
+        {errors.actividad && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.actividad}</p>}
+        {errorActividades && <p className="mt-1 text-sm text-red-600 dark:text-red-400">Error al cargar actividades: {errorActividades}</p>}
+      </div>
+
+      <div className="flex justify-end gap-3 pt-2">
+        <button
+          type="button"
+          onClick={handleClose}
+          className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={loadingActividades}
+          className="primary-gradient inline-flex items-center rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+        >
+          Continuar
+          <ChevronRightIcon className="ml-2 h-4 w-4" />
+        </button>
+      </div>
+    </>
+  );
+
+  const renderBananaStepTwo = () => (
+    <>
+      <div className="rounded-3xl border border-outline-variant/35 bg-surface-container-low p-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Paso 2/2</p>
+            <p className="mt-1 text-lg font-black text-on-surface">Configura horario, personas y material</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/25 text-sm font-black text-primary">1</div>
+            <div className="h-1.5 w-10 rounded-full bg-primary" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-black text-white">2</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.9fr]">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div>
+              <label htmlFor="fechaInicio-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Fecha de Inicio *
+              </label>
+              <input
+                type="date"
+                id="fechaInicio-banana"
+                value={formData.fechaInicio}
+                onChange={(e) => handleInputChange('fechaInicio', e.target.value)}
+                min={today}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                  errors.fechaInicio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+              />
+              {errors.fechaInicio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.fechaInicio}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="fechaFin-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Fecha de Fin
+              </label>
+              <input
+                type="text"
+                id="fechaFin-banana"
+                value={formData.fechaFin ? formatDisplayDate(formData.fechaFin) : ''}
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                placeholder="Se usa el mismo día"
+              />
+              {errors.fechaFin && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.fechaFin}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div>
+              <label htmlFor="horaInicio-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Hora de Inicio *
+              </label>
+              <input
+                type="time"
+                id="horaInicio-banana"
+                value={formData.horaInicio}
+                onChange={(e) => handleInputChange('horaInicio', e.target.value)}
+                disabled={!formData.fechaInicio}
+                min={formData.fechaInicio === today ? getCurrentTimeInputValue() : undefined}
+                step={timeInputStepSeconds}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                  !formData.fechaInicio ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                } ${
+                  errors.horaInicio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed`}
+              />
+              {errors.horaInicio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.horaInicio}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="duracion-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Duración
+              </label>
+              <input
+                type="text"
+                id="duracion-banana"
+                value={formData.duracion ? formatDurationLabel(formData.duracion) : ''}
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                placeholder="20 minutos"
+              />
+              {errors.duracion && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.duracion}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="horaFin-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Hora de Fin
+              </label>
+              <input
+                type="text"
+                id="horaFin-banana"
+                value={formData.horaFin || ''}
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                placeholder="Se calculará automáticamente"
+              />
+            </div>
+          </div>
+
+          <div className={`grid gap-6 ${showBananaQuantitySelector ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+            <div>
+              <label htmlFor="numeroPersonas-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Personas *
+              </label>
+              <input
+                type="number"
+                id="numeroPersonas-banana"
+                min="1"
+                max={maxNumeroPersonas}
+                value={formData.numeroPersonas}
+                onChange={(e) => handleInputChange('numeroPersonas', Math.min(parseInt(e.target.value, 10) || 1, maxNumeroPersonas))}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                  errors.numeroPersonas ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                placeholder="1"
+              />
+              {errors.numeroPersonas && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.numeroPersonas}</p>}
+              <p className="mt-1 text-xs text-on-surface-variant">
+                Las personas afectan al precio total.
+              </p>
+            </div>
+
+            {showBananaQuantitySelector ? (
+              <div>
+                <label htmlFor="cantidadReservada-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Bananas reservadas *
+                </label>
+                <input
+                  type="number"
+                  id="cantidadReservada-banana"
+                  min="1"
+                  value={formData.cantidadReservada}
+                  onChange={(e) => handleInputChange('cantidadReservada', parseInt(e.target.value, 10) || 1)}
+                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                    errors.cantidadReservada ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                  } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                  placeholder="1"
+                />
+                {errors.cantidadReservada && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.cantidadReservada}</p>}
+                <p className="mt-1 text-xs text-on-surface-variant">
+                  La cantidad reservada solo afecta al material y a la disponibilidad.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Material reservado
+                </label>
+                <div className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
+                  1 banana reservada automáticamente
+                </div>
+                <p className="mt-1 text-xs text-on-surface-variant">
+                  El pool actual solo tiene 1 banana y se reserva automáticamente como material.
+                </p>
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="precio-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Precio Total (€)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  id="precio-banana"
+                  value={Number(formData.precio || 0).toFixed(2)}
+                  onChange={(e) => handleInputChange('precio', parseFloat(e.target.value) || 0)}
+                  disabled={!precioManualPendiente}
+                  min="0"
+                  step="0.01"
+                  className={`w-full px-3 py-2 pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                    errors.precio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                  } ${
+                    precioManualPendiente
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                      : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                  }`}
+                  placeholder="0.00"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <span className="text-gray-500 dark:text-gray-400 text-sm">€</span>
+                </div>
+              </div>
+              {precioManualPendiente ? (
+                <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                  Esta banana no tiene un precio automático válido y debe indicarse manualmente.
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-on-surface-variant">
+                  Precio calculado por persona{bananaBaseTariff ? ` (${Number(bananaBaseTariff.precio).toFixed(2)} € por persona)` : ''}.
+                </p>
+              )}
+              {errors.precio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.precio}</p>}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="nota-banana" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Nota
+            </label>
+            <textarea
+              id="nota-banana"
+              rows={3}
+              value={formData.nota}
+              onChange={(e) => handleInputChange('nota', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
+              placeholder="Notas adicionales sobre la reserva de banana..."
+              style={{ height: '88px', minHeight: '88px', maxHeight: '88px' }}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-outline-variant/35 bg-surface-container-low p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Resumen</p>
+            <div className="mt-3 space-y-3 text-sm">
+              <div className="rounded-2xl bg-surface-container px-4 py-3">
+                <p className="font-semibold text-on-surface">{formData.actividad || 'Banana pendiente'}</p>
+                <p className="mt-1 text-on-surface-variant">{formData.empresa}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-on-surface-variant">
+                <div className="rounded-2xl bg-surface-container px-4 py-3">
+                  <div className="text-xs uppercase tracking-[0.14em]">Fecha</div>
+                  <div className="mt-1 font-semibold text-on-surface">{formData.fechaInicio ? formatDisplayDate(formData.fechaInicio) : '--'}</div>
+                </div>
+                <div className="rounded-2xl bg-surface-container px-4 py-3">
+                  <div className="text-xs uppercase tracking-[0.14em]">Horario</div>
+                  <div className="mt-1 font-semibold text-on-surface">
+                    {formData.horaInicio && formData.horaFin ? `${formData.horaInicio} - ${formData.horaFin}` : '--'}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-on-surface-variant">
+                <div className="rounded-2xl bg-surface-container px-4 py-3">
+                  <div className="text-xs uppercase tracking-[0.14em]">Duración</div>
+                  <div className="mt-1 font-semibold text-on-surface">{formData.duracion ? formatDurationLabel(formData.duracion) : '--'}</div>
+                </div>
+                <div className="rounded-2xl bg-surface-container px-4 py-3">
+                  <div className="text-xs uppercase tracking-[0.14em]">Precio</div>
+                  <div className="mt-1 font-semibold text-on-surface">{Number(formData.precio || 0).toFixed(2)} €</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-on-surface-variant">
+                <div className="rounded-2xl bg-surface-container px-4 py-3">
+                  <div className="text-xs uppercase tracking-[0.14em]">Personas</div>
+                  <div className="mt-1 font-semibold text-on-surface">{formData.numeroPersonas}</div>
+                </div>
+                <div className="rounded-2xl bg-surface-container px-4 py-3">
+                  <div className="text-xs uppercase tracking-[0.14em]">Material</div>
+                  <div className="mt-1 font-semibold text-on-surface">{effectiveInventoryQuantity} banana{effectiveInventoryQuantity === 1 ? '' : 's'}</div>
+                </div>
+              </div>
+              {bananaBaseTariff ? (
+                <div className="rounded-2xl bg-surface-container px-4 py-3 text-on-surface-variant">
+                  <div className="text-xs uppercase tracking-[0.14em]">Tarifa base</div>
+                  <p className="mt-1 font-semibold text-on-surface">
+                    {Number(bananaBaseTariff.precio).toFixed(2)} € por persona · {formatDurationLabel(`${bananaBaseTariff.duracion_valor}-${bananaBaseTariff.duracion_unidad}`)}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {renderBananaAvailabilityCard()}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap justify-between gap-3 pt-2">
+        <button
+          type="button"
+          onClick={() => setCurrentStep(1)}
+          className="inline-flex items-center rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+        >
+          <ChevronLeftIcon className="mr-2 h-4 w-4" />
+          Atras
+        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={loadingActividades}
+            className="primary-gradient inline-flex items-center rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+          >
+            Continuar al pago
+            <ChevronRightIcon className="ml-2 h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
   const renderRentalStepOne = () => (
     <>
       <div className="rounded-3xl border border-outline-variant/35 bg-surface-container-low p-4">
@@ -1590,8 +2552,6 @@ export default function ModalNuevaReserva({
             <option value="ruta">Ruta</option>
             <option value="campamento">Campamento</option>
             <option value="sport">Sport</option>
-            <option value="parking">Parking</option>
-            <option value="otros">Otros</option>
           </select>
           {errors.tipoActividad && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.tipoActividad}</p>}
         </div>
@@ -1699,8 +2659,6 @@ export default function ModalNuevaReserva({
             <option value="ruta">Ruta</option>
             <option value="campamento">Campamento</option>
             <option value="sport">Sport</option>
-            <option value="parking">Parking</option>
-            <option value="otros">Otros</option>
           </select>
           {errors.tipoActividad && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.tipoActividad}</p>}
         </div>
@@ -2293,6 +3251,374 @@ export default function ModalNuevaReserva({
     </>
   );
 
+  const renderCampStepOne = () => (
+    <>
+      <div className="rounded-3xl border border-outline-variant/35 bg-surface-container-low p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Paso 1/2</p>
+            <p className="mt-1 text-lg font-black text-on-surface">Selecciona el campamento</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-black text-white">1</div>
+            <div className="h-1.5 w-10 rounded-full bg-primary/25" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container-high text-sm font-black text-on-surface-variant">2</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div>
+          <label htmlFor="empresa-camp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Empresa *
+          </label>
+          <select
+            id="empresa-camp"
+            value={formData.empresa}
+            onChange={(e) => handleInputChange('empresa', e.target.value as 'Flecha Extreme' | 'Rober')}
+            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+              errors.empresa ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+            } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-pointer`}
+          >
+            <option value="Flecha Extreme">Flecha Extreme</option>
+            <option value="Rober">Rober</option>
+          </select>
+          {errors.empresa && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.empresa}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="tipoActividad-camp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Tipo de Actividad *
+          </label>
+          <select
+            id="tipoActividad-camp"
+            value={formData.tipoActividad}
+            onChange={(e) => handleInputChange('tipoActividad', e.target.value)}
+            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+              errors.tipoActividad ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+            } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-pointer`}
+          >
+            <option value="alquiler">Alquiler</option>
+            <option value="curso">Curso</option>
+            <option value="ruta">Ruta</option>
+            <option value="campamento">Campamento</option>
+            <option value="sport">Sport</option>
+          </select>
+          {errors.tipoActividad && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.tipoActividad}</p>}
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="actividad-camp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Actividad *
+        </label>
+        <select
+          id="actividad-camp"
+          value={formData.actividad}
+          onChange={(e) => handleInputChange('actividad', e.target.value)}
+          disabled={loadingActividades}
+          className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+            errors.actividad ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+          } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          <option value="">
+            {loadingActividades
+              ? 'Cargando actividades...'
+              : actividadesExistentes.length === 0
+                ? 'No hay actividades de este tipo'
+                : 'Selecciona una actividad'}
+          </option>
+          {actividadesExistentes.map((actividad) => (
+            <option key={actividad.id} value={actividad.nombre}>
+              {actividad.nombre}
+            </option>
+          ))}
+        </select>
+        {errors.actividad && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.actividad}</p>}
+        {errorActividades && <p className="mt-1 text-sm text-red-600 dark:text-red-400">Error al cargar actividades: {errorActividades}</p>}
+      </div>
+
+      <div className="flex justify-end gap-3 pt-2">
+        <button
+          type="button"
+          onClick={handleClose}
+          className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={loadingActividades}
+          className="primary-gradient inline-flex items-center rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+        >
+          Continuar
+          <ChevronRightIcon className="ml-2 h-4 w-4" />
+        </button>
+      </div>
+    </>
+  );
+
+  const renderCampStepTwo = () => (
+    <>
+      <div className="rounded-3xl border border-outline-variant/35 bg-surface-container-low p-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Paso 2/2</p>
+            <p className="mt-1 text-lg font-black text-on-surface">Configura fechas, turno y personas</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/25 text-sm font-black text-primary">1</div>
+            <div className="h-1.5 w-10 rounded-full bg-primary" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-black text-white">2</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.95fr]">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div>
+              <label htmlFor="fechaInicio-camp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Fecha de Inicio *
+              </label>
+              <input
+                type="date"
+                id="fechaInicio-camp"
+                value={formData.fechaInicio}
+                onChange={(e) => handleInputChange('fechaInicio', e.target.value)}
+                min={today}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                  errors.fechaInicio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+              />
+              {errors.fechaInicio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.fechaInicio}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="fechaFin-camp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Fecha de Fin *
+              </label>
+              <input
+                type="date"
+                id="fechaFin-camp"
+                value={formData.fechaFin}
+                onChange={(e) => handleInputChange('fechaFin', e.target.value)}
+                min={formData.fechaInicio || today}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                  errors.fechaFin ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+              />
+              {errors.fechaFin && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.fechaFin}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div>
+              {campTurnoOptions.length > 1 ? (
+                <>
+                  <label htmlFor="turno-camp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Turno *
+                  </label>
+                  <select
+                    id="turno-camp"
+                    value={campTurnoSeleccionado}
+                    onChange={(e) => handleCampTurnoChange(e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer ${
+                      errors.campTurno ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                  >
+                    <option value="">Selecciona un turno</option>
+                    {campTurnoOptions.map((turno) => (
+                      <option key={turno.key} value={turno.key}>
+                        {turno.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.campTurno && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.campTurno}</p>}
+                </>
+              ) : (
+                <>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Horario</label>
+                  <div className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
+                    {campTurnoOptions[0]?.label ?? 'Sin horario configurado'}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="numeroPersonas-camp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Número de Personas *
+              </label>
+              <input
+                type="number"
+                id="numeroPersonas-camp"
+                min="1"
+                max={maxNumeroPersonas}
+                value={formData.numeroPersonas}
+                onChange={(e) => handleInputChange('numeroPersonas', Math.min(parseInt(e.target.value, 10) || 1, maxNumeroPersonas))}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                  errors.numeroPersonas ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                placeholder="1"
+              />
+              {errors.numeroPersonas && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.numeroPersonas}</p>}
+              {actividadSeleccionada?.numero_personas ? (
+                <p className="mt-1 text-xs text-on-surface-variant">Máximo {actividadSeleccionada.numero_personas} personas para esta actividad.</p>
+              ) : (
+                <p className="mt-1 text-xs text-on-surface-variant">Sin límite de plazas configurado en la actividad.</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="precio-camp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Precio Total (€)
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                id="precio-camp"
+                value={Number(formData.precio || 0).toFixed(2)}
+                onChange={(e) => handleInputChange('precio', parseFloat(e.target.value) || 0)}
+                disabled={!precioManualPendiente}
+                min="0"
+                step="0.01"
+                className={`w-full px-3 py-2 pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                  errors.precio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                } ${
+                  precioManualPendiente
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                    : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                }`}
+                placeholder="0.00"
+              />
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <span className="text-gray-500 dark:text-gray-400 text-sm">€</span>
+              </div>
+            </div>
+            {precioManualPendiente ? (
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                Este campamento no tiene un precio automático válido y debe indicarse manualmente.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-on-surface-variant">
+                Precio calculado según la tarifa del campamento y el número de personas.
+              </p>
+            )}
+            {errors.precio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.precio}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="nota-camp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Nota
+            </label>
+            <textarea
+              id="nota-camp"
+              rows={3}
+              value={formData.nota}
+              onChange={(e) => handleInputChange('nota', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
+              placeholder="Notas adicionales sobre el campamento..."
+              style={{ height: '88px', minHeight: '88px', maxHeight: '88px' }}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-outline-variant/35 bg-surface-container-low p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Resumen</p>
+            <div className="mt-3 space-y-3 text-sm">
+              <div className="rounded-2xl bg-surface-container px-4 py-3">
+                <p className="font-semibold text-on-surface">{formData.actividad || 'Campamento pendiente'}</p>
+                <p className="mt-1 text-on-surface-variant">{formData.empresa}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-on-surface-variant">
+                <div className="rounded-2xl bg-surface-container px-4 py-3">
+                  <div className="text-xs uppercase tracking-[0.14em]">Rango</div>
+                  <div className="mt-1 font-semibold text-on-surface">{campRangoResumen || '--'}</div>
+                </div>
+                <div className="rounded-2xl bg-surface-container px-4 py-3">
+                  <div className="text-xs uppercase tracking-[0.14em]">Horario</div>
+                  <div className="mt-1 font-semibold text-on-surface">{campHorarioResumen || '--'}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-on-surface-variant">
+                <div className="rounded-2xl bg-surface-container px-4 py-3">
+                  <div className="text-xs uppercase tracking-[0.14em]">Sesiones</div>
+                  <div className="mt-1 font-semibold text-on-surface">{campOccurrences.length}</div>
+                </div>
+                <div className="rounded-2xl bg-surface-container px-4 py-3">
+                  <div className="text-xs uppercase tracking-[0.14em]">Precio</div>
+                  <div className="mt-1 font-semibold text-on-surface">{Number(formData.precio || 0).toFixed(2)} €</div>
+                </div>
+              </div>
+              {campFirstOccurrence && campLastOccurrence ? (
+                <div className="rounded-2xl bg-surface-container px-4 py-3 text-on-surface-variant">
+                  <div className="text-xs uppercase tracking-[0.14em]">Sesiones generadas</div>
+                  <p className="mt-1 font-semibold text-on-surface">
+                    Primera: {formatDateInputForDisplay(campFirstOccurrence.date)} · {campFirstOccurrence.horaInicio}
+                  </p>
+                  <p className="mt-1 font-semibold text-on-surface">
+                    Última: {formatDateInputForDisplay(campLastOccurrence.date)} · {campLastOccurrence.horaFin}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-outline-variant/35 bg-surface-container-low p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Calendario previsto</p>
+            {campOccurrences.length === 0 ? (
+              <p className="mt-3 text-sm text-on-surface-variant">
+                Selecciona rango y turno para generar las sesiones del campamento.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {campOccurrences.slice(0, 6).map((occurrence) => (
+                  <div key={`${occurrence.date}-${occurrence.horaInicio}`} className="rounded-2xl bg-surface-container px-4 py-3 text-sm text-on-surface">
+                    {formatDateInputForDisplay(occurrence.date)} · {occurrence.horaInicio} - {occurrence.horaFin}
+                  </div>
+                ))}
+                {campOccurrences.length > 6 ? (
+                  <p className="text-sm font-semibold text-primary">+{campOccurrences.length - 6} sesiones más</p>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap justify-between gap-3 pt-2">
+        <button
+          type="button"
+          onClick={() => setCurrentStep(1)}
+          className="inline-flex items-center rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+        >
+          <ChevronLeftIcon className="mr-2 h-4 w-4" />
+          Atras
+        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={loadingActividades}
+            className="primary-gradient inline-flex items-center rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+          >
+            Continuar al pago
+            <ChevronRightIcon className="ml-2 h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
   const renderRouteStepOne = () => (
     <>
       <div className="rounded-3xl border border-outline-variant/35 bg-surface-container-low p-4">
@@ -2345,8 +3671,6 @@ export default function ModalNuevaReserva({
             <option value="ruta">Ruta</option>
             <option value="campamento">Campamento</option>
             <option value="sport">Sport</option>
-            <option value="parking">Parking</option>
-            <option value="otros">Otros</option>
           </select>
           {errors.tipoActividad && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.tipoActividad}</p>}
         </div>
@@ -2692,8 +4016,6 @@ export default function ModalNuevaReserva({
             <option value="ruta">Ruta</option>
             <option value="campamento">Campamento</option>
             <option value="sport">Sport</option>
-            <option value="parking">Parking</option>
-            <option value="otros">Otros</option>
           </select>
           {errors.tipoActividad && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.tipoActividad}</p>}
         </div>
@@ -3049,6 +4371,10 @@ export default function ModalNuevaReserva({
                       ? (currentStep === 1 ? renderRentalStepOne() : renderRentalStepTwo())
                       : isCourse
                         ? (currentStep === 1 ? renderCourseStepOne() : renderCourseStepTwo())
+                        : isCamp
+                          ? (currentStep === 1 ? renderCampStepOne() : renderCampStepTwo())
+                        : isSport
+                          ? (currentStep === 1 ? renderBananaStepOne() : isBanana ? renderBananaStepTwo() : renderStandardContent())
                         : isRoute
                           ? (currentStep === 1 ? renderRouteStepOne() : renderRouteStepTwo())
                         : renderStandardContent()}

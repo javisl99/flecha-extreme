@@ -11,6 +11,12 @@ import SwitchVistaActividades, { type VistaActividadesTipo } from '@/components/
 import VistaCalendario from '@/components/Actividades/VistaCalendario';
 import ModalDetalleReserva from '@/components/Actividades/ModalDetalleReserva';
 import ModalSeleccionTicket from '@/components/Actividades/ModalSeleccionTicket';
+import {
+  buildCampamentoDateRangeLabel,
+  buildCampamentoHorarioSummary,
+  getCampamentoMetadata,
+  type ReservaServicioItemMetadata
+} from '@/lib/campamento';
 
 // Definir tipo específico para Reserva
 interface Reserva {
@@ -31,6 +37,7 @@ interface Reserva {
   estado: string;
   cantidad_reservada: number;
   numero_personas_reserva?: number;
+  metadata?: ReservaServicioItemMetadata;
   ticket_url?: string;
   ticket_url_reserva?: string;
 }
@@ -190,6 +197,24 @@ export default function ReservasPage() {
   const mostrarEmpresa = (reserva: Reserva) => {
     if (!reserva.empresa) return 'Empresa no establecida';
     return reserva.empresa.nombre;
+  };
+
+  const formatearFechaReserva = (reserva: Reserva) => {
+    const campamentoMetadata = getCampamentoMetadata(reserva.metadata);
+    if (campamentoMetadata) {
+      return buildCampamentoDateRangeLabel(campamentoMetadata);
+    }
+
+    return formatearFecha(reserva.fecha_inicio);
+  };
+
+  const formatearHorarioReserva = (reserva: Reserva) => {
+    const campamentoMetadata = getCampamentoMetadata(reserva.metadata);
+    if (campamentoMetadata) {
+      return buildCampamentoHorarioSummary(campamentoMetadata);
+    }
+
+    return `${formatearHora(reserva.fecha_inicio)} - ${formatearHora(reserva.fecha_fin)}`;
   };
 
   const handleEliminarReserva = (reserva: Reserva) => {
@@ -408,10 +433,10 @@ export default function ReservasPage() {
                       <td className="px-6 py-4 text-sm font-semibold text-primary-dark">{mostrarActividad(reserva)}</td>
                       <td className="px-6 py-4 text-sm text-on-surface-variant">{mostrarEmpresa(reserva)}</td>
                       <td className="px-6 py-4 text-center text-sm font-medium text-on-surface-variant">
-                        {formatearFecha(reserva.fecha_inicio)}
+                        {formatearFechaReserva(reserva)}
                       </td>
                       <td className="px-6 py-4 text-center text-sm font-medium text-primary">
-                        {formatearHora(reserva.fecha_inicio)} - {formatearHora(reserva.fecha_fin)}
+                        {formatearHorarioReserva(reserva)}
                       </td>
                       <td className="px-6 py-4 text-center text-sm font-bold text-on-surface">
                         {new Intl.NumberFormat('es-ES', {
@@ -521,8 +546,8 @@ export default function ReservasPage() {
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-on-surface-variant">
-                    <p>{formatearFecha(reserva.fecha_inicio)}</p>
-                    <p className="text-right text-primary">{formatearHora(reserva.fecha_inicio)} - {formatearHora(reserva.fecha_fin)}</p>
+                    <p>{formatearFechaReserva(reserva)}</p>
+                    <p className="text-right text-primary">{formatearHorarioReserva(reserva)}</p>
                   </div>
                   <p className="mt-2 text-sm font-bold text-on-surface">
                     {new Intl.NumberFormat('es-ES', {

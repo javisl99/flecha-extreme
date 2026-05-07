@@ -8,6 +8,12 @@ import { useEmailAPI } from '@/hooks/useEmailAPI';
 import { useSupabase } from '@/hooks/useSupabase';
 import TicketCompra from '@/components/Tienda/TicketCompra';
 import { toast } from 'react-hot-toast';
+import {
+  buildCampamentoDateRangeLabel,
+  buildCampamentoHorarioSummary,
+  getCampamentoMetadata,
+  type ReservaServicioItemMetadata
+} from '@/lib/campamento';
 
 interface Reserva {
   id: string;
@@ -30,6 +36,7 @@ interface Reserva {
   precio: number;
   cantidad_reservada: number;
   numero_personas_reserva?: number;
+  metadata?: ReservaServicioItemMetadata;
   nota?: string;
   ticket_url?: string;
   ticket_url_reserva?: string;
@@ -333,6 +340,13 @@ export default function ModalDetalleReserva({
   const mostrarActividad = () => reserva.actividad?.nombre || 'Actividad no encontrada';
   const mostrarEmpresa = () => reserva.empresa?.nombre || 'Empresa no establecida';
   const cantidadDetalle = getCantidadDetalle(reserva);
+  const campamentoMetadata = getCampamentoMetadata(reserva.metadata);
+  const fechaReservaLabel = campamentoMetadata
+    ? buildCampamentoDateRangeLabel(campamentoMetadata)
+    : formatearFecha(reserva.fecha_inicio);
+  const horarioReservaLabel = campamentoMetadata
+    ? buildCampamentoHorarioSummary(campamentoMetadata)
+    : `${formatearHora(reserva.fecha_inicio)} - ${formatearHora(reserva.fecha_fin)}`;
 
   const refreshResumenPagos = async () => {
     if (!reserva) return;
@@ -641,12 +655,12 @@ export default function ModalDetalleReserva({
                 <p className="mt-1 font-medium text-on-surface">{mostrarEmpresa()}</p>
               </div>
               <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
-                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Fecha</label>
-                <p className="mt-1 font-medium text-on-surface">{formatearFecha(reserva.fecha_inicio)}</p>
+                <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">{campamentoMetadata ? 'Rango' : 'Fecha'}</label>
+                <p className="mt-1 font-medium text-on-surface">{fechaReservaLabel}</p>
               </div>
               <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
                 <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Horario</label>
-                <p className="mt-1 font-medium text-on-surface">{formatearHora(reserva.fecha_inicio)} - {formatearHora(reserva.fecha_fin)}</p>
+                <p className="mt-1 font-medium text-on-surface">{horarioReservaLabel}</p>
               </div>
               <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
                 <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">{cantidadDetalle.primaryLabel}</label>

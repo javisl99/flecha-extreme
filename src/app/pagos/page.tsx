@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { usePagos, type Pago } from '@/hooks/usePagos';
 import { usePedidos, type Pedido } from '@/hooks/usePedidos';
-import { useActividades } from '@/hooks/useActividades';
+import { useActividades, type Reserva as ReservaActividad } from '@/hooks/useActividades';
 import { toast } from 'react-hot-toast';
 import TableSkeleton from '@/components/shared/TableSkeleton';
 import DetallePagoModal from '@/components/Pagos/DetallePagoModal';
 import ModalPago from '@/components/Tienda/ModalPago';
-import PagoReservaModal from '@/components/Actividades/PagoReservaModal';
+import ModalDetalleReserva from '@/components/Actividades/ModalDetalleReserva';
 import { FiltrosPagos, type FiltrosPagoState } from '@/components/Pagos/FiltrosPagos';
 
 export default function PagosPage() {
@@ -23,21 +23,11 @@ export default function PagosPage() {
   const [isDetallePagoModalOpen, setIsDetallePagoModalOpen] = useState(false);
   const [isModalPagoOpen, setIsModalPagoOpen] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
-  const [isPagoReservaModalOpen, setIsPagoReservaModalOpen] = useState(false);
-  const [reservaSeleccionada, setReservaSeleccionada] = useState<{
-    id: string;
-    actividad?: { nombre: string };
-    precio: number;
-    cantidad_reservada: number;
-    numero_personas_reserva?: number;
-    empresa?: { nombre: string };
-    fecha_inicio: string;
-    fecha_fin: string;
-    nota?: string;
-  } | null>(null);
+  const [isDetalleReservaModalOpen, setIsDetalleReservaModalOpen] = useState(false);
+  const [reservaSeleccionada, setReservaSeleccionada] = useState<ReservaActividad | null>(null);
   const { pagos, loading, error, refreshPagos, actualizarPago } = usePagos();
   const { obtenerPedidoPorId } = usePedidos();
-  const { obtenerReservas } = useActividades();
+  const { obtenerReservas, actualizarReserva } = useActividades();
   
   const pagosFiltrados = pagos.filter(pago => {
     const cumpleCliente = !filtros.cliente || (
@@ -111,14 +101,14 @@ export default function PagosPage() {
         toast.error('Error al cargar la información del pedido');
       }
     } else if (pago.origen_tipo === 'reserva' && pago.origen_id) {
-      // Si es un pago de reserva, cargar los datos de la reserva y abrir PagoReservaModal
+      // Si es un pago de reserva, cargar los datos de la reserva y abrir su detalle
       try {
         const resultado = await obtenerReservas();
         if (resultado.success && resultado.reservas) {
-          const reserva = resultado.reservas.find((r: { id: string }) => r.id === pago.origen_id);
+          const reserva = resultado.reservas.find((r) => r.id === pago.origen_id);
           if (reserva) {
             setReservaSeleccionada(reserva);
-            setIsPagoReservaModalOpen(true);
+            setIsDetalleReservaModalOpen(true);
           } else {
             toast.error('No se pudo encontrar la reserva');
           }
@@ -140,40 +130,44 @@ export default function PagosPage() {
     handleVerPago(pago);
   };
 
-  // Función para transformar los datos de la reserva al formato esperado por PagoReservaModal
-  const transformarReservaParaModal = (reserva: {
-    id: string;
-    actividad?: { nombre: string };
-    precio: number;
-    cantidad_reservada: number;
-    numero_personas_reserva?: number;
-    empresa?: { nombre: string };
-    fecha_inicio: string;
-    fecha_fin: string;
-    nota?: string;
-  }) => {
-    return {
-      id: reserva.id,
-      nombre: reserva.actividad?.nombre || 'Actividad no encontrada',
-      precio: reserva.precio,
-      cantidad: reserva.cantidad_reservada,
-      duracion: '1 hora', // Valor por defecto, se puede calcular si es necesario
-      empresa: reserva.empresa?.nombre || 'Empresa no establecida',
-      numeroPersonas: reserva.numero_personas_reserva ?? reserva.cantidad_reservada,
-      fechaInicio: reserva.fecha_inicio,
-      fechaFin: reserva.fecha_fin,
-      horaInicio: new Date(reserva.fecha_inicio).toLocaleTimeString('es-ES', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'Europe/Madrid'
-      }),
-      horaFin: new Date(reserva.fecha_fin).toLocaleTimeString('es-ES', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'Europe/Madrid'
-      }),
-      nota: reserva.nota || ''
-    };
+  const refreshReservaSeleccionada = async (reservaId: string) => {
+    const resultado = await obtenerReservas();
+    if (!resultado.success || !resultado.reservas) {
+      throw new Error('No se pudo refrescar la reserva');
+    }
+
+    const reservaActualizada = resultado.reservas.find((reserva) => reserva.id === reservaId);
+    if (!reservaActualizada) {
+      throw new Error('No se pudo encontrar la reserva actualizada');
+    }
+
+    setReservaSeleccionada(reservaActualizada);
+  };
+
+  const handleActualizarEstadoReserva = async (reserva: ReservaActividad, nuevoEstado: string) => {
+    const estadosValidos = ['confirmada', 'pendiente', 'completada', 'cancelada'] as const;
+    if (!estadosValidos.includes(nuevoEstado as typeof estadosValidos[number])) {
+      throw new Error('Estado de reserva no valido');
+    }
+
+    const resultado = await actualizarReserva(reserva.id, {
+      estado: nuevoEstado as typeof estadosValidos[number]
+    });
+
+    if (!resultado.success) {
+      throw new Error(resultado.message);
+    }
+
+    await refreshReservaSeleccionada(reserva.id);
+    await refreshPagos();
+  };
+
+  const handleReservaActualizada = async () => {
+    if (reservaSeleccionada) {
+      await refreshReservaSeleccionada(reservaSeleccionada.id);
+    }
+
+    await refreshPagos();
   };
 
   const handleCompletarPago = async (pago: Pago) => {
@@ -477,36 +471,15 @@ export default function PagosPage() {
         } : undefined}
       />
 
-      <PagoReservaModal
-        isOpen={isPagoReservaModalOpen}
+      <ModalDetalleReserva
+        isOpen={isDetalleReservaModalOpen}
         onClose={() => {
-          setIsPagoReservaModalOpen(false);
+          setIsDetalleReservaModalOpen(false);
           setReservaSeleccionada(null);
         }}
-        onSubmit={async () => {
-          // No hacer nada, solo mostrar los datos de la reserva
-          toast.success('Este es un pago de reserva existente, no se puede modificar');
-        }}
-        actividad={reservaSeleccionada ? transformarReservaParaModal(reservaSeleccionada) : {
-          id: '',
-          nombre: '',
-          precio: 0,
-          cantidad: 0,
-          duracion: '',
-          empresa: '',
-          numeroPersonas: 0,
-          fechaInicio: '',
-          fechaFin: '',
-          horaInicio: '',
-          horaFin: '',
-          nota: ''
-        }}
-        readOnly={true}
-        reservaData={reservaSeleccionada ? {
-          metodo: 'efectivo', // Valor por defecto, se puede obtener del pago asociado
-          estado: 'completado', // Valor por defecto
-          concepto: 'Reserva de actividad'
-        } : undefined}
+        reserva={reservaSeleccionada}
+        onActualizarEstado={handleActualizarEstadoReserva}
+        onReservaActualizada={handleReservaActualizada}
       />
     </div>
   );
