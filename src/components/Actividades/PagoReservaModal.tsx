@@ -2,16 +2,19 @@
 
 import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, ReceiptPercentIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ReceiptPercentIcon, CheckCircleIcon, ClockIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { formatPrice } from '@/lib/formatUtils';
 import { useActividades } from '@/hooks/useActividades';
 import SurfSpinner from '@/components/shared/SurfSpinner';
 import TicketCompra from '@/components/Tienda/TicketCompra';
 import { SelectorCliente } from '@/components/Actividades/SelectorCliente';
+import ModalNuevoClientePago from '@/components/Actividades/ModalNuevoClientePago';
 import { useClientes } from '@/hooks/useClientes';
 import { useTickets } from '@/hooks/useTickets';
 import { toast } from 'react-hot-toast';
 import { ACTIVE_PAYMENT_METHOD_OPTIONS } from '@/lib/contabilidadCatalogos';
+import type { CampamentoMetadata } from '@/lib/campamento';
+import type { Cliente } from '@/shared/types';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'transferencia' | 'bizum_alfonso';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
@@ -33,6 +36,11 @@ interface ActividadReserva {
   depositoPermitido?: boolean;
   depositoObligatorio?: boolean;
   precioReserva?: number;
+  campamentoMetadata?: CampamentoMetadata;
+  reservaFechaInicio?: string;
+  reservaFechaFin?: string;
+  resumenHorario?: string;
+  resumenFechas?: string;
 }
 
 interface PagoReservaModalProps {
@@ -79,6 +87,7 @@ export default function PagoReservaModal({
   const [precioReservaOverride, setPrecioReservaOverride] = useState<number | null>(null);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
+  const [showNuevoClienteModal, setShowNuevoClienteModal] = useState(false);
   const [isSavingTicket, setIsSavingTicket] = useState(false);
   const [processedPaymentData, setProcessedPaymentData] = useState<{
     actividad: ActividadReserva;
@@ -115,6 +124,7 @@ export default function PagoReservaModal({
   const depositoObligatorio = actividad.depositoObligatorio ?? false;
   const esReserva = esReservaOverride ?? depositoObligatorio;
   const precioReserva = precioReservaOverride ?? Math.max(actividad.precioReserva ?? 0, 0);
+  const isCampamento = !!actividad.campamentoMetadata;
 
   // Cálculos de precios optimizados con useMemo
   const { subtotal, descuento, iva, total, precioRestante } = useMemo(() => {
@@ -150,14 +160,11 @@ export default function PagoReservaModal({
       let reservaId: string | undefined;
       
       if (!readOnly) {
-        // Validar que se haya seleccionado un cliente
-        if (!selectedClienteId) {
-          throw new Error('Debe seleccionar un cliente');
-        }
+        const clienteSeleccionado = selectedClienteId
+          ? clientes.find(c => c.id === selectedClienteId)
+          : null;
 
-        // Obtener los datos del cliente seleccionado
-        const clienteSeleccionado = clientes.find(c => c.id === selectedClienteId);
-        if (!clienteSeleccionado) {
+        if (selectedClienteId && !clienteSeleccionado) {
           throw new Error('Cliente seleccionado no encontrado');
         }
 
@@ -167,24 +174,28 @@ export default function PagoReservaModal({
           throw new Error(resultadoEmpresa.message);
         }
         
-        // Obtener el ID del cliente
-        const resultadoCliente = await obtenerIdCliente(clienteSeleccionado.nombre, clienteSeleccionado.apellidos);
-        if (!resultadoCliente.success) {
-          throw new Error(resultadoCliente.message);
+        const resultadoCliente = clienteSeleccionado
+          ? await obtenerIdCliente(clienteSeleccionado.nombre, clienteSeleccionado.apellidos)
+          : null;
+
+        if (clienteSeleccionado && (!resultadoCliente?.success || !resultadoCliente.clienteId)) {
+          throw new Error(resultadoCliente?.message || 'No se pudo obtener el cliente seleccionado');
         }
         
         // Crear la reserva en la base de datos
         // Crear fechas sin conversión de zona horaria
-        const [añoInicio, mesInicio, diaInicio] = actividad.fechaInicio.split('-');
+        const fechaInicioBase = actividad.reservaFechaInicio ?? actividad.fechaInicio;
+        const fechaFinBase = actividad.reservaFechaFin ?? actividad.fechaFin;
+        const [añoInicio, mesInicio, diaInicio] = fechaInicioBase.split('-');
         const [horaInicio, minutoInicio] = actividad.horaInicio.split(':');
-        const [añoFin, mesFin, diaFin] = actividad.fechaFin.split('-');
+        const [añoFin, mesFin, diaFin] = fechaFinBase.split('-');
         const [horaFin, minutoFin] = actividad.horaFin.split(':');
         
         const fechaInicio = new Date(parseInt(añoInicio), parseInt(mesInicio) - 1, parseInt(diaInicio), parseInt(horaInicio), parseInt(minutoInicio), 0);
         const fechaFin = new Date(parseInt(añoFin), parseInt(mesFin) - 1, parseInt(diaFin), parseInt(horaFin), parseInt(minutoFin), 0);
         
         const resultadoReserva = await crearReserva({
-          id_cliente: resultadoCliente.clienteId!,
+          id_cliente: resultadoCliente?.clienteId ?? null,
           id_actividad: actividad.id,
           id_empresa: resultadoEmpresa.empresaId!,
           cantidad_reservada: actividad.cantidad,
@@ -193,7 +204,10 @@ export default function PagoReservaModal({
           fecha_inicio: fechaInicio.toISOString(),
           fecha_fin: fechaFin.toISOString(),
           estado: esReserva ? 'pendiente' : (estado === 'completado' ? 'confirmada' : 'pendiente'),
-          nota: actividad.nota || undefined
+          nota: actividad.nota || undefined,
+          metadata: actividad.campamentoMetadata
+            ? { campamento: actividad.campamentoMetadata }
+            : undefined
         });
         
         if (!resultadoReserva.success) {
@@ -206,7 +220,7 @@ export default function PagoReservaModal({
         if (esReserva && precioRestante > 0) {
           // Crear pago inmediato (reserva)
           const resultadoPagoReserva = await crearPago({
-            id_cliente: resultadoCliente.clienteId!,
+            id_cliente: resultadoCliente?.clienteId ?? null,
             origen_tipo: 'reserva',
             origen_id: reservaId!,
             concepto: `Reserva - ${concepto}`,
@@ -221,7 +235,7 @@ export default function PagoReservaModal({
           
           // Crear pago pendiente (resto)
           const resultadoPagoPendiente = await crearPago({
-            id_cliente: resultadoCliente.clienteId!,
+            id_cliente: resultadoCliente?.clienteId ?? null,
             origen_tipo: 'reserva',
             origen_id: reservaId!,
             concepto: `Pago pendiente - ${concepto}`,
@@ -236,7 +250,7 @@ export default function PagoReservaModal({
         } else {
           // Crear pago normal (sin reserva)
           const resultadoPago = await crearPago({
-            id_cliente: resultadoCliente.clienteId!,
+            id_cliente: resultadoCliente?.clienteId ?? null,
             origen_tipo: 'reserva',
             origen_id: reservaId!,
             concepto: concepto,
@@ -416,12 +430,18 @@ export default function PagoReservaModal({
   const handleCloseModal = () => {
     setEsReservaOverride(null);
     setPrecioReservaOverride(null);
+    setShowNuevoClienteModal(false);
     onClose();
   };
 
+  const handleNuevoClienteSuccess = (cliente: Cliente) => {
+    setSelectedClienteId(cliente.id);
+  };
+
   return (
-    <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-[60]" onClose={handleCloseModal}>
+    <>
+      <Transition.Root show={isOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-[60]" onClose={handleCloseModal}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-150"
@@ -481,16 +501,31 @@ export default function PagoReservaModal({
                       <div className="space-y-6">
                         {/* Selector de cliente */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Cliente *
-                          </label>
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Cliente
+                            </label>
+                            {!readOnly ? (
+                              <button
+                                type="button"
+                                onClick={() => setShowNuevoClienteModal(true)}
+                                className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 cursor-pointer"
+                              >
+                                <PlusIcon className="h-4 w-4" />
+                                Nuevo cliente
+                              </button>
+                            ) : null}
+                          </div>
                           <SelectorCliente
                             selectedClienteId={selectedClienteId}
                             onClienteChange={setSelectedClienteId}
-                            placeholder="Seleccionar cliente"
+                            placeholder="Buscar por nombre, apellidos o DNI"
                             className="w-full"
                             disabled={readOnly}
                           />
+                          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            Puedes dejar la reserva y el pago como <span className="font-semibold">Sin cliente</span>.
+                          </p>
                         </div>
 
                         {/* Switch de Reserva y Precio de Reserva */}
@@ -648,15 +683,21 @@ export default function PagoReservaModal({
                                 </span>
                                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                   <div>Empresa: {actividad.empresa}</div>
-                                  <div>Duración: {actividad.duracion}</div>
+                                  <div>{isCampamento ? 'Programa' : 'Duración'}: {isCampamento ? (actividad.resumenFechas || '--') : actividad.duracion}</div>
                                   <div>Personas: {actividad.numeroPersonas}</div>
-                                  <div>Fecha: {new Date(actividad.fechaInicio).toLocaleDateString('es-ES', {
-                                    day: '2-digit',
-                                    month: '2-digit',
-                                    year: 'numeric',
-                                    timeZone: 'Europe/Madrid'
-                                  })}</div>
-                                  <div>Hora: {actividad.horaInicio} - {actividad.horaFin}</div>
+                                  {isCampamento ? (
+                                    <div>Horario: {actividad.resumenHorario || `${actividad.horaInicio} - ${actividad.horaFin}`}</div>
+                                  ) : (
+                                    <>
+                                      <div>Fecha: {new Date(actividad.fechaInicio).toLocaleDateString('es-ES', {
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        year: 'numeric',
+                                        timeZone: 'Europe/Madrid'
+                                      })}</div>
+                                      <div>Hora: {actividad.horaInicio} - {actividad.horaFin}</div>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                               <span className="text-gray-900 dark:text-gray-100 font-medium">
@@ -734,7 +775,7 @@ export default function PagoReservaModal({
                       {!readOnly && (
                         <button
                           type="submit"
-                          disabled={!actividad || !selectedClienteId || isProcessing}
+                          disabled={!actividad || isProcessing}
                           className="px-6 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-75 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                           {isProcessing ? (
@@ -754,7 +795,8 @@ export default function PagoReservaModal({
             </Transition.Child>
           </div>
         </div>
-      </Dialog>
+        </Dialog>
+      </Transition.Root>
 
       {/* Modal de confirmación de pago */}
       <Transition.Root show={showConfirmationModal} as={Fragment}>
@@ -909,6 +951,12 @@ export default function PagoReservaModal({
         </Dialog>
       </Transition.Root>
 
+      <ModalNuevoClientePago
+        isOpen={showNuevoClienteModal}
+        onClose={() => setShowNuevoClienteModal(false)}
+        onSuccess={handleNuevoClienteSuccess}
+      />
+
       {/* Modal del ticket de compra */}
       {processedPaymentData && (
         <TicketCompra
@@ -937,6 +985,6 @@ export default function PagoReservaModal({
           isSaving={isSavingTicket}
         />
       )}
-    </Transition.Root>
+    </>
   );
 }

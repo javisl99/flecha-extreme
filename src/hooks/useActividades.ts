@@ -2,6 +2,10 @@ import { useState, useCallback } from 'react';
 import { useSupabase } from './useSupabase';
 import { useTickets } from './useTickets';
 import { resolvePaymentMethodIdByCode } from '@/lib/contabilidadCatalogos';
+import type {
+  ReservaServicioItemMetadata,
+  ServicioHorarioRegla
+} from '@/lib/campamento';
 
 export interface NuevaActividad {
   nombre: string;
@@ -16,6 +20,7 @@ export interface NuevaActividad {
 
 export interface ActividadDB {
   id: string;
+  codigo?: string;
   nombre: string;
   tipo: 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros';
   modo_precio: 'por_persona' | 'fijo';
@@ -34,6 +39,8 @@ export interface ActividadDB {
   duracion_maxima_min: number | null;
   intervalo_reserva_min: number | null;
   usa_pool_inventario: boolean;
+  pool_inventario_codigo?: string | null;
+  pool_inventario_total?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -92,6 +99,7 @@ export interface Reserva {
   estado: string;
   cantidad_reservada: number;
   numero_personas_reserva?: number;
+  metadata?: ReservaServicioItemMetadata;
   nota?: string;
   ticket_url?: string;
   ticket_url_reserva?: string;
@@ -175,6 +183,7 @@ const ESTADOS_RESERVA = ['confirmada', 'pendiente', 'completada', 'cancelada'] a
 
 function mapServicioToActividadDB(servicio: {
   id: string;
+  codigo?: string | null;
   nombre: string;
   categoria: CategoriaServicio;
   modo_precio: 'por_persona' | 'fijo';
@@ -192,6 +201,10 @@ function mapServicioToActividadDB(servicio: {
     pool_id?: string | null;
     obligatorio?: boolean | null;
     activo?: boolean | null;
+    pool?: Array<{
+      codigo?: string | null;
+      cantidad_total?: number | null;
+    }> | null;
   }> | null;
   created_at: string;
   updated_at: string;
@@ -199,9 +212,12 @@ function mapServicioToActividadDB(servicio: {
   const poolsActivosObligatorios = (servicio.servicio_consumo_pool ?? []).filter(
     (pool) => pool?.activo !== false && pool?.obligatorio !== false && !!pool?.pool_id
   );
+  const primaryPool = poolsActivosObligatorios[0];
+  const primaryPoolData = Array.isArray(primaryPool?.pool) ? primaryPool.pool[0] : null;
 
   return {
     id: servicio.id,
+    codigo: servicio.codigo ?? undefined,
     nombre: servicio.nombre,
     tipo: CATEGORIA_TO_TIPO[servicio.categoria] ?? 'otros',
     modo_precio: servicio.modo_precio,
@@ -220,6 +236,11 @@ function mapServicioToActividadDB(servicio: {
     duracion_maxima_min: servicio.duracion_maxima_min,
     intervalo_reserva_min: servicio.intervalo_reserva_min,
     usa_pool_inventario: poolsActivosObligatorios.length > 0,
+    pool_inventario_codigo: primaryPoolData?.codigo ?? null,
+    pool_inventario_total:
+      primaryPoolData?.cantidad_total !== undefined && primaryPoolData?.cantidad_total !== null
+        ? Number(primaryPoolData.cantidad_total)
+        : null,
     created_at: servicio.created_at,
     updated_at: servicio.updated_at
   };
@@ -319,7 +340,7 @@ export function useActividades() {
 
       const { data, error: fetchError } = await supabase
         .from('servicio')
-        .select('id,nombre,categoria,modo_precio,modo_agenda,requiere_sesion,reservable,deposito_permitido,deposito_obligatorio,deposito_default,capacidad_max,duracion_minima_min,duracion_maxima_min,intervalo_reserva_min,created_at,updated_at,servicio_consumo_pool(pool_id,obligatorio,activo)')
+        .select('id,codigo,nombre,categoria,modo_precio,modo_agenda,requiere_sesion,reservable,deposito_permitido,deposito_obligatorio,deposito_default,capacidad_max,duracion_minima_min,duracion_maxima_min,intervalo_reserva_min,created_at,updated_at,servicio_consumo_pool(pool_id,obligatorio,activo,pool:inventario_pool(codigo,cantidad_total))')
         .order('created_at', { ascending: false });
 
       if (fetchError) {
@@ -345,7 +366,7 @@ export function useActividades() {
 
       const { data, error: fetchError } = await supabase
         .from('servicio')
-        .select('id,nombre,categoria,modo_precio,modo_agenda,requiere_sesion,reservable,deposito_permitido,deposito_obligatorio,deposito_default,capacidad_max,duracion_minima_min,duracion_maxima_min,intervalo_reserva_min,created_at,updated_at,servicio_consumo_pool(pool_id,obligatorio,activo)')
+        .select('id,codigo,nombre,categoria,modo_precio,modo_agenda,requiere_sesion,reservable,deposito_permitido,deposito_obligatorio,deposito_default,capacidad_max,duracion_minima_min,duracion_maxima_min,intervalo_reserva_min,created_at,updated_at,servicio_consumo_pool(pool_id,obligatorio,activo,pool:inventario_pool(codigo,cantidad_total))')
         .eq('categoria', categoria)
         .eq('activo', true)
         .eq('reservable', true)
@@ -398,6 +419,43 @@ export function useActividades() {
       });
     } catch {
       setError('Error inesperado al obtener tarifas de la actividad');
+      return [];
+    } finally {
+      setLoadingActividades(false);
+    }
+  }, [supabase]);
+
+  const obtenerHorariosActividad = useCallback(async (idActividad: string): Promise<ServicioHorarioRegla[]> => {
+    try {
+      setLoadingActividades(true);
+      setError(null);
+
+      const { data, error: fetchError } = await supabase
+        .from('servicio_horario_regla')
+        .select('id,servicio_id,dia_semana,hora_inicio,hora_fin,activo_desde,activo_hasta,capacidad_override,intervalo_min')
+        .eq('servicio_id', idActividad)
+        .eq('activo', true)
+        .order('dia_semana', { ascending: true })
+        .order('hora_inicio', { ascending: true });
+
+      if (fetchError) {
+        setError(fetchError.message);
+        return [];
+      }
+
+      return (data ?? []).map((regla) => ({
+        id: regla.id,
+        servicio_id: regla.servicio_id,
+        dia_semana: Number(regla.dia_semana),
+        hora_inicio: regla.hora_inicio,
+        hora_fin: regla.hora_fin,
+        activo_desde: regla.activo_desde ?? null,
+        activo_hasta: regla.activo_hasta ?? null,
+        capacidad_override: regla.capacidad_override ?? null,
+        intervalo_min: regla.intervalo_min ?? null
+      }));
+    } catch {
+      setError('Error inesperado al obtener los horarios de la actividad');
       return [];
     } finally {
       setLoadingActividades(false);
@@ -466,6 +524,7 @@ export function useActividades() {
     fecha_fin: string;
     estado: 'confirmada' | 'pendiente' | 'completada' | 'cancelada';
     nota?: string;
+    metadata?: ReservaServicioItemMetadata;
   }): Promise<{ success: boolean; message: string; reservaId?: string }> => {
     try {
       setLoading(true);
@@ -498,6 +557,14 @@ export function useActividades() {
         throw reservaError ?? new Error('No se pudo crear la reserva');
       }
 
+      const itemMetadata: ReservaServicioItemMetadata = {
+        ...(datosReserva.metadata ?? {})
+      };
+
+      if (datosReserva.numero_personas && datosReserva.numero_personas > 0) {
+        itemMetadata.numero_personas = datosReserva.numero_personas;
+      }
+
       const { error: itemError } = await supabase.from('reserva_servicio_item').insert([
         {
           reserva_id: reservaData.id,
@@ -512,9 +579,7 @@ export function useActividades() {
           deposito_cobrado: 0,
           estado: datosReserva.estado,
           notas: datosReserva.nota ?? null,
-          metadata: datosReserva.numero_personas && datosReserva.numero_personas > 0
-            ? { numero_personas: datosReserva.numero_personas }
-            : {}
+          metadata: itemMetadata
         }
       ]);
 
@@ -671,9 +736,9 @@ export function useActividades() {
             fin,
             cantidad,
             subtotal,
-            estado,
-            metadata,
-            servicio:servicio(id, nombre, categoria)
+          estado,
+          metadata,
+          servicio:servicio(id, nombre, categoria)
           )
         `)
         .order('created_at', { ascending: false });
@@ -688,6 +753,7 @@ export function useActividades() {
         const clienteItem = Array.isArray(r.cliente) ? r.cliente[0] : r.cliente;
         const empresaItem = Array.isArray(r.empresa) ? r.empresa[0] : r.empresa;
         const actividadNombre = servicioItem?.nombre ?? 'Actividad no encontrada';
+        const itemMetadata = (firstItem?.metadata as ReservaServicioItemMetadata | null) ?? undefined;
 
         return {
           id: r.id,
@@ -706,7 +772,8 @@ export function useActividades() {
           precio: Number(r.total_neto ?? firstItem?.subtotal ?? 0),
           estado: r.estado,
           cantidad_reservada: Number(firstItem?.cantidad ?? 1),
-          numero_personas_reserva: Number((firstItem?.metadata as { numero_personas?: number } | null)?.numero_personas ?? firstItem?.cantidad ?? 1),
+          numero_personas_reserva: Number(itemMetadata?.numero_personas ?? firstItem?.cantidad ?? 1),
+          metadata: itemMetadata,
           nota: r.observaciones ?? undefined,
           ticket_url: r.ticket_url ?? undefined,
           ticket_url_reserva: r.ticket_url_reserva ?? undefined
@@ -1199,6 +1266,7 @@ export function useActividades() {
     obtenerActividades,
     obtenerActividadesPorTipo,
     obtenerTarifasActividad,
+    obtenerHorariosActividad,
     actualizarActividad,
     eliminarActividad,
     crearReserva,
