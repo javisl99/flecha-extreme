@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import ReservaForm from './ReservaForm';
+import PagoReservaParkingModal from './PagoReservaParkingModal';
 import { paymentMethodCodeLabel } from '@/lib/contabilidad';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'transferencia' | 'bizum_alfonso';
@@ -13,6 +14,12 @@ interface TarifaParking {
   tipo: 'embarcacion' | 'tabla' | 'kayak';
   periodo: 'mes' | 'quincena';
   precio: number;
+}
+
+interface ReservaDraft {
+  fecha_inicio: string;
+  fecha_fin: string;
+  id_tarifa: string;
 }
 
 interface PagoParking {
@@ -93,6 +100,8 @@ export default function PlazaInfoModal({
   onCrearReserva
 }: PlazaInfoModalProps) {
   const [showReservaForm, setShowReservaForm] = useState(false);
+  const [showPagoModal, setShowPagoModal] = useState(false);
+  const [reservaDraft, setReservaDraft] = useState<ReservaDraft | null>(null);
 
   const formatearFecha = (fecha: string) => {
     return new Date(fecha).toLocaleString('es-ES', {
@@ -146,6 +155,19 @@ export default function PlazaInfoModal({
   }) => {
     onCrearReserva?.(data);
     setShowReservaForm(false);
+    setShowPagoModal(false);
+    setReservaDraft(null);
+  };
+
+  const handleContinueToPayment = (data: ReservaDraft) => {
+    setReservaDraft(data);
+    setShowReservaForm(false);
+    setShowPagoModal(true);
+  };
+
+  const handleBackToReservaForm = () => {
+    setShowPagoModal(false);
+    setShowReservaForm(true);
   };
 
   const getTarifaInfo = () => {
@@ -204,7 +226,7 @@ export default function PlazaInfoModal({
                         </span>
                         <button
                           type="button"
-                          className="rounded-md text-white transition hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white/50"
+                          className="rounded-md text-white transition hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer"
                           onClick={onClose}
                         >
                           <span className="sr-only">Cerrar</span>
@@ -311,7 +333,7 @@ export default function PlazaInfoModal({
                   <div className="flex flex-wrap justify-end gap-3 border-t border-outline-variant/25 px-6 py-4">
                     <button
                       type="button"
-                      className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary"
+                      className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary cursor-pointer"
                       onClick={onClose}
                     >
                       Cerrar
@@ -320,7 +342,7 @@ export default function PlazaInfoModal({
                     {!plaza.reservada ? (
                       <button
                         type="button"
-                        className="primary-gradient rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110"
+                        className="primary-gradient rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110 cursor-pointer"
                         onClick={() => setShowReservaForm(true)}
                       >
                         Crear Reserva
@@ -330,7 +352,7 @@ export default function PlazaInfoModal({
                     {plaza.reservada && onEliminarReserva ? (
                       <button
                         type="button"
-                        className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                        className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer"
                         onClick={onEliminarReserva}
                       >
                         Eliminar Reserva
@@ -348,9 +370,30 @@ export default function PlazaInfoModal({
         <ReservaForm
           isOpen={showReservaForm}
           onClose={() => setShowReservaForm(false)}
-          onSubmit={handleCrearReserva}
+          onContinue={handleContinueToPayment}
           plazaCodigo={plaza.codigo}
           tarifas={tarifas}
+        />
+      ) : null}
+
+      {showPagoModal && reservaDraft ? (
+        <PagoReservaParkingModal
+          isOpen={showPagoModal}
+          onClose={() => {
+            setShowPagoModal(false);
+            setReservaDraft(null);
+          }}
+          onBack={handleBackToReservaForm}
+          onSubmit={(paymentData) =>
+            handleCrearReserva({
+              ...reservaDraft,
+              id_cliente: paymentData.id_cliente,
+              pago: paymentData.pago
+            })
+          }
+          plazaCodigo={plaza.codigo}
+          reservaDraft={reservaDraft}
+          tarifa={tarifas.find((tarifa) => tarifa.id === reservaDraft.id_tarifa) ?? null}
         />
       ) : null}
     </>

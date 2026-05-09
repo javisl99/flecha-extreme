@@ -1,11 +1,8 @@
-import { Fragment, useState } from 'react';
+'use client';
+
+import { Fragment, useMemo, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { useClientes } from '@/hooks/useClientes';
-import { ACTIVE_PAYMENT_METHOD_OPTIONS } from '@/lib/contabilidadCatalogos';
-
-type MetodoPago = 'efectivo' | 'tpv' | 'transferencia' | 'bizum_alfonso';
-type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 
 interface TarifaParking {
   id: string;
@@ -14,65 +11,82 @@ interface TarifaParking {
   precio: number;
 }
 
+interface ReservaDraft {
+  fecha_inicio: string;
+  fecha_fin: string;
+  id_tarifa: string;
+}
+
 interface ReservaFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: {
-    fecha_inicio: string;
-    fecha_fin: string;
-    id_tarifa: string;
-    id_cliente: string | null;
-    pago?: {
-      concepto: string;
-      metodo: MetodoPago;
-      estado: EstadoPago;
-    };
-  }) => void;
+  onContinue: (data: ReservaDraft) => void;
   plazaCodigo: string;
   tarifas: TarifaParking[];
 }
 
-export default function ReservaForm({ isOpen, onClose, onSubmit, plazaCodigo, tarifas }: ReservaFormProps) {
-  const { clientes, loading: loadingClientes } = useClientes();
+const labelClassName = 'mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline';
+const inputClassName =
+  'h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-4 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15 cursor-pointer';
+
+function formatPrecio(precio: number) {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  }).format(precio);
+}
+
+function formatDateInput(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function calcularFechaFin(fechaInicio: string, periodo?: 'mes' | 'quincena') {
+  if (!fechaInicio || !periodo) return '';
+
+  const baseDate = new Date(`${fechaInicio}T00:00:00`);
+  if (Number.isNaN(baseDate.getTime())) return '';
+
+  if (periodo === 'mes') {
+    baseDate.setMonth(baseDate.getMonth() + 1);
+  } else {
+    baseDate.setDate(baseDate.getDate() + 15);
+  }
+
+  return formatDateInput(baseDate);
+}
+
+export default function ReservaForm({ isOpen, onClose, onContinue, plazaCodigo, tarifas }: ReservaFormProps) {
   const [formData, setFormData] = useState({
     fecha_inicio: '',
-    fecha_fin: '',
-    id_tarifa: '',
-    id_cliente: '',
-    pago: {
-      concepto: '',
-      metodo: 'efectivo' as MetodoPago,
-      estado: 'pendiente' as EstadoPago
-    }
+    id_tarifa: ''
   });
 
-  const formatPrecio = (precio: number) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(precio);
-  };
+  const tarifaSeleccionada = useMemo(
+    () => tarifas.find((tarifa) => tarifa.id === formData.id_tarifa) ?? null,
+    [formData.id_tarifa, tarifas]
+  );
+
+  const fechaFinCalculada = useMemo(
+    () => calcularFechaFin(formData.fecha_inicio, tarifaSeleccionada?.periodo),
+    [formData.fecha_inicio, tarifaSeleccionada]
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
-      ...formData,
-      id_cliente: formData.id_cliente || null
+
+    if (!formData.id_tarifa || !formData.fecha_inicio || !fechaFinCalculada) {
+      return;
+    }
+
+    onContinue({
+      fecha_inicio: formData.fecha_inicio,
+      fecha_fin: fechaFinCalculada,
+      id_tarifa: formData.id_tarifa
     });
-    onClose();
   };
-
-  const metodosPago: { value: MetodoPago; label: string }[] =
-    ACTIVE_PAYMENT_METHOD_OPTIONS as Array<{ value: MetodoPago; label: string }>;
-
-  const estadosPago: { value: EstadoPago; label: string }[] = [
-    { value: 'completado', label: 'Completado' },
-    { value: 'pendiente', label: 'Pendiente' }
-  ];
-
-  const labelClassName = 'mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline';
-  const inputClassName =
-    'h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-4 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15';
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -100,7 +114,7 @@ export default function ReservaForm({ isOpen, onClose, onSubmit, plazaCodigo, ta
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-3 sm:scale-95"
             >
-              <Dialog.Panel className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl transition-all">
+              <Dialog.Panel className="relative w-full max-w-xl transform overflow-hidden rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl transition-all">
                 <form onSubmit={handleSubmit}>
                   <div className="primary-gradient flex items-center justify-between px-6 py-4">
                     <Dialog.Title as="h3" className="font-headline text-xl font-extrabold tracking-tight text-white">
@@ -108,7 +122,7 @@ export default function ReservaForm({ isOpen, onClose, onSubmit, plazaCodigo, ta
                     </Dialog.Title>
                     <button
                       type="button"
-                      className="rounded-md text-white transition hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white/50"
+                      className="rounded-md text-white transition hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer"
                       onClick={onClose}
                     >
                       <span className="sr-only">Cerrar</span>
@@ -121,29 +135,6 @@ export default function ReservaForm({ isOpen, onClose, onSubmit, plazaCodigo, ta
                       <h4 className="font-headline text-lg font-extrabold text-primary-dark">Datos de reserva</h4>
                       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div className="md:col-span-2">
-                          <label htmlFor="cliente" className={labelClassName}>
-                            Cliente
-                          </label>
-                          <select
-                            id="cliente"
-                            className={inputClassName}
-                            value={formData.id_cliente}
-                            onChange={(e) => setFormData({ ...formData, id_cliente: e.target.value })}
-                          >
-                            <option value="">Sin cliente asignado</option>
-                            {loadingClientes ? (
-                              <option disabled>Cargando clientes...</option>
-                            ) : (
-                              clientes.map((cliente) => (
-                                <option key={cliente.id} value={cliente.id}>
-                                  {cliente.nombre} {cliente.apellidos}
-                                </option>
-                              ))
-                            )}
-                          </select>
-                        </div>
-
-                        <div className="md:col-span-2">
                           <label htmlFor="tarifa" className={labelClassName}>
                             Tarifa
                           </label>
@@ -151,7 +142,7 @@ export default function ReservaForm({ isOpen, onClose, onSubmit, plazaCodigo, ta
                             id="tarifa"
                             className={inputClassName}
                             value={formData.id_tarifa}
-                            onChange={(e) => setFormData({ ...formData, id_tarifa: e.target.value })}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, id_tarifa: e.target.value }))}
                             required
                           >
                             <option value="">Selecciona una tarifa</option>
@@ -168,11 +159,11 @@ export default function ReservaForm({ isOpen, onClose, onSubmit, plazaCodigo, ta
                             Fecha de inicio
                           </label>
                           <input
-                            type="datetime-local"
+                            type="date"
                             id="fecha_inicio"
                             className={inputClassName}
                             value={formData.fecha_inicio}
-                            onChange={(e) => setFormData({ ...formData, fecha_inicio: e.target.value })}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, fecha_inicio: e.target.value }))}
                             required
                           />
                         </div>
@@ -182,103 +173,56 @@ export default function ReservaForm({ isOpen, onClose, onSubmit, plazaCodigo, ta
                             Fecha de fin
                           </label>
                           <input
-                            type="datetime-local"
+                            type="date"
                             id="fecha_fin"
-                            className={inputClassName}
-                            value={formData.fecha_fin}
-                            onChange={(e) => setFormData({ ...formData, fecha_fin: e.target.value })}
-                            required
+                            className={`${inputClassName} text-on-surface-variant`}
+                            value={fechaFinCalculada}
+                            readOnly
+                            disabled
                           />
                         </div>
                       </div>
                     </section>
 
-                    <section className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
-                      <h4 className="font-headline text-lg font-extrabold text-primary-dark">Datos de pago</h4>
-                      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div className="md:col-span-2">
-                          <label htmlFor="concepto" className={labelClassName}>
-                            Concepto (opcional)
-                          </label>
-                          <input
-                            type="text"
-                            id="concepto"
-                            className={inputClassName}
-                            value={formData.pago.concepto}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                pago: { ...formData.pago, concepto: e.target.value }
-                              })
-                            }
-                            placeholder="Introduce un concepto para el pago"
-                          />
+                    {tarifaSeleccionada ? (
+                      <section className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                        <h4 className="font-headline text-lg font-extrabold text-primary-dark">Resumen</h4>
+                        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                          <div>
+                            <p className={labelClassName}>Periodo</p>
+                            <p className="text-sm font-semibold text-on-surface">
+                              {tarifaSeleccionada.periodo === 'mes' ? 'Mensual' : 'Quincenal'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className={labelClassName}>Importe</p>
+                            <p className="text-sm font-semibold text-on-surface">{formatPrecio(tarifaSeleccionada.precio)}</p>
+                          </div>
+                          <div>
+                            <p className={labelClassName}>Fin previsto</p>
+                            <p className="text-sm font-semibold text-on-surface">
+                              {fechaFinCalculada || '--'}
+                            </p>
+                          </div>
                         </div>
-
-                        <div>
-                          <label htmlFor="metodo" className={labelClassName}>
-                            Método de pago
-                          </label>
-                          <select
-                            id="metodo"
-                            className={inputClassName}
-                            value={formData.pago.metodo}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                pago: { ...formData.pago, metodo: e.target.value as MetodoPago }
-                              })
-                            }
-                            required
-                          >
-                            {metodosPago.map((metodo) => (
-                              <option key={metodo.value} value={metodo.value}>
-                                {metodo.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label htmlFor="estado" className={labelClassName}>
-                            Estado del pago
-                          </label>
-                          <select
-                            id="estado"
-                            className={inputClassName}
-                            value={formData.pago.estado}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                pago: { ...formData.pago, estado: e.target.value as EstadoPago }
-                              })
-                            }
-                            required
-                          >
-                            {estadosPago.map((estado) => (
-                              <option key={estado.value} value={estado.value}>
-                                {estado.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </section>
+                      </section>
+                    ) : null}
                   </div>
 
                   <div className="flex justify-end gap-3 border-t border-outline-variant/25 px-6 py-4">
                     <button
                       type="button"
-                      className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary"
+                      className="rounded-full border border-outline-variant/45 bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary cursor-pointer"
                       onClick={onClose}
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
-                      className="primary-gradient rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110"
+                      disabled={!formData.id_tarifa || !formData.fecha_inicio || !fechaFinCalculada}
+                      className="primary-gradient rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                     >
-                      Crear Reserva
+                      Continuar al pago
                     </button>
                   </div>
                 </form>
