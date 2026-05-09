@@ -126,6 +126,31 @@ export default function PagosPage() {
     }
   };
 
+  const handleAbrirTicketPago = async (pago: Pago) => {
+    if (pago.origen_tipo !== 'pedido' || !pago.origen_id) {
+      await handleVerPago(pago);
+      return;
+    }
+
+    try {
+      const pedido = await obtenerPedidoPorId(pago.origen_id);
+      if (!pedido) {
+        toast.error('No se pudo cargar la información del pedido');
+        return;
+      }
+
+      if (!pedido.ticket_url) {
+        toast.error('Este pedido de tienda no tiene ticket disponible');
+        return;
+      }
+
+      window.open(pedido.ticket_url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Error abriendo ticket del pedido:', error);
+      toast.error('Error al abrir el ticket del pedido');
+    }
+  };
+
   const handleFilaClick = (pago: Pago) => {
     handleVerPago(pago);
   };
@@ -340,10 +365,10 @@ export default function PagosPage() {
                         <button
                           type="button"
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant/35 bg-surface-container-lowest text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
-                          title="Ver"
+                          title={pago.origen_tipo === 'pedido' ? 'Abrir ticket' : 'Ver'}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleVerPago(pago);
+                            void handleAbrirTicketPago(pago);
                           }}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -420,10 +445,10 @@ export default function PagosPage() {
                     className="min-h-11 flex-1 rounded-full border border-outline-variant/35 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleVerPago(pago);
+                      void handleAbrirTicketPago(pago);
                     }}
                   >
-                    Ver
+                    {pago.origen_tipo === 'pedido' ? 'Abrir ticket' : 'Ver'}
                   </button>
                 </div>
               </div>

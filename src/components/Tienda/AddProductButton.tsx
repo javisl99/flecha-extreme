@@ -8,7 +8,7 @@ export default function AddProductButton({ onAddProduct }: AddProductButtonProps
   return (
     <button
       onClick={onAddProduct}
-      className="group relative inline-flex h-12 w-12 items-center justify-center rounded-full primary-gradient text-white shadow-lg shadow-primary/30 transition duration-200 ease-fluid hover:-translate-y-0.5 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-surface"
+      className="group relative inline-flex h-12 w-12 items-center justify-center rounded-full primary-gradient text-white shadow-lg shadow-primary/30 transition duration-200 ease-fluid hover:-translate-y-0.5 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-surface cursor-pointer"
       title="Añadir nuevo producto"
       aria-label="Añadir nuevo producto"
     >

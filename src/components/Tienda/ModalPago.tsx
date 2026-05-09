@@ -47,7 +47,7 @@ interface ModalPagoProps {
   readOnly?: boolean;
   pedidoData?: {
     pedidoId: string;
-    clienteId: string;
+    clienteId: string | null;
     metodo: MetodoPago;
     estado: EstadoPago;
     concepto: string;
@@ -166,11 +166,6 @@ export default function ModalPago({
     e.preventDefault();
     
     if (cartItems.length === 0) {
-      return;
-    }
-
-    if (!selectedClienteId) {
-      alert('Debe seleccionar un cliente para procesar el pago');
       return;
     }
 
@@ -368,7 +363,7 @@ export default function ModalPago({
         })(),
         fecha: new Date(),
         pedidoId: pedidoId,
-        clienteId: pedidoData.clienteId,
+        clienteId: pedidoData.clienteId ?? undefined,
         estadoPago: 'completado' as const
       };
 
@@ -379,7 +374,11 @@ export default function ModalPago({
         // No lanzamos error aquí porque el pago ya se completó
       }
 
-      toast.success('Pago completado exitosamente y email enviado al cliente');
+      toast.success(
+        pedidoData.clienteId
+          ? 'Pago completado exitosamente y email enviado al cliente'
+          : 'Pago completado exitosamente'
+      );
       
       // Actualizar el estado local para reflejar el cambio
       // Estado del pago: completado
@@ -461,15 +460,20 @@ export default function ModalPago({
                         {/* Selector de cliente */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Cliente *
+                            Cliente
                           </label>
                           <SelectorClienteCompacto
                             selectedClienteId={selectedClienteId}
                             onClienteChange={setSelectedClienteId}
-                            placeholder="Seleccionar cliente"
+                            placeholder="Seleccionar cliente (opcional)"
                             className="w-full"
                             disabled={readOnly}
                           />
+                          {!readOnly ? (
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                              El pago puede registrarse sin asociar un cliente.
+                            </p>
+                          ) : null}
                         </div>
 
                         {/* Mensaje de error de stock */}
@@ -628,7 +632,7 @@ export default function ModalPago({
                     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:space-x-3">
                       <button
                         type="button"
-                        className="min-h-11 rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors duration-75 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                        className="min-h-11 rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors duration-75 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
                         onClick={onClose}
                         disabled={isProcessing || isCompletingPayment}
                       >
@@ -637,8 +641,8 @@ export default function ModalPago({
                       {!readOnly && (
                         <button
                           type="submit"
-                          disabled={cartItems.length === 0 || !selectedClienteId || isProcessing}
-                          className="min-h-11 rounded-md bg-green-600 px-6 py-2 text-sm font-bold text-white transition-colors duration-75 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={cartItems.length === 0 || isProcessing}
+                          className="min-h-11 rounded-md bg-green-600 px-6 py-2 text-sm font-bold text-white transition-colors duration-75 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                         >
                           {isProcessing ? (
                             <div className="flex items-center gap-2">
@@ -653,7 +657,7 @@ export default function ModalPago({
                       {readOnly && pedidoData && pedidoData.estado === 'pendiente' && (
                         <button
                           type="button"
-                          className="min-h-11 rounded-md bg-green-600 px-6 py-2 text-sm font-bold text-white transition-colors duration-75 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="min-h-11 rounded-md bg-green-600 px-6 py-2 text-sm font-bold text-white transition-colors duration-75 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                           onClick={handleCompletarPago}
                           disabled={isCompletingPayment}
                         >
@@ -735,7 +739,7 @@ export default function ModalPago({
                           <div className="flex justify-between">
                             <span>Cliente:</span>
                             <span className="font-medium text-gray-900 dark:text-gray-100">
-                              {selectedCliente ? `${selectedCliente.nombre} ${selectedCliente.apellidos}` : 'No seleccionado'}
+                              {selectedCliente ? `${selectedCliente.nombre} ${selectedCliente.apellidos}` : 'Sin cliente'}
                             </span>
                           </div>
                         </div>
@@ -748,7 +752,7 @@ export default function ModalPago({
                       <div className="flex flex-col gap-3 sm:flex-row sm:space-x-3">
                         <button
                           type="button"
-                          className="min-h-11 flex-1 rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors duration-75 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                          className="min-h-11 flex-1 rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors duration-75 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 cursor-pointer"
                           onClick={handleCancelPayment}
                           disabled={isProcessing}
                         >
@@ -756,7 +760,7 @@ export default function ModalPago({
                         </button>
                         <button
                           type="button"
-                            className="min-h-11 flex-1 rounded-md bg-yellow-600 px-4 py-2 text-sm font-bold text-white transition-colors duration-75 hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="min-h-11 flex-1 rounded-md bg-yellow-600 px-4 py-2 text-sm font-bold text-white transition-colors duration-75 hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                             onClick={() => handleConfirmPaymentWithState('pendiente')}
                             disabled={isProcessing}
                           >

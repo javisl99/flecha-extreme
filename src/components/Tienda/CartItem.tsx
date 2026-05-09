@@ -45,7 +45,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
 
         <button
           onClick={() => onRemove(item.id)}
-          className="inline-flex h-7 w-7 items-center justify-center self-start justify-self-end rounded-full border border-transparent text-outline transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+          className="inline-flex h-7 w-7 items-center justify-center self-start justify-self-end rounded-full border border-transparent text-outline transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 cursor-pointer"
           title="Eliminar producto"
           aria-label={`Eliminar ${item.name}`}
         >
@@ -57,7 +57,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
         <div className="col-start-2 row-start-2 flex h-8 w-[8rem] items-center gap-0.5 rounded-full border border-outline-variant/45 bg-surface-container-low px-1">
           <button
             onClick={() => handleQuantityChange(item.quantity - 1)}
-            className="inline-flex h-6 w-6 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container-high"
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container-high cursor-pointer"
             aria-label="Restar unidad"
           >
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,7 +73,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
             className={`inline-flex h-6 w-6 items-center justify-center rounded-full transition ${
               item.quantity >= item.stock
                 ? 'cursor-not-allowed text-outline'
-                : 'text-on-surface-variant hover:bg-surface-container-high'
+                : 'text-on-surface-variant hover:bg-surface-container-high cursor-pointer'
             }`}
             title={item.quantity >= item.stock ? `Stock maximo: ${item.stock}` : 'Sumar unidad'}
           >

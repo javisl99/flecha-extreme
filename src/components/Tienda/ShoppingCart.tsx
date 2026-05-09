@@ -105,7 +105,7 @@ export default function ShoppingCart({
               <button
                 type="button"
                 onClick={() => setDiscountPercentage(0)}
-                className="h-9 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 text-xs font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary"
+                className="h-9 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 text-xs font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary cursor-pointer"
               >
                 Limpiar
               </button>
@@ -133,14 +133,14 @@ export default function ShoppingCart({
             <button
               type="button"
               onClick={() => onProceedToPayment(discountPercentage)}
-              className="h-11 rounded-full primary-gradient text-sm font-bold text-white shadow-md shadow-primary/20 transition hover:brightness-110"
+              className="h-11 rounded-full primary-gradient text-sm font-bold text-white shadow-md shadow-primary/20 transition hover:brightness-110 cursor-pointer"
             >
               Proceder al pago
             </button>
             <button
               type="button"
               onClick={onClearCart}
-              className="h-11 rounded-full border border-red-200 bg-red-50 text-sm font-bold text-red-700 transition hover:bg-red-100"
+              className="h-11 rounded-full border border-red-200 bg-red-50 text-sm font-bold text-red-700 transition hover:bg-red-100 cursor-pointer"
             >
               Cancelar pedido
             </button>
