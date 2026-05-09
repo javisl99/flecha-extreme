@@ -157,14 +157,6 @@ export function usePagos() {
   };
 
   const procesarPago = async (data: PagoData): Promise<PagoResult> => {
-    if (!data.id_cliente) {
-      return {
-        success: false,
-        message: 'Debe seleccionar un cliente',
-        error: 'Cliente no seleccionado'
-      };
-    }
-
     try {
       setLoading(true);
       setError(null);

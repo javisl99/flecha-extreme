@@ -19,7 +19,7 @@ export interface PedidoItem {
 
 export interface Pedido {
   id: string;
-  id_cliente: string;
+  id_cliente: string | null;
   fecha: string;
   estado: string;
   descuento: number;

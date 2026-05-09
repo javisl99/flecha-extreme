@@ -29,13 +29,13 @@ export default function ProductCard({ product, onAddToCart, onEditProduct }: Pro
 
   const incrementQuantity = () => {
     if (quantity < product.stock) {
-      setQuantity(quantity + 1);
+      setQuantity((currentQuantity) => currentQuantity + 1);
     }
   };
 
   const decrementQuantity = () => {
     if (quantity > 1) {
-      setQuantity(quantity - 1);
+      setQuantity((currentQuantity) => currentQuantity - 1);
     }
   };
 
@@ -61,7 +61,7 @@ export default function ProductCard({ product, onAddToCart, onEditProduct }: Pro
 
   return (
     <article
-      className={`group flex h-full cursor-pointer flex-col overflow-hidden rounded-[1.25rem] border border-outline-variant/28 bg-surface-container-lowest shadow-[0_16px_32px_rgba(0,25,71,0.08)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(0,25,71,0.12)] ${
+      className={`group flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-[1.25rem] border border-outline-variant/28 bg-surface-container-lowest shadow-[0_16px_32px_rgba(0,25,71,0.08)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(0,25,71,0.12)] ${
         isOutOfStock ? 'opacity-80' : ''
       }`}
       onClick={handleCardClick}
@@ -87,23 +87,29 @@ export default function ProductCard({ product, onAddToCart, onEditProduct }: Pro
         ) : null}
       </div>
 
-      <div className="flex flex-1 flex-col p-4">
-        <div className="mb-2 min-h-[3rem]">
-          <h3 className="line-clamp-2 text-sm font-bold text-on-surface sm:text-base">{product.name}</h3>
-          {product.description ? <p className="mt-1 line-clamp-2 text-xs text-on-surface-variant sm:text-sm">{product.description}</p> : null}
+      <div className="flex flex-1 flex-col p-5">
+        <div className="mb-3 min-h-[4.5rem]">
+          <h3 className="line-clamp-2 text-base font-bold leading-tight text-on-surface sm:text-[1.1rem]">{product.name}</h3>
+          {product.description ? (
+            <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-on-surface-variant">{product.description}</p>
+          ) : null}
         </div>
 
-        <div className="mb-3 flex items-end justify-between gap-3">
-          <span className="font-headline text-xl font-extrabold text-primary-dark sm:text-2xl">{formatPrice(product.price)}</span>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-outline sm:text-xs">por unidad</span>
+        <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+          <span className="font-headline whitespace-nowrap text-[2rem] font-extrabold leading-none text-primary-dark">
+            {formatPrice(product.price)}
+          </span>
+          <span className="text-right text-[10px] font-semibold uppercase leading-tight tracking-[0.12em] text-outline sm:text-xs">
+            por unidad
+          </span>
         </div>
 
-        <div className="mt-auto grid grid-cols-1 gap-2 min-[420px]:grid-cols-[minmax(0,1fr)_auto]">
-          <div className="flex h-10 min-w-0 items-center justify-between rounded-full border border-outline-variant/45 bg-surface-container-low px-2">
+        <div className="mt-auto flex items-stretch gap-3">
+          <div className="flex h-11 w-[6.75rem] shrink-0 items-center justify-between rounded-full border border-outline-variant/45 bg-surface-container-low px-2.5">
             <button
               onClick={decrementQuantity}
               disabled={quantity <= 1 || isOutOfStock}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               aria-label="Disminuir cantidad"
             >
               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,12 +117,12 @@ export default function ProductCard({ product, onAddToCart, onEditProduct }: Pro
               </svg>
             </button>
 
-            <span className="min-w-[1.5rem] text-center text-sm font-bold text-on-surface">{quantity}</span>
+            <span className="min-w-[1.75rem] text-center text-base font-bold text-on-surface">{quantity}</span>
 
             <button
               onClick={incrementQuantity}
               disabled={quantity >= product.stock || isOutOfStock}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
               aria-label="Aumentar cantidad"
             >
               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,15 +134,15 @@ export default function ProductCard({ product, onAddToCart, onEditProduct }: Pro
           <button
             onClick={handleAddToCart}
             disabled={isOutOfStock || isAdding}
-            className={`h-10 rounded-full px-3 text-xs font-bold transition min-[420px]:min-w-[8.25rem] sm:px-4 sm:text-sm ${
+            className={`min-w-0 flex-1 rounded-full px-4 text-sm font-bold transition ${
               isOutOfStock
                 ? 'cursor-not-allowed border border-outline-variant/40 bg-surface-container-low text-outline'
                 : isAdding
                   ? 'bg-emerald-600 text-white'
                   : 'primary-gradient text-white shadow-md shadow-primary/25 hover:brightness-110'
-            }`}
+            } cursor-pointer`}
           >
-            {isAdding ? 'Anadiendo...' : isOutOfStock ? 'Sin stock' : 'Anadir'}
+            {isAdding ? 'Añadiendo...' : isOutOfStock ? 'Sin stock' : 'Añadir'}
           </button>
         </div>
       </div>
