@@ -289,7 +289,7 @@ export default function ParkingPage() {
                             flex flex-col items-center justify-center
                             transition-colors duration-200
                             ${estiloEstado.contenedor}
-                          `}
+                          cursor-pointer`}
                           title={estiloEstado.etiqueta}
                           onClick={() => handleClickPlaza(plaza)}
                         >

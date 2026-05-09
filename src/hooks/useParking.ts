@@ -10,6 +10,11 @@ type MetodoPago =
   | 'bizum_alfonso'
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 type EstadoReservaParking = 'pendiente' | 'activa' | 'cancelada' | 'finalizada';
+const PARKING_SERVICE_CODES: Record<TipoParking, string> = {
+  embarcacion: 'PARKING_EMBARCACION',
+  tabla: 'PARKING_TABLA',
+  kayak: 'PARKING_KAYAK'
+};
 
 interface PlazaParking {
   id: string;
@@ -53,6 +58,15 @@ interface PagoParking {
 function toDateOnly(value: string): string {
   if (!value) return '';
   return value.includes('T') ? value.split('T')[0] : value;
+}
+
+function getParkingPeriodoFromMetadata(metadata: unknown): 'mes' | 'quincena' | null {
+  if (!metadata || typeof metadata !== 'object') {
+    return null;
+  }
+
+  const periodo = (metadata as { parking_periodo?: unknown }).parking_periodo;
+  return periodo === 'mes' || periodo === 'quincena' ? periodo : null;
 }
 
 function reservaSigueActiva(fechaFin: string, estado: EstadoReservaParking): boolean {
@@ -294,10 +308,30 @@ export function useParking() {
 
   const fetchTarifas = useCallback(async (tipo: string) => {
     try {
+      const serviceCode = PARKING_SERVICE_CODES[tipo as TipoParking];
+      if (!serviceCode) {
+        throw new Error('Tipo de parking no soportado');
+      }
+
+      const { data: servicioData, error: servicioError } = await supabaseClient
+        .from('servicio')
+        .select('id')
+        .eq('codigo', serviceCode)
+        .eq('activo', true)
+        .maybeSingle();
+
+      if (servicioError) {
+        throw servicioError;
+      }
+
+      if (!servicioData?.id) {
+        throw new Error(`No se encontró el servicio ${serviceCode}`);
+      }
+
       const { data, error: tarifasError } = await supabaseClient
-        .from('parking_tarifa')
-        .select('id,tipo,periodo,precio,vigencia_desde,activo')
-        .eq('tipo', tipo)
+        .from('servicio_tarifa')
+        .select('id,precio,vigencia_desde,activo,metadata')
+        .eq('servicio_id', servicioData.id)
         .eq('activo', true)
         .order('vigencia_desde', { ascending: false });
 
@@ -307,11 +341,16 @@ export function useParking() {
 
       const dedupByPeriodo = new Map<'mes' | 'quincena', TarifaParking>();
       for (const tarifa of data ?? []) {
-        if (!dedupByPeriodo.has(tarifa.periodo)) {
-          dedupByPeriodo.set(tarifa.periodo, {
+        const periodo = getParkingPeriodoFromMetadata(tarifa.metadata);
+        if (!periodo) {
+          continue;
+        }
+
+        if (!dedupByPeriodo.has(periodo)) {
+          dedupByPeriodo.set(periodo, {
             id: tarifa.id,
-            tipo: tarifa.tipo,
-            periodo: tarifa.periodo,
+            tipo: tipo as TipoParking,
+            periodo,
             precio: Number(tarifa.precio ?? 0)
           });
         }
