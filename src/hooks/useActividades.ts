@@ -3,9 +3,33 @@ import { useSupabase } from './useSupabase';
 import { useTickets } from './useTickets';
 import { resolvePaymentMethodIdByCode } from '@/lib/contabilidadCatalogos';
 import type {
+  CampamentoInscripcion,
+  CampamentoParticipante,
+  CampamentoPrograma,
   ReservaServicioItemMetadata,
   ServicioHorarioRegla
 } from '@/lib/campamento';
+
+export interface NuevaActividadTarifaInput {
+  codigo?: string;
+  nombreTarifa?: string;
+  duracionMin?: number | null;
+  precio: number;
+  metadata?: Record<string, unknown>;
+  activo?: boolean;
+}
+
+export interface NuevaActividadInventarioInput {
+  poolId?: string;
+  codigo?: string;
+  nombre?: string;
+  unidad?: string;
+  cantidadTotal?: number;
+  consumoPorUnidad?: number;
+  obligatorio?: boolean;
+  activo?: boolean;
+  metadata?: Record<string, unknown>;
+}
 
 export interface NuevaActividad {
   nombre: string;
@@ -16,6 +40,9 @@ export interface NuevaActividad {
   horaFin?: string;
   reserva?: boolean;
   precio_reserva?: number;
+  modoPrecio?: 'por_persona' | 'fijo';
+  tarifas?: NuevaActividadTarifaInput[];
+  inventario?: NuevaActividadInventarioInput | null;
 }
 
 export interface ActividadDB {
@@ -57,6 +84,47 @@ export interface TarifaActividad {
   metadata?: Record<string, unknown>;
 }
 
+export interface CampamentoParticipanteInput {
+  participanteId?: string | null;
+  nombre: string;
+  dni?: string;
+}
+
+export interface CampamentoProgramaInput {
+  servicioId: string;
+  fechaInicio: string;
+  fechaFin: string;
+  diasSemana: number[];
+  horaInicio: string;
+  horaFin: string;
+  turnoCodigo?: string | null;
+  turnoLabel?: string | null;
+  estado?: string;
+  notas?: string;
+}
+
+export interface CampamentoProgramaDetalle extends CampamentoPrograma {
+  inscripciones: CampamentoInscripcion[];
+}
+
+export interface CampamentoInscripcionInput {
+  campamentoProgramaId: string;
+  idCliente: string | null;
+  idActividad: string;
+  idEmpresa: string;
+  tarifaId: string;
+  precioUnitario: number;
+  precioTotal: number;
+  cantidadParticipantes: number;
+  fechaInicio: string;
+  fechaFin: string;
+  horaInicio: string;
+  horaFin: string;
+  estado: 'confirmada' | 'pendiente' | 'completada' | 'cancelada';
+  nota?: string;
+  participantes: CampamentoParticipanteInput[];
+}
+
 export interface DisponibilidadServicio {
   success: boolean;
   disponible?: boolean;
@@ -81,6 +149,7 @@ export interface SiguienteDisponibilidadServicio {
 
 export interface Reserva {
   id: string;
+  kind?: 'reserva' | 'campamento_programa';
   id_cliente?: string;
   cliente?: {
     id?: string;
@@ -103,6 +172,10 @@ export interface Reserva {
   nota?: string;
   ticket_url?: string;
   ticket_url_reserva?: string;
+  campamento_programa_id?: string | null;
+  campamento_programa?: CampamentoPrograma;
+  total_inscripciones?: number;
+  total_participantes?: number;
 }
 
 export interface Pago {
@@ -270,9 +343,139 @@ function mapDuracionMinToUnidad(duracionMin: number | null): { duracion_valor: n
   return { duracion_valor: duracionMin, duracion_unidad: 'minuto' };
 }
 
+function buildNormalizedCode(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^A-Z0-9_]/g, '');
+}
+
+function buildTarifaNombreDefault(duracionMin: number | null) {
+  if (!duracionMin || duracionMin <= 0) {
+    return 'Tarifa estándar';
+  }
+
+  const { duracion_valor, duracion_unidad } = mapDuracionMinToUnidad(duracionMin);
+  const unidadLabel =
+    duracion_unidad === 'hora'
+      ? duracion_valor === 1 ? 'hora' : 'horas'
+      : duracion_unidad === 'minuto'
+        ? duracion_valor === 1 ? 'minuto' : 'minutos'
+        : duracion_unidad;
+
+  return `Estándar ${duracion_valor} ${unidadLabel}`;
+}
+
+function mapCampamentoPeriodoToDuration(periodo: unknown) {
+  if (periodo === 'dia') {
+    return { duracion_valor: 1, duracion_unidad: 'dia' };
+  }
+
+  if (periodo === 'semana') {
+    return { duracion_valor: 1, duracion_unidad: 'semana' };
+  }
+
+  if (periodo === 'mes') {
+    return { duracion_valor: 1, duracion_unidad: 'mes' };
+  }
+
+  return null;
+}
+
+function mapTarifaDuration(tarifa: {
+  duracion_min: number | null;
+  codigo?: string | null;
+  metadata?: Record<string, unknown> | null;
+}) {
+  if (typeof tarifa.duracion_min === 'number' && tarifa.duracion_min > 0) {
+    return mapDuracionMinToUnidad(tarifa.duracion_min);
+  }
+
+  const metadataPeriodo =
+    tarifa.metadata?.campamento_periodo ??
+    tarifa.metadata?.periodo ??
+    tarifa.metadata?.unidad;
+  const fromMetadata = mapCampamentoPeriodoToDuration(metadataPeriodo);
+  if (fromMetadata) {
+    return fromMetadata;
+  }
+
+  if (tarifa.codigo?.includes('MONTH')) {
+    return { duracion_valor: 1, duracion_unidad: 'mes' };
+  }
+
+  if (tarifa.codigo?.includes('WEEK')) {
+    return { duracion_valor: 1, duracion_unidad: 'semana' };
+  }
+
+  if (tarifa.codigo?.includes('DAY')) {
+    return { duracion_valor: 1, duracion_unidad: 'dia' };
+  }
+
+  return { duracion_valor: 1, duracion_unidad: 'hora' };
+}
+
+function normalizeCampamentoProgramaRow(row: {
+  id: string;
+  servicio_id: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  dias_semana: number[] | null;
+  hora_inicio: string;
+  hora_fin: string;
+  turno_codigo?: string | null;
+  turno_label?: string | null;
+  estado: string;
+  notas?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  servicio?: { codigo?: string | null; nombre?: string | null } | Array<{ codigo?: string | null; nombre?: string | null }> | null;
+  total_inscripciones?: number | string | null;
+  total_participantes?: number | string | null;
+  total_facturado?: number | string | null;
+}): CampamentoPrograma {
+  const servicioRaw = Array.isArray(row.servicio) ? row.servicio[0] : row.servicio;
+
+  return {
+    id: row.id,
+    servicio_id: row.servicio_id,
+    servicio_codigo: servicioRaw?.codigo ?? null,
+    servicio_nombre: servicioRaw?.nombre ?? 'Campamento',
+    fecha_inicio: row.fecha_inicio,
+    fecha_fin: row.fecha_fin,
+    dias_semana: Array.isArray(row.dias_semana) ? row.dias_semana.map((value) => Number(value)).sort((a, b) => a - b) : [],
+    hora_inicio: row.hora_inicio,
+    hora_fin: row.hora_fin,
+    turno_codigo: row.turno_codigo ?? null,
+    turno_label: row.turno_label ?? null,
+    estado: row.estado,
+    notas: row.notas ?? null,
+    total_inscripciones: Number(row.total_inscripciones ?? 0),
+    total_participantes: Number(row.total_participantes ?? 0),
+    total_facturado: Number(row.total_facturado ?? 0),
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
+
 function toISOWithFallback(fecha: string, hora: string | undefined, fallbackEnd = false): string {
   const hhmm = hora && /^\d{2}:\d{2}$/.test(hora) ? hora : fallbackEnd ? '23:59' : '00:00';
   return new Date(`${fecha}T${hhmm}:00`).toISOString();
+}
+
+function normalizeCampamentoParticipanteNombre(value: string) {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function normalizeCampamentoParticipanteNombreKey(value: string) {
+  return normalizeCampamentoParticipanteNombre(value).toLowerCase();
+}
+
+function normalizeCampamentoParticipanteDni(value?: string) {
+  return value?.trim().replace(/\s+/g, '').toUpperCase() ?? '';
 }
 
 export function useActividades() {
@@ -281,6 +484,184 @@ export function useActividades() {
   const [loading, setLoading] = useState(false);
   const [loadingActividades, setLoadingActividades] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const resolverCatalogoParticipantes = useCallback(async (
+    participantes: CampamentoParticipanteInput[]
+  ): Promise<Array<{ participanteId: string; nombre: string; dni: string | null }>> => {
+    if (participantes.length === 0) {
+      return [];
+    }
+
+    const resolved: Array<{ participanteId: string; nombre: string; dni: string | null }> = [];
+
+    for (const participante of participantes) {
+      const nombre = normalizeCampamentoParticipanteNombre(participante.nombre);
+      const dniNormalizado = normalizeCampamentoParticipanteDni(participante.dni);
+
+      if (!nombre) {
+        throw new Error('Todos los participantes deben tener nombre');
+      }
+
+      const participanteId = participante.participanteId?.trim() || null;
+      if (participanteId) {
+        const { data: byId, error: byIdError } = await supabase
+          .from('campamento_participante_catalogo')
+          .select('id,nombre,dni')
+          .eq('id', participanteId)
+          .maybeSingle();
+
+        if (byIdError) {
+          throw byIdError;
+        }
+
+        if (byId?.id) {
+          resolved.push({
+            participanteId: byId.id,
+            nombre: byId.nombre,
+            dni: byId.dni ?? null
+          });
+          continue;
+        }
+      }
+
+      if (dniNormalizado) {
+        const { data: byDni, error: byDniError } = await supabase
+          .from('campamento_participante_catalogo')
+          .select('id,nombre,dni')
+          .eq('dni_normalizado', dniNormalizado)
+          .maybeSingle();
+
+        if (byDniError) {
+          throw byDniError;
+        }
+
+        if (byDni?.id) {
+          resolved.push({
+            participanteId: byDni.id,
+            nombre: byDni.nombre,
+            dni: byDni.dni ?? null
+          });
+          continue;
+        }
+      } else {
+        const { data: byNombre, error: byNombreError } = await supabase
+          .from('campamento_participante_catalogo')
+          .select('id,nombre,dni')
+          .eq('nombre_normalizado', normalizeCampamentoParticipanteNombreKey(nombre))
+          .is('dni_normalizado', null)
+          .maybeSingle();
+
+        if (byNombreError) {
+          throw byNombreError;
+        }
+
+        if (byNombre?.id) {
+          resolved.push({
+            participanteId: byNombre.id,
+            nombre: byNombre.nombre,
+            dni: byNombre.dni ?? null
+          });
+          continue;
+        }
+      }
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('campamento_participante_catalogo')
+        .insert([
+          {
+            nombre,
+            dni: dniNormalizado || null,
+            updated_at: new Date().toISOString()
+          }
+        ])
+        .select('id,nombre,dni')
+        .single();
+
+      if (insertError || !inserted?.id) {
+        const conflictError = insertError as { code?: string } | null;
+        if (conflictError?.code === '23505') {
+          const fallbackQuery = dniNormalizado
+            ? supabase
+                .from('campamento_participante_catalogo')
+                .select('id,nombre,dni')
+                .eq('dni_normalizado', dniNormalizado)
+                .maybeSingle()
+            : supabase
+                .from('campamento_participante_catalogo')
+                .select('id,nombre,dni')
+                .eq('nombre_normalizado', normalizeCampamentoParticipanteNombreKey(nombre))
+                .is('dni_normalizado', null)
+                .maybeSingle();
+
+          const { data: existingAfterConflict, error: fallbackError } = await fallbackQuery;
+          if (fallbackError) {
+            throw fallbackError;
+          }
+
+          if (existingAfterConflict?.id) {
+            resolved.push({
+              participanteId: existingAfterConflict.id,
+              nombre: existingAfterConflict.nombre,
+              dni: existingAfterConflict.dni ?? null
+            });
+            continue;
+          }
+        }
+
+        throw insertError ?? new Error('No se pudo crear el participante en el catálogo');
+      }
+
+      resolved.push({
+        participanteId: inserted.id,
+        nombre: inserted.nombre,
+        dni: inserted.dni ?? null
+      });
+    }
+
+    const seen = new Set<string>();
+    resolved.forEach((participante) => {
+      const key = `id:${participante.participanteId}`;
+      if (seen.has(key)) {
+        throw new Error('No puedes añadir el mismo participante más de una vez en la misma inscripción');
+      }
+      seen.add(key);
+    });
+
+    return resolved;
+  }, [supabase]);
+
+  const obtenerParticipantesCampamentoBatch = useCallback(async (reservaIds: string[]) => {
+    const participantesPorReserva = new Map<string, CampamentoParticipante[]>();
+    if (reservaIds.length === 0) {
+      return participantesPorReserva;
+    }
+
+    const { data, error: fetchError } = await supabase
+      .from('campamento_participante')
+      .select('id,reserva_id,participante_id,nombre,dni,created_at,updated_at')
+      .in('reserva_id', reservaIds)
+      .order('created_at', { ascending: true });
+
+    if (fetchError) {
+      throw fetchError;
+    }
+
+    (data ?? []).forEach((participante) => {
+      const current = participantesPorReserva.get(participante.reserva_id) ?? [];
+      current.push({
+        id: participante.id,
+        reserva_id: participante.reserva_id,
+        participante_id: participante.participante_id ?? null,
+        nombre: participante.nombre,
+        dni: participante.dni ?? null,
+        created_at: participante.created_at,
+        updated_at: participante.updated_at
+      });
+      participantesPorReserva.set(participante.reserva_id, current);
+    });
+
+    return participantesPorReserva;
+  }, [supabase]);
 
   const crearActividad = async (actividad: NuevaActividad): Promise<{ success: boolean; message: string }> => {
     try {
@@ -298,31 +679,135 @@ export function useActividades() {
       }
 
       const categoria = TIPO_TO_CATEGORIA[actividad.tipo] ?? 'otro';
+      const tarifasActivas = (actividad.tarifas ?? []).filter((tarifa) => tarifa.activo !== false);
+      const duracionesConfiguradas = tarifasActivas
+        .map((tarifa) => tarifa.duracionMin)
+        .filter((duracion): duracion is number => typeof duracion === 'number' && duracion > 0);
+      const modoPrecio =
+        actividad.tipo === 'alquiler'
+          ? 'fijo'
+          : actividad.modoPrecio ?? (
+            actividad.tipo === 'campamento' || actividad.tipo === 'curso' || actividad.tipo === 'sport'
+              ? 'por_persona'
+              : 'fijo'
+          );
 
       const payload = {
         empresa_id: empresa.id,
-        codigo: actividad.nombre
-          .trim()
-          .toUpperCase()
-          .replace(/\s+/g, '_')
-          .replace(/[^A-Z0-9_]/g, ''),
+        codigo: buildNormalizedCode(actividad.nombre),
         nombre: actividad.nombre,
         categoria,
-        modo_precio: actividad.tipo === 'campamento' || actividad.tipo === 'curso' || actividad.tipo === 'sport' ? 'por_persona' : 'fijo',
+        modo_precio: modoPrecio,
         modo_agenda: actividad.fecha || actividad.horaInicio || actividad.horaFin ? 'sesion_manual' : 'libre',
         reservable: actividad.reserva ?? true,
         activo: true,
         capacidad_max: actividad.numeroPersonas ?? null,
+        duracion_minima_min: duracionesConfiguradas.length > 0 ? Math.min(...duracionesConfiguradas) : null,
+        duracion_maxima_min: duracionesConfiguradas.length > 0 ? Math.max(...duracionesConfiguradas) : null,
         deposito_permitido: (actividad.precio_reserva ?? 0) > 0,
         deposito_obligatorio: false,
         deposito_default: actividad.precio_reserva ?? 0,
         notas: null
       };
 
-      const { error: insertError } = await supabase.from('servicio').insert([payload]);
+      const { data: servicioInsertado, error: insertError } = await supabase
+        .from('servicio')
+        .insert([payload])
+        .select('id')
+        .single();
 
-      if (insertError) {
-        return { success: false, message: `Error al crear la actividad: ${insertError.message}` };
+      if (insertError || !servicioInsertado?.id) {
+        return { success: false, message: `Error al crear la actividad: ${insertError?.message ?? 'Sin identificador devuelto'}` };
+      }
+
+      if (actividad.inventario) {
+        let poolId = actividad.inventario.poolId ?? null;
+
+        if (!poolId && actividad.inventario.codigo) {
+          const { data: existingPool, error: poolFetchError } = await supabase
+            .from('inventario_pool')
+            .select('id')
+            .eq('empresa_id', empresa.id)
+            .eq('codigo', actividad.inventario.codigo)
+            .maybeSingle();
+
+          if (poolFetchError) {
+            return { success: false, message: `Error al localizar el pool de inventario: ${poolFetchError.message}` };
+          }
+
+          poolId = existingPool?.id ?? null;
+        }
+
+        if (!poolId) {
+          if (!actividad.inventario.codigo || !actividad.inventario.nombre) {
+            return { success: false, message: 'Para crear inventario nuevo debes indicar al menos código y nombre del pool' };
+          }
+
+          const { data: newPool, error: poolInsertError } = await supabase
+            .from('inventario_pool')
+            .insert([
+              {
+                empresa_id: empresa.id,
+                codigo: actividad.inventario.codigo,
+                nombre: actividad.inventario.nombre,
+                unidad: actividad.inventario.unidad ?? 'unidad',
+                cantidad_total: actividad.inventario.cantidadTotal ?? 0,
+                activo: actividad.inventario.activo ?? true,
+                metadata: actividad.inventario.metadata ?? {}
+              }
+            ])
+            .select('id')
+            .single();
+
+          if (poolInsertError || !newPool?.id) {
+            return { success: false, message: `Error al crear el pool de inventario: ${poolInsertError?.message ?? 'Sin identificador'}` };
+          }
+
+          poolId = newPool.id;
+        }
+
+        const { error: linkPoolError } = await supabase.from('servicio_consumo_pool').insert([
+          {
+            servicio_id: servicioInsertado.id,
+            pool_id: poolId,
+            consumo_por_unidad: actividad.inventario.consumoPorUnidad ?? 1,
+            obligatorio: actividad.inventario.obligatorio ?? true,
+            activo: actividad.inventario.activo ?? true
+          }
+        ]);
+
+        if (linkPoolError) {
+          return { success: false, message: `Error al enlazar el inventario con la actividad: ${linkPoolError.message}` };
+        }
+      }
+
+      if (tarifasActivas.length > 0) {
+        const tarifasPayload = tarifasActivas.map((tarifa, index) => {
+          const duracionMin = typeof tarifa.duracionMin === 'number' && tarifa.duracionMin > 0
+            ? tarifa.duracionMin
+            : null;
+          const codigoTarifa = tarifa.codigo
+            ? buildNormalizedCode(tarifa.codigo)
+            : duracionMin
+              ? `STD_${duracionMin}M`
+              : `STD_${index + 1}`;
+
+          return {
+            servicio_id: servicioInsertado.id,
+            codigo: codigoTarifa,
+            nombre_tarifa: tarifa.nombreTarifa ?? buildTarifaNombreDefault(duracionMin),
+            duracion_min: duracionMin,
+            precio: tarifa.precio,
+            activo: tarifa.activo ?? true,
+            metadata: tarifa.metadata ?? {}
+          };
+        });
+
+        const { error: tarifasInsertError } = await supabase.from('servicio_tarifa').insert(tarifasPayload);
+
+        if (tarifasInsertError) {
+          return { success: false, message: `Error al crear las tarifas de la actividad: ${tarifasInsertError.message}` };
+        }
       }
 
       return { success: true, message: 'Actividad creada correctamente' };
@@ -404,7 +889,11 @@ export function useActividades() {
       }
 
       return (data ?? []).map((tarifa) => {
-        const { duracion_valor, duracion_unidad } = mapDuracionMinToUnidad(tarifa.duracion_min);
+        const { duracion_valor, duracion_unidad } = mapTarifaDuration({
+          duracion_min: tarifa.duracion_min,
+          codigo: tarifa.codigo,
+          metadata: (tarifa.metadata as Record<string, unknown> | null) ?? {}
+        });
         return {
           id: tarifa.id,
           id_actividad: tarifa.servicio_id,
@@ -508,6 +997,484 @@ export function useActividades() {
       return { success: true, message: 'Actividad eliminada correctamente' };
     } catch {
       return { success: false, message: 'Error inesperado al eliminar la actividad' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const obtenerProgramasCampamento = useCallback(async (): Promise<CampamentoPrograma[]> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data: programasData, error: programasError } = await supabase
+        .from('campamento_programa')
+        .select(`
+          id,
+          servicio_id,
+          fecha_inicio,
+          fecha_fin,
+          dias_semana,
+          hora_inicio,
+          hora_fin,
+          turno_codigo,
+          turno_label,
+          estado,
+          notas,
+          created_at,
+          updated_at,
+          servicio:servicio(codigo,nombre)
+        `)
+        .order('fecha_inicio', { ascending: true })
+        .order('hora_inicio', { ascending: true });
+
+      if (programasError) {
+        throw programasError;
+      }
+
+      const programasBase = (programasData ?? []).map((row) => normalizeCampamentoProgramaRow(row));
+      if (programasBase.length === 0) {
+        return [];
+      }
+
+      const programasIds = programasBase.map((programa) => programa.id);
+      const { data: reservasData, error: reservasError } = await supabase
+        .from('reserva_servicio')
+        .select(`
+          id,
+          campamento_programa_id,
+          total_neto,
+          items:reserva_servicio_item(cantidad),
+          participantes:campamento_participante(id)
+        `)
+        .in('campamento_programa_id', programasIds);
+
+      if (reservasError) {
+        throw reservasError;
+      }
+
+      const resumenPorPrograma = new Map<string, { totalInscripciones: number; totalParticipantes: number; totalFacturado: number }>();
+      (reservasData ?? []).forEach((reserva) => {
+        const programaId = reserva.campamento_programa_id;
+        if (!programaId) return;
+
+        const current = resumenPorPrograma.get(programaId) ?? {
+          totalInscripciones: 0,
+          totalParticipantes: 0,
+          totalFacturado: 0
+        };
+        const item = Array.isArray(reserva.items) ? reserva.items[0] : reserva.items;
+        const participantes = Array.isArray(reserva.participantes) ? reserva.participantes.length : 0;
+
+        current.totalInscripciones += 1;
+        current.totalParticipantes += participantes || Number(item?.cantidad ?? 0);
+        current.totalFacturado += Number(reserva.total_neto ?? 0);
+        resumenPorPrograma.set(programaId, current);
+      });
+
+      return programasBase.map((programa) => {
+        const resumen = resumenPorPrograma.get(programa.id);
+        return {
+          ...programa,
+          total_inscripciones: resumen?.totalInscripciones ?? 0,
+          total_participantes: resumen?.totalParticipantes ?? 0,
+          total_facturado: Number((resumen?.totalFacturado ?? 0).toFixed(2))
+        };
+      });
+    } catch (err: unknown) {
+      console.error('Error al obtener programas de campamento:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al obtener programas de campamento';
+      setError(errorMessage);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase]);
+
+  const crearProgramaCampamento = async (
+    input: CampamentoProgramaInput
+  ): Promise<{ success: boolean; message: string; programaId?: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error: insertError } = await supabase
+        .from('campamento_programa')
+        .insert([
+          {
+            servicio_id: input.servicioId,
+            fecha_inicio: input.fechaInicio,
+            fecha_fin: input.fechaFin,
+            dias_semana: input.diasSemana,
+            hora_inicio: input.horaInicio,
+            hora_fin: input.horaFin,
+            turno_codigo: input.turnoCodigo ?? null,
+            turno_label: input.turnoLabel ?? null,
+            estado: input.estado ?? 'activo',
+            notas: input.notas ?? null
+          }
+        ])
+        .select('id')
+        .single();
+
+      if (insertError || !data?.id) {
+        throw insertError ?? new Error('No se pudo crear el programa de campamento');
+      }
+
+      return {
+        success: true,
+        message: 'Programa de campamento creado correctamente',
+        programaId: data.id
+      };
+    } catch (err: unknown) {
+      console.error('Error al crear programa de campamento:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear programa de campamento';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const actualizarProgramaCampamento = async (
+    id: string,
+    input: Partial<CampamentoProgramaInput> & { estado?: string }
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const payload: Record<string, unknown> = {
+        updated_at: new Date().toISOString()
+      };
+
+      if (input.servicioId !== undefined) payload.servicio_id = input.servicioId;
+      if (input.fechaInicio !== undefined) payload.fecha_inicio = input.fechaInicio;
+      if (input.fechaFin !== undefined) payload.fecha_fin = input.fechaFin;
+      if (input.diasSemana !== undefined) payload.dias_semana = input.diasSemana;
+      if (input.horaInicio !== undefined) payload.hora_inicio = input.horaInicio;
+      if (input.horaFin !== undefined) payload.hora_fin = input.horaFin;
+      if (input.turnoCodigo !== undefined) payload.turno_codigo = input.turnoCodigo;
+      if (input.turnoLabel !== undefined) payload.turno_label = input.turnoLabel;
+      if (input.estado !== undefined) payload.estado = input.estado;
+      if (input.notas !== undefined) payload.notas = input.notas;
+
+      const { error: updateError } = await supabase
+        .from('campamento_programa')
+        .update(payload)
+        .eq('id', id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return { success: true, message: 'Programa de campamento actualizado correctamente' };
+    } catch (err: unknown) {
+      console.error('Error al actualizar programa de campamento:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al actualizar programa de campamento';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const obtenerParticipantesCampamento = async (
+    reservaId: string
+  ): Promise<{ success: boolean; participantes?: CampamentoParticipante[]; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error: fetchError } = await supabase
+        .from('campamento_participante')
+        .select('id,reserva_id,participante_id,nombre,dni,created_at,updated_at')
+        .eq('reserva_id', reservaId)
+        .order('created_at', { ascending: true });
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      return {
+        success: true,
+        participantes: (data ?? []).map((participante) => ({
+          id: participante.id,
+          reserva_id: participante.reserva_id,
+          participante_id: participante.participante_id ?? null,
+          nombre: participante.nombre,
+          dni: participante.dni ?? null,
+          created_at: participante.created_at,
+          updated_at: participante.updated_at
+        })),
+        message: 'Participantes obtenidos correctamente'
+      };
+    } catch (err: unknown) {
+      console.error('Error al obtener participantes de campamento:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al obtener participantes del campamento';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const actualizarParticipantesCampamento = async (
+    reservaId: string,
+    participantes: CampamentoParticipanteInput[]
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { error: deleteError } = await supabase
+        .from('campamento_participante')
+        .delete()
+        .eq('reserva_id', reservaId);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      if (participantes.length > 0) {
+        const participantesCatalogo = await resolverCatalogoParticipantes(participantes);
+        const payload = participantesCatalogo.map((participante) => ({
+          reserva_id: reservaId,
+          participante_id: participante.participanteId,
+          nombre: participante.nombre,
+          dni: participante.dni
+        }));
+
+        const { error: insertError } = await supabase.from('campamento_participante').insert(payload);
+        if (insertError) {
+          throw insertError;
+        }
+      }
+
+      return { success: true, message: 'Participantes actualizados correctamente' };
+    } catch (err: unknown) {
+      console.error('Error al actualizar participantes de campamento:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al actualizar participantes del campamento';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const obtenerDetalleProgramaCampamento = async (
+    programaId: string
+  ): Promise<{ success: boolean; programa?: CampamentoProgramaDetalle; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data: programaData, error: programaError } = await supabase
+        .from('campamento_programa')
+        .select(`
+          id,
+          servicio_id,
+          fecha_inicio,
+          fecha_fin,
+          dias_semana,
+          hora_inicio,
+          hora_fin,
+          turno_codigo,
+          turno_label,
+          estado,
+          notas,
+          created_at,
+          updated_at,
+          servicio:servicio(codigo,nombre)
+        `)
+        .eq('id', programaId)
+        .single();
+
+      if (programaError || !programaData) {
+        throw programaError ?? new Error('Programa de campamento no encontrado');
+      }
+
+      const programaBase = normalizeCampamentoProgramaRow(programaData);
+
+      const { data: reservasData, error: reservasError } = await supabase
+        .from('reserva_servicio')
+        .select(`
+          id,
+          cliente_id,
+          campamento_programa_id,
+          estado,
+          observaciones,
+          total_neto,
+          created_at,
+          updated_at,
+          cliente:cliente(id,nombre,apellidos),
+          items:reserva_servicio_item(
+            inicio,
+            fin,
+            cantidad,
+            precio_unitario,
+            subtotal,
+            tarifa_id,
+            tarifa:servicio_tarifa(id,codigo,nombre_tarifa)
+          )
+        `)
+        .eq('campamento_programa_id', programaId)
+        .order('created_at', { ascending: true });
+
+      if (reservasError) {
+        throw reservasError;
+      }
+
+      const reservaIds = (reservasData ?? []).map((reserva) => reserva.id);
+      const participantesResult = reservaIds.length > 0
+        ? await obtenerParticipantesCampamentoBatch(reservaIds)
+        : new Map<string, CampamentoParticipante[]>();
+
+      const inscripciones: CampamentoInscripcion[] = (reservasData ?? []).map((reserva) => {
+        const clienteRaw = Array.isArray(reserva.cliente) ? reserva.cliente[0] : reserva.cliente;
+        const item = Array.isArray(reserva.items) ? reserva.items[0] : reserva.items;
+        const tarifaRaw = Array.isArray(item?.tarifa) ? item?.tarifa[0] : item?.tarifa;
+        const participantes = participantesResult.get(reserva.id) ?? [];
+
+        return {
+          id: reserva.id,
+          campamento_programa_id: programaId,
+          cliente_id: reserva.cliente_id ?? null,
+          cliente: clienteRaw
+            ? {
+                id: clienteRaw.id,
+                nombre: clienteRaw.nombre,
+                apellidos: clienteRaw.apellidos
+              }
+            : undefined,
+          fecha_inicio: item?.inicio ?? reserva.created_at,
+          fecha_fin: item?.fin ?? reserva.created_at,
+          hora_inicio: item?.inicio ?? reserva.created_at,
+          hora_fin: item?.fin ?? reserva.created_at,
+          tarifa_id: item?.tarifa_id ?? null,
+          tarifa_codigo: tarifaRaw?.codigo ?? null,
+          tarifa_nombre: tarifaRaw?.nombre_tarifa ?? null,
+          cantidad_participantes: Number(item?.cantidad ?? participantes.length ?? 0),
+          precio_unitario: Number(item?.precio_unitario ?? 0),
+          precio_total: Number(item?.subtotal ?? reserva.total_neto ?? 0),
+          estado: reserva.estado,
+          nota: reserva.observaciones ?? null,
+          participantes,
+          created_at: reserva.created_at,
+          updated_at: reserva.updated_at
+        };
+      });
+
+      return {
+        success: true,
+        programa: {
+          ...programaBase,
+          total_inscripciones: inscripciones.length,
+          total_participantes: inscripciones.reduce((total, inscripcion) => total + inscripcion.cantidad_participantes, 0),
+          total_facturado: Number(inscripciones.reduce((total, inscripcion) => total + inscripcion.precio_total, 0).toFixed(2)),
+          inscripciones
+        },
+        message: 'Detalle del programa obtenido correctamente'
+      };
+    } catch (err: unknown) {
+      console.error('Error al obtener detalle del programa de campamento:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al obtener detalle del programa de campamento';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const crearInscripcionCampamento = async (
+    input: CampamentoInscripcionInput
+  ): Promise<{ success: boolean; message: string; reservaId?: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data: reservaData, error: reservaError } = await supabase
+        .from('reserva_servicio')
+        .insert([
+          {
+            empresa_id: input.idEmpresa,
+            cliente_id: input.idCliente,
+            campamento_programa_id: input.campamentoProgramaId,
+            canal: 'backoffice',
+            estado: input.estado,
+            observaciones: input.nota ?? null,
+            total_bruto: input.precioTotal,
+            total_descuento: 0,
+            total_neto: input.precioTotal,
+            deposito_total_requerido: 0,
+            deposito_total_cobrado: 0
+          }
+        ])
+        .select('id')
+        .single();
+
+      if (reservaError || !reservaData?.id) {
+        throw reservaError ?? new Error('No se pudo crear la inscripción del campamento');
+      }
+
+      const itemMetadata: ReservaServicioItemMetadata = {
+        numero_personas: input.cantidadParticipantes
+      };
+
+      const { error: itemError } = await supabase.from('reserva_servicio_item').insert([
+        {
+          reserva_id: reservaData.id,
+          servicio_id: input.idActividad,
+          tarifa_id: input.tarifaId,
+          inicio: input.fechaInicio,
+          fin: input.fechaFin,
+          cantidad: input.cantidadParticipantes,
+          precio_unitario: input.precioUnitario,
+          descuento_unitario: 0,
+          subtotal: input.precioTotal,
+          deposito_requerido: 0,
+          deposito_cobrado: 0,
+          estado: input.estado,
+          notas: input.nota ?? null,
+          metadata: itemMetadata
+        }
+      ]);
+
+      if (itemError) {
+        await supabase.from('reserva_servicio').delete().eq('id', reservaData.id);
+        throw itemError;
+      }
+
+      if (input.participantes.length > 0) {
+        const participantesCatalogo = await resolverCatalogoParticipantes(input.participantes);
+        const participantesPayload = participantesCatalogo.map((participante) => ({
+          reserva_id: reservaData.id,
+          participante_id: participante.participanteId,
+          nombre: participante.nombre,
+          dni: participante.dni
+        }));
+
+        const { error: participantesError } = await supabase
+          .from('campamento_participante')
+          .insert(participantesPayload);
+
+        if (participantesError) {
+          await supabase.from('reserva_servicio_item').delete().eq('reserva_id', reservaData.id);
+          await supabase.from('reserva_servicio').delete().eq('id', reservaData.id);
+          throw participantesError;
+        }
+      }
+
+      return {
+        success: true,
+        message: 'Inscripción de campamento creada correctamente',
+        reservaId: reservaData.id
+      };
+    } catch (err: unknown) {
+      console.error('Error al crear inscripción de campamento:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear la inscripción del campamento';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -722,6 +1689,7 @@ export function useActividades() {
         .select(`
           id,
           cliente_id,
+          campamento_programa_id,
           estado,
           observaciones,
           total_neto,
@@ -747,7 +1715,7 @@ export function useActividades() {
         throw fetchError;
       }
 
-      const reservas: Reserva[] = (data ?? []).map((r) => {
+      const reservasBase: Reserva[] = (data ?? []).map((r) => {
         const firstItem = (r.items ?? [])[0];
         const servicioItem = Array.isArray(firstItem?.servicio) ? firstItem.servicio[0] : firstItem?.servicio;
         const clienteItem = Array.isArray(r.cliente) ? r.cliente[0] : r.cliente;
@@ -757,6 +1725,7 @@ export function useActividades() {
 
         return {
           id: r.id,
+          kind: 'reserva',
           id_cliente: r.cliente_id ?? undefined,
           cliente: clienteItem
             ? {
@@ -776,11 +1745,48 @@ export function useActividades() {
           metadata: itemMetadata,
           nota: r.observaciones ?? undefined,
           ticket_url: r.ticket_url ?? undefined,
-          ticket_url_reserva: r.ticket_url_reserva ?? undefined
+          ticket_url_reserva: r.ticket_url_reserva ?? undefined,
+          campamento_programa_id: r.campamento_programa_id ?? null
         };
       });
 
-      return { success: true, reservas, message: 'Reservas obtenidas correctamente' };
+      const reservas = reservasBase.filter((reserva) => {
+        if (!reserva.campamento_programa_id) {
+          return true;
+        }
+
+        const matchingRow = (data ?? []).find((row) => row.id === reserva.id);
+        const firstItem = (matchingRow?.items ?? [])[0];
+        const servicioItem = Array.isArray(firstItem?.servicio) ? firstItem.servicio[0] : firstItem?.servicio;
+        return servicioItem?.categoria !== 'campamento';
+      });
+
+      const programasCampamento = await obtenerProgramasCampamento();
+      const programasComoReserva: Reserva[] = programasCampamento.map((programa) => ({
+        id: programa.id,
+        kind: 'campamento_programa',
+        actividad: { nombre: programa.servicio_nombre },
+        empresa: { nombre: 'Flecha Extreme' },
+        fecha_inicio: `${programa.fecha_inicio}T${programa.hora_inicio}:00`,
+        fecha_fin: `${programa.fecha_fin}T${programa.hora_fin}:00`,
+        precio: Number(programa.total_facturado ?? 0),
+        estado: programa.estado,
+        cantidad_reservada: Number(programa.total_inscripciones ?? 0),
+        numero_personas_reserva: Number(programa.total_participantes ?? 0),
+        nota: programa.notas ?? undefined,
+        campamento_programa_id: programa.id,
+        campamento_programa: programa,
+        total_inscripciones: programa.total_inscripciones ?? 0,
+        total_participantes: programa.total_participantes ?? 0
+      }));
+
+      return {
+        success: true,
+        reservas: [...programasComoReserva, ...reservas].sort(
+          (left, right) => new Date(right.fecha_inicio).getTime() - new Date(left.fecha_inicio).getTime()
+        ),
+        message: 'Reservas obtenidas correctamente'
+      };
     } catch (err: unknown) {
       console.error('Error al obtener reservas:', err);
       const errorMessage = err instanceof Error ? err.message : 'Error al obtener reservas';
@@ -789,7 +1795,7 @@ export function useActividades() {
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [obtenerProgramasCampamento, supabase]);
 
   const actualizarReserva = async (id: string, datosReserva: {
     estado?: 'confirmada' | 'pendiente' | 'completada' | 'cancelada';
@@ -1269,6 +2275,13 @@ export function useActividades() {
     obtenerHorariosActividad,
     actualizarActividad,
     eliminarActividad,
+    obtenerProgramasCampamento,
+    crearProgramaCampamento,
+    actualizarProgramaCampamento,
+    obtenerDetalleProgramaCampamento,
+    crearInscripcionCampamento,
+    obtenerParticipantesCampamento,
+    actualizarParticipantesCampamento,
     crearReserva,
     crearPago,
     obtenerIdEmpresa,

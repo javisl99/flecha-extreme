@@ -21,6 +21,71 @@ export interface CampamentoMetadata {
   turno_label?: string | null;
 }
 
+export interface CampamentoPrograma {
+  id: string;
+  servicio_id: string;
+  servicio_codigo?: string | null;
+  servicio_nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  dias_semana: number[];
+  hora_inicio: string;
+  hora_fin: string;
+  turno_codigo?: string | null;
+  turno_label?: string | null;
+  estado: string;
+  notas?: string | null;
+  total_inscripciones?: number;
+  total_participantes?: number;
+  total_facturado?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CampamentoParticipante {
+  id: string;
+  reserva_id: string;
+  participante_id?: string | null;
+  nombre: string;
+  dni?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CampamentoParticipanteCatalogo {
+  id: string;
+  nombre: string;
+  dni?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CampamentoInscripcion {
+  id: string;
+  campamento_programa_id: string;
+  cliente_id?: string | null;
+  cliente?: {
+    id?: string;
+    nombre: string;
+    apellidos: string;
+  };
+  fecha_inicio: string;
+  fecha_fin: string;
+  hora_inicio: string;
+  hora_fin: string;
+  tarifa_id?: string | null;
+  tarifa_codigo?: string | null;
+  tarifa_nombre?: string | null;
+  cantidad_participantes: number;
+  precio_unitario: number;
+  precio_total: number;
+  estado: string;
+  nota?: string | null;
+  participantes: CampamentoParticipante[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ReservaServicioItemMetadata {
   numero_personas?: number;
   campamento?: CampamentoMetadata;
@@ -172,6 +237,22 @@ export function buildCampamentoDateRangeLabel(campamento: CampamentoMetadata) {
   const inicio = formatDateInputForDisplay(campamento.fecha_inicio);
   const fin = formatDateInputForDisplay(campamento.fecha_fin);
   return campamento.fecha_inicio === campamento.fecha_fin ? inicio : `${inicio} - ${fin}`;
+}
+
+export function buildCampamentoProgramaMetadata(programa: Pick<
+  CampamentoPrograma,
+  'fecha_inicio' | 'fecha_fin' | 'dias_semana' | 'hora_inicio' | 'hora_fin' | 'turno_codigo' | 'turno_label'
+>): CampamentoMetadata {
+  return {
+    tipo: 'campamento_recurrente',
+    fecha_inicio: programa.fecha_inicio,
+    fecha_fin: programa.fecha_fin,
+    dias_semana: [...programa.dias_semana].sort((a, b) => a - b),
+    hora_inicio: normalizeTimeValue(programa.hora_inicio),
+    hora_fin: normalizeTimeValue(programa.hora_fin),
+    turno_codigo: programa.turno_codigo ?? null,
+    turno_label: programa.turno_label ?? null
+  };
 }
 
 export function generateCampamentoOccurrences(input: Pick<CampamentoMetadata, 'fecha_inicio' | 'fecha_fin' | 'dias_semana' | 'hora_inicio' | 'hora_fin'>) {

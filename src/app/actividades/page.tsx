@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button, Toast } from '@/shared/components';
-import { useActividades } from '@/hooks/useActividades';
+import { useActividades, type Reserva } from '@/hooks/useActividades';
 import FiltrosReservas, { type FiltrosReservaState } from '@/components/Actividades/FiltrosReservas';
 import ModalNuevaReserva from '@/components/Actividades/ModalNuevaReserva';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
@@ -10,37 +10,15 @@ import SurfSpinner from '@/components/shared/SurfSpinner';
 import SwitchVistaActividades, { type VistaActividadesTipo } from '@/components/Actividades/SwitchVistaActividades';
 import VistaCalendario from '@/components/Actividades/VistaCalendario';
 import ModalDetalleReserva from '@/components/Actividades/ModalDetalleReserva';
+import ModalDetalleCampamentoPrograma from '@/components/Actividades/ModalDetalleCampamentoPrograma';
 import ModalSeleccionTicket from '@/components/Actividades/ModalSeleccionTicket';
 import {
   buildCampamentoDateRangeLabel,
   buildCampamentoHorarioSummary,
+  buildCampamentoProgramaMetadata,
   getCampamentoMetadata,
   type ReservaServicioItemMetadata
 } from '@/lib/campamento';
-
-// Definir tipo específico para Reserva
-interface Reserva {
-  id: string;
-  cliente?: {
-    nombre: string;
-    apellidos: string;
-  };
-  actividad?: {
-    nombre: string;
-  };
-  empresa?: {
-    nombre: string;
-  };
-  fecha_inicio: string;
-  fecha_fin: string;
-  precio: number;
-  estado: string;
-  cantidad_reservada: number;
-  numero_personas_reserva?: number;
-  metadata?: ReservaServicioItemMetadata;
-  ticket_url?: string;
-  ticket_url_reserva?: string;
-}
 
 // Icono para nueva reserva
 const NewReservationIcon = () => (
@@ -62,6 +40,8 @@ export default function ReservasPage() {
   
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [reservaSeleccionada, setReservaSeleccionada] = useState<Reserva | null>(null);
+  const [programaSeleccionadoId, setProgramaSeleccionadoId] = useState<string | null>(null);
+  const [programaParaInscripcion, setProgramaParaInscripcion] = useState<Reserva['campamento_programa'] | null>(null);
   const [reservaAEliminar, setReservaAEliminar] = useState<Reserva | null>(null);
   const [showModalReserva, setShowModalReserva] = useState(false);
   const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
@@ -155,6 +135,18 @@ export default function ReservasPage() {
     return estado.charAt(0).toUpperCase() + estado.slice(1);
   };
 
+  const getEstadoVisualReserva = (reserva: Reserva) => {
+    if (reserva.kind === 'campamento_programa') {
+      return reserva.estado;
+    }
+
+    if (reserva.estado !== 'confirmada') {
+      return reserva.estado;
+    }
+
+    return new Date(reserva.fecha_fin).getTime() < new Date().getTime() ? 'completada' : reserva.estado;
+  };
+
   const getEstadoColor = (estado: string) => {
     switch (estado) {
       case 'confirmada': return 'bg-green-100 text-green-700';
@@ -185,11 +177,18 @@ export default function ReservasPage() {
   };
 
   const mostrarCliente = (reserva: Reserva) => {
+    if (reserva.kind === 'campamento_programa') {
+      return 'Programa de campamento';
+    }
     if (!reserva.cliente) return 'Cliente no establecido';
     return `${reserva.cliente.nombre} ${reserva.cliente.apellidos}`;
   };
 
   const mostrarActividad = (reserva: Reserva) => {
+    if (reserva.kind === 'campamento_programa' && reserva.campamento_programa) {
+      const turno = reserva.campamento_programa.turno_label || reserva.campamento_programa.turno_codigo;
+      return turno ? `${reserva.campamento_programa.servicio_nombre} · ${turno}` : reserva.campamento_programa.servicio_nombre;
+    }
     if (!reserva.actividad) return 'Actividad no encontrada';
     return reserva.actividad.nombre;
   };
@@ -200,6 +199,10 @@ export default function ReservasPage() {
   };
 
   const formatearFechaReserva = (reserva: Reserva) => {
+    if (reserva.kind === 'campamento_programa' && reserva.campamento_programa) {
+      return buildCampamentoDateRangeLabel(buildCampamentoProgramaMetadata(reserva.campamento_programa));
+    }
+
     const campamentoMetadata = getCampamentoMetadata(reserva.metadata);
     if (campamentoMetadata) {
       return buildCampamentoDateRangeLabel(campamentoMetadata);
@@ -209,6 +212,10 @@ export default function ReservasPage() {
   };
 
   const formatearHorarioReserva = (reserva: Reserva) => {
+    if (reserva.kind === 'campamento_programa' && reserva.campamento_programa) {
+      return buildCampamentoHorarioSummary(buildCampamentoProgramaMetadata(reserva.campamento_programa));
+    }
+
     const campamentoMetadata = getCampamentoMetadata(reserva.metadata);
     if (campamentoMetadata) {
       return buildCampamentoHorarioSummary(campamentoMetadata);
@@ -218,6 +225,9 @@ export default function ReservasPage() {
   };
 
   const handleEliminarReserva = (reserva: Reserva) => {
+    if (reserva.kind === 'campamento_programa') {
+      return;
+    }
     setReservaAEliminar(reserva);
     setIsModalConfirmacionOpen(true);
   };
@@ -242,6 +252,10 @@ export default function ReservasPage() {
   };
 
   const handleVerReserva = (reserva: Reserva) => {
+    if (reserva.kind === 'campamento_programa') {
+      setProgramaSeleccionadoId(reserva.id);
+      return;
+    }
     setReservaSeleccionada(reserva);
   };
 
@@ -308,6 +322,7 @@ export default function ReservasPage() {
 
   const handleNuevaReserva = () => {
     // Recargar las reservas después de crear una nueva
+    setProgramaParaInscripcion(null);
     cargarReservas();
   };
 
@@ -385,7 +400,10 @@ export default function ReservasPage() {
           <Button
             variant="primary"
             icon={<NewReservationIcon />}
-            onClick={() => setShowModalReserva(true)}
+            onClick={() => {
+              setProgramaParaInscripcion(null);
+              setShowModalReserva(true);
+            }}
             className="primary-gradient min-h-11 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
           >
             Nueva
@@ -421,82 +439,87 @@ export default function ReservasPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reservasFiltradas.map((reserva, index) => (
-                    <tr
-                      key={reserva.id}
-                      className={`cursor-pointer border-b border-outline-variant/10 transition hover:bg-surface-container-low ${
-                        index % 2 ? 'bg-surface-container-low/25' : ''
-                      }`}
-                      onClick={() => handleFilaClick(reserva)}
-                    >
-                      <td className="px-6 py-4 text-sm font-semibold text-on-surface">{mostrarCliente(reserva)}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-primary-dark">{mostrarActividad(reserva)}</td>
-                      <td className="px-6 py-4 text-sm text-on-surface-variant">{mostrarEmpresa(reserva)}</td>
-                      <td className="px-6 py-4 text-center text-sm font-medium text-on-surface-variant">
-                        {formatearFechaReserva(reserva)}
-                      </td>
-                      <td className="px-6 py-4 text-center text-sm font-medium text-primary">
-                        {formatearHorarioReserva(reserva)}
-                      </td>
-                      <td className="px-6 py-4 text-center text-sm font-bold text-on-surface">
-                        {new Intl.NumberFormat('es-ES', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 2,
-                        }).format(reserva.precio)}{' '}
-                        €
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`${getEstadoColor(reserva.estado)} rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em]`}>
-                          {formatearEstado(reserva.estado)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant/35 bg-surface-container-lowest text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
-                            title="Ver"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleVerReserva(reserva);
-                            }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          </button>
+                  {reservasFiltradas.map((reserva, index) => {
+                    const estadoVisual = getEstadoVisualReserva(reserva);
+                    return (
+                        <tr
+                          key={reserva.id}
+                          className={`cursor-pointer border-b border-outline-variant/10 transition hover:bg-surface-container-low ${
+                            index % 2 ? 'bg-surface-container-low/25' : ''
+                          }`}
+                          onClick={() => handleFilaClick(reserva)}
+                        >
+                          <td className="px-6 py-4 text-sm font-semibold text-on-surface">{mostrarCliente(reserva)}</td>
+                          <td className="px-6 py-4 text-sm font-semibold text-primary-dark">{mostrarActividad(reserva)}</td>
+                          <td className="px-6 py-4 text-sm text-on-surface-variant">{mostrarEmpresa(reserva)}</td>
+                          <td className="px-6 py-4 text-center text-sm font-medium text-on-surface-variant">
+                            {formatearFechaReserva(reserva)}
+                          </td>
+                          <td className="px-6 py-4 text-center text-sm font-medium text-primary">
+                            {formatearHorarioReserva(reserva)}
+                          </td>
+                          <td className="px-6 py-4 text-center text-sm font-bold text-on-surface">
+                            {new Intl.NumberFormat('es-ES', {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 2,
+                            }).format(reserva.precio)}{' '}
+                            €
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`${getEstadoColor(estadoVisual)} rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em]`}>
+                              {formatearEstado(estadoVisual)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant/35 bg-surface-container-lowest text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
+                                title={reserva.kind === 'campamento_programa' ? 'Ver programa' : 'Ver'}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVerReserva(reserva);
+                                }}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              </button>
 
-                          {reserva.ticket_url || reserva.ticket_url_reserva ? (
-                            <button
-                              type="button"
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
-                              title="Descargar ticket"
-                              onClick={(e) => handleDescargarTicket(reserva, e)}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </button>
-                          ) : null}
+                              {reserva.kind !== 'campamento_programa' && (reserva.ticket_url || reserva.ticket_url_reserva) ? (
+                                <button
+                                  type="button"
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
+                                  title="Descargar ticket"
+                                  onClick={(e) => handleDescargarTicket(reserva, e)}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                </button>
+                              ) : null}
 
-                          <button
-                            type="button"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100"
-                            title="Eliminar"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEliminarReserva(reserva);
-                            }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                              {reserva.kind !== 'campamento_programa' ? (
+                                <button
+                                  type="button"
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100"
+                                  title="Eliminar"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEliminarReserva(reserva);
+                                  }}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                  })}
 
                   {reservasFiltradas.length === 0 && !loading ? (
                     <tr>
@@ -520,78 +543,83 @@ export default function ReservasPage() {
                 No se encontraron reservas con los filtros seleccionados.
               </div>
             ) : (
-              reservasFiltradas.map((reserva) => (
-                <div
-                  key={reserva.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleFilaClick(reserva)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      handleFilaClick(reserva);
-                    }
-                  }}
-                  className="w-full rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4 text-left transition hover:bg-surface-container-high"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold text-on-surface">{mostrarCliente(reserva)}</p>
-                      <p className="mt-1 text-sm font-semibold text-primary-dark">{mostrarActividad(reserva)}</p>
-                      <p className="mt-1 text-sm text-on-surface-variant">{mostrarEmpresa(reserva)}</p>
+              reservasFiltradas.map((reserva) => {
+                const estadoVisual = getEstadoVisualReserva(reserva);
+                return (
+                    <div
+                      key={reserva.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleFilaClick(reserva)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          handleFilaClick(reserva);
+                        }
+                      }}
+                      className="w-full rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4 text-left transition hover:bg-surface-container-high"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-on-surface">{mostrarCliente(reserva)}</p>
+                          <p className="mt-1 text-sm font-semibold text-primary-dark">{mostrarActividad(reserva)}</p>
+                          <p className="mt-1 text-sm text-on-surface-variant">{mostrarEmpresa(reserva)}</p>
+                        </div>
+                        <span className={`${getEstadoColor(estadoVisual)} rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em]`}>
+                          {formatearEstado(estadoVisual)}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-on-surface-variant">
+                        <p>{formatearFechaReserva(reserva)}</p>
+                        <p className="text-right text-primary">{formatearHorarioReserva(reserva)}</p>
+                      </div>
+                      <p className="mt-2 text-sm font-bold text-on-surface">
+                        {new Intl.NumberFormat('es-ES', {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 2,
+                        }).format(reserva.precio)}{' '}
+                        €
+                      </p>
+
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                        <button
+                          type="button"
+                          className="min-h-11 flex-1 rounded-full border border-outline-variant/35 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleVerReserva(reserva);
+                          }}
+                        >
+                          {reserva.kind === 'campamento_programa' ? 'Ver programa' : 'Ver'}
+                        </button>
+
+                        {reserva.kind !== 'campamento_programa' && (reserva.ticket_url || reserva.ticket_url_reserva) ? (
+                          <button
+                            type="button"
+                            className="min-h-11 flex-1 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                            onClick={(e) => handleDescargarTicket(reserva, e)}
+                          >
+                            Ticket
+                          </button>
+                        ) : null}
+
+                        {reserva.kind !== 'campamento_programa' ? (
+                          <button
+                            type="button"
+                            className="min-h-11 flex-1 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEliminarReserva(reserva);
+                            }}
+                          >
+                            Eliminar
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
-                    <span className={`${getEstadoColor(reserva.estado)} rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em]`}>
-                      {formatearEstado(reserva.estado)}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-on-surface-variant">
-                    <p>{formatearFechaReserva(reserva)}</p>
-                    <p className="text-right text-primary">{formatearHorarioReserva(reserva)}</p>
-                  </div>
-                  <p className="mt-2 text-sm font-bold text-on-surface">
-                    {new Intl.NumberFormat('es-ES', {
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 2,
-                    }).format(reserva.precio)}{' '}
-                    €
-                  </p>
-
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                    <button
-                      type="button"
-                      className="min-h-11 flex-1 rounded-full border border-outline-variant/35 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleVerReserva(reserva);
-                      }}
-                    >
-                      Ver
-                    </button>
-
-                    {reserva.ticket_url || reserva.ticket_url_reserva ? (
-                      <button
-                        type="button"
-                        className="min-h-11 flex-1 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-                        onClick={(e) => handleDescargarTicket(reserva, e)}
-                      >
-                        Ticket
-                      </button>
-                    ) : null}
-
-                    <button
-                      type="button"
-                      className="min-h-11 flex-1 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEliminarReserva(reserva);
-                      }}
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </div>
-              ))
+                  );
+              })
             )}
           </div>
         </section>
@@ -606,6 +634,7 @@ export default function ReservasPage() {
               reservas={reservasFiltradas}
               onActualizarEstado={handleActualizarEstado}
               onReservaActualizada={cargarReservas}
+              onSeleccionarReserva={handleVerReserva}
             />
           )}
         </section>
@@ -634,10 +663,25 @@ export default function ReservasPage() {
         onReservaActualizada={cargarReservas}
       />
 
+      <ModalDetalleCampamentoPrograma
+        isOpen={!!programaSeleccionadoId}
+        programaId={programaSeleccionadoId}
+        onClose={() => setProgramaSeleccionadoId(null)}
+        onAddInscripcion={(programa) => {
+          setProgramaSeleccionadoId(null);
+          setProgramaParaInscripcion(programa);
+          setShowModalReserva(true);
+        }}
+      />
+
       {/* Modal Nueva Reserva */}
       <ModalNuevaReserva
         isOpen={showModalReserva}
-        onClose={() => setShowModalReserva(false)}
+        onClose={() => {
+          setShowModalReserva(false);
+          setProgramaParaInscripcion(null);
+        }}
+        campamentoProgramaContext={programaParaInscripcion ?? undefined}
         onSubmit={handleNuevaReserva}
         onToast={handleToast}
       />
