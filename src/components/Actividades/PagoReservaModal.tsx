@@ -41,6 +41,13 @@ interface ActividadReserva {
   reservaFechaFin?: string;
   resumenHorario?: string;
   resumenFechas?: string;
+  campamentoProgramaId?: string;
+  tarifaId?: string;
+  participantes?: Array<{
+    participanteId?: string;
+    nombre: string;
+    dni?: string;
+  }>;
 }
 
 interface PagoReservaModalProps {
@@ -66,6 +73,8 @@ interface PagoReservaModalProps {
     estado: EstadoPago;
     concepto: string;
   };
+  initialClienteId?: string | null;
+  requireCliente?: boolean;
 }
 
 export default function PagoReservaModal({ 
@@ -74,9 +83,11 @@ export default function PagoReservaModal({
   onSubmit, 
   actividad,
   readOnly = false,
-  reservaData
+  reservaData,
+  initialClienteId = null,
+  requireCliente = false
 }: PagoReservaModalProps) {
-  const { crearReserva, crearPago, obtenerIdEmpresa, obtenerIdCliente } = useActividades();
+  const { crearReserva, crearInscripcionCampamento, crearPago, obtenerIdEmpresa, obtenerIdCliente } = useActividades();
   const { clientes } = useClientes();
   const { saveTicket } = useTickets();
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
@@ -109,6 +120,14 @@ export default function PagoReservaModal({
       setConcepto(reservaData.concepto);
     }
   }, [reservaData, readOnly]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setSelectedClienteId(initialClienteId);
+  }, [initialClienteId, isOpen]);
 
   const metodosPago = useMemo(
     () => ACTIVE_PAYMENT_METHOD_OPTIONS as Array<{ value: MetodoPago; label: string }>,
@@ -164,6 +183,10 @@ export default function PagoReservaModal({
           ? clientes.find(c => c.id === selectedClienteId)
           : null;
 
+        if (requireCliente && !selectedClienteId) {
+          throw new Error('Debes seleccionar un cliente pagador para continuar');
+        }
+
         if (selectedClienteId && !clienteSeleccionado) {
           throw new Error('Cliente seleccionado no encontrado');
         }
@@ -194,21 +217,42 @@ export default function PagoReservaModal({
         const fechaInicio = new Date(parseInt(añoInicio), parseInt(mesInicio) - 1, parseInt(diaInicio), parseInt(horaInicio), parseInt(minutoInicio), 0);
         const fechaFin = new Date(parseInt(añoFin), parseInt(mesFin) - 1, parseInt(diaFin), parseInt(horaFin), parseInt(minutoFin), 0);
         
-        const resultadoReserva = await crearReserva({
-          id_cliente: resultadoCliente?.clienteId ?? null,
-          id_actividad: actividad.id,
-          id_empresa: resultadoEmpresa.empresaId!,
-          cantidad_reservada: actividad.cantidad,
-          numero_personas: actividad.numeroPersonas,
-          precio: actividad.precio,
-          fecha_inicio: fechaInicio.toISOString(),
-          fecha_fin: fechaFin.toISOString(),
-          estado: esReserva ? 'pendiente' : (estado === 'completado' ? 'confirmada' : 'pendiente'),
-          nota: actividad.nota || undefined,
-          metadata: actividad.campamentoMetadata
-            ? { campamento: actividad.campamentoMetadata }
-            : undefined
-        });
+        const estadoReserva = esReserva ? 'pendiente' : (estado === 'completado' ? 'confirmada' : 'pendiente');
+        const resultadoReserva = actividad.campamentoProgramaId && actividad.tarifaId
+          ? await crearInscripcionCampamento({
+              campamentoProgramaId: actividad.campamentoProgramaId,
+              idCliente: resultadoCliente?.clienteId ?? null,
+              idActividad: actividad.id,
+              idEmpresa: resultadoEmpresa.empresaId!,
+              tarifaId: actividad.tarifaId,
+              precioUnitario: actividad.numeroPersonas > 0
+                ? Number((actividad.precio / actividad.numeroPersonas).toFixed(2))
+                : actividad.precio,
+              precioTotal: actividad.precio,
+              cantidadParticipantes: actividad.numeroPersonas,
+              fechaInicio: fechaInicio.toISOString(),
+              fechaFin: fechaFin.toISOString(),
+              horaInicio: actividad.horaInicio,
+              horaFin: actividad.horaFin,
+              estado: estadoReserva,
+              nota: actividad.nota || undefined,
+              participantes: actividad.participantes ?? []
+            })
+          : await crearReserva({
+              id_cliente: resultadoCliente?.clienteId ?? null,
+              id_actividad: actividad.id,
+              id_empresa: resultadoEmpresa.empresaId!,
+              cantidad_reservada: actividad.cantidad,
+              numero_personas: actividad.numeroPersonas,
+              precio: actividad.precio,
+              fecha_inicio: fechaInicio.toISOString(),
+              fecha_fin: fechaFin.toISOString(),
+              estado: estadoReserva,
+              nota: actividad.nota || undefined,
+              metadata: actividad.campamentoMetadata
+                ? { campamento: actividad.campamentoMetadata }
+                : undefined
+            });
         
         if (!resultadoReserva.success) {
           throw new Error(resultadoReserva.message);
@@ -524,7 +568,9 @@ export default function PagoReservaModal({
                             disabled={readOnly}
                           />
                           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                            Puedes dejar la reserva y el pago como <span className="font-semibold">Sin cliente</span>.
+                            {requireCliente
+                              ? 'Este pago requiere un cliente pagador seleccionado.'
+                              : <>Puedes dejar la reserva y el pago como <span className="font-semibold">Sin cliente</span>.</>}
                           </p>
                         </div>
 

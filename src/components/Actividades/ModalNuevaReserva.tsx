@@ -14,15 +14,18 @@ import {
   buildCampamentoTurnoOptions,
   formatDateInputForDisplay,
   generateCampamentoOccurrences,
+  type CampamentoPrograma,
   type CampamentoMetadata,
   type CampamentoTurnoOption,
   type ServicioHorarioRegla
 } from '@/lib/campamento';
 import PagoReservaModal from './PagoReservaModal';
+import ModalNuevaReservaCampamentoInscripcion from './ModalNuevaReservaCampamentoInscripcion';
 
 interface ModalNuevaReservaProps {
   isOpen: boolean;
   onClose: () => void;
+  campamentoProgramaContext?: CampamentoPrograma | null;
   onSubmit: (data: {
     empresa: 'Flecha Extreme' | 'Rober';
     tipoActividad: 'alquiler' | 'curso' | 'ruta' | 'campamento' | 'sport' | 'parking' | 'otros';
@@ -96,18 +99,30 @@ function createDefaultReservaFormData() {
   };
 }
 
-function buildRentalDurationValue(hours: number) {
-  return `${hours}-hora`;
+function buildDurationValue(amount: number, unit: string) {
+  return `${amount}-${unit}`;
 }
 
-function parseRentalHours(value: string) {
-  const [rawHours, rawUnit] = value.split('-');
-  const hours = Number(rawHours);
-  if (!Number.isFinite(hours) || hours <= 0 || rawUnit !== 'hora') {
+function buildTarifaDurationValue(tarifa: TarifaActividad) {
+  return buildDurationValue(tarifa.duracion_valor, tarifa.duracion_unidad);
+}
+
+function getDurationMinutes(value: string) {
+  const [rawAmount, rawUnit] = value.split('-');
+  const amount = Number(rawAmount);
+  if (!Number.isFinite(amount) || amount <= 0) {
     return null;
   }
 
-  return hours;
+  if (rawUnit === 'hora' || rawUnit === 'horas') {
+    return amount * 60;
+  }
+
+  if (rawUnit === 'minuto' || rawUnit === 'minutos') {
+    return amount;
+  }
+
+  return null;
 }
 
 function minutesFromTime(hora: string) {
@@ -128,16 +143,12 @@ function formatMinutesAsTime(totalMinutes: number) {
 function calculateGenericHoraFin(horaInicio: string, duracion: string) {
   if (!horaInicio || !duracion) return '';
 
-  const [duracionValor, duracionUnidad] = duracion.split('-');
-  const valor = parseInt(duracionValor, 10);
   const minutosInicio = minutesFromTime(horaInicio);
   if (!minutosInicio && minutosInicio !== 0) return '';
 
-  let duracionMinutos = 0;
-  if (duracionUnidad === 'hora' || duracionUnidad === 'horas') {
-    duracionMinutos = valor * 60;
-  } else if (duracionUnidad === 'minuto' || duracionUnidad === 'minutos') {
-    duracionMinutos = valor;
+  const duracionMinutos = getDurationMinutes(duracion);
+  if (duracionMinutos === null) {
+    return '';
   }
 
   return formatMinutesAsTime(minutosInicio + duracionMinutos);
@@ -163,8 +174,8 @@ function calculateGenericFechaFin(fechaInicio: string, duracion: string) {
   return fechaInicioObj.toISOString().split('T')[0];
 }
 
-function calculateRentalRange(fechaInicio: string, horaInicio: string, horas: number) {
-  if (!fechaInicio || !horaInicio || !Number.isFinite(horas) || horas <= 0) {
+function calculateRentalRange(fechaInicio: string, horaInicio: string, duracionMin: number) {
+  if (!fechaInicio || !horaInicio || !Number.isFinite(duracionMin) || duracionMin <= 0) {
     return null;
   }
 
@@ -173,7 +184,6 @@ function calculateRentalRange(fechaInicio: string, horaInicio: string, horas: nu
     return null;
   }
 
-  const duracionMin = horas * 60;
   const minutosFin = minutosInicio + duracionMin;
   const crossesDay = minutosFin > 1439;
 
@@ -254,13 +264,18 @@ function formatDurationLabel(value: string) {
   return value;
 }
 
-function getHourlyBaseTariff(tarifas: TarifaActividad[]) {
-  return tarifas.find((tarifa) => tarifa.duracion_valor === 1 && tarifa.duracion_unidad === 'hora') ?? null;
+function requiresManualPrice(tarifa: TarifaActividad | null) {
+  if (!tarifa) {
+    return true;
+  }
+
+  return tarifa.precio === 0 || tarifa.metadata?.precio_manual === true;
 }
 
 export default function ModalNuevaReserva({
   isOpen,
   onClose,
+  campamentoProgramaContext,
   onSubmit,
   onToast
 }: ModalNuevaReservaProps) {
@@ -268,6 +283,7 @@ export default function ModalNuevaReserva({
     obtenerActividadesPorTipo,
     obtenerTarifasActividad,
     obtenerHorariosActividad,
+    crearProgramaCampamento,
     consultarStockDisponible,
     buscarSiguienteDisponibilidadServicio,
     loadingActividades,
@@ -308,18 +324,20 @@ export default function ModalNuevaReserva({
     if (!formData.duracion) return null;
 
     return tarifasActividad.find(
-      (tarifa) => `${tarifa.duracion_valor}-${tarifa.duracion_unidad}` === formData.duracion
+      (tarifa) => buildTarifaDurationValue(tarifa) === formData.duracion
     ) ?? null;
   }, [formData.duracion, tarifasActividad]);
   const bananaBaseTariff = useMemo(() => {
     if (!isBanana) return null;
     return tarifasActividad[0] ?? null;
   }, [isBanana, tarifasActividad]);
-
-  const hourlyBaseTariff = useMemo(() => getHourlyBaseTariff(tarifasActividad), [tarifasActividad]);
   const campBaseTariff = useMemo(() => tarifasActividad[0] ?? null, [tarifasActividad]);
-  const rentalHoursSelected = useMemo(
-    () => (isRental ? parseRentalHours(formData.duracion) : null),
+  const rentalSelectedTariff = useMemo(
+    () => (isRental ? tarifaSeleccionada : null),
+    [isRental, tarifaSeleccionada]
+  );
+  const rentalDurationSelectedMin = useMemo(
+    () => (isRental ? getDurationMinutes(formData.duracion) : null),
     [formData.duracion, isRental]
   );
   const usesPerPersonPricing = useMemo(
@@ -383,18 +401,17 @@ export default function ModalNuevaReserva({
 
   const precioManualPendiente = useMemo(() => {
     if (isRental) {
-      if (!hourlyBaseTariff) return true;
-      return hourlyBaseTariff.precio === 0 || hourlyBaseTariff.metadata?.precio_manual === true;
+      if (tarifasActividad.length === 0) return true;
+      if (!rentalSelectedTariff) return false;
+      return requiresManualPrice(rentalSelectedTariff);
     }
 
     if (isCamp) {
-      if (!campBaseTariff) return true;
-      return campBaseTariff.precio === 0 || campBaseTariff.metadata?.precio_manual === true;
+      return requiresManualPrice(campBaseTariff);
     }
 
     if (isBanana) {
-      if (!bananaBaseTariff) return true;
-      return bananaBaseTariff.precio === 0 || bananaBaseTariff.metadata?.precio_manual === true;
+      return requiresManualPrice(bananaBaseTariff);
     }
 
     if (!tarifaSeleccionada && tarifasActividad.length === 0) {
@@ -404,7 +421,7 @@ export default function ModalNuevaReserva({
     if (!tarifaSeleccionada) return false;
 
     return tarifaSeleccionada.precio === 0 && tarifaSeleccionada.metadata?.precio_manual === true;
-  }, [bananaBaseTariff, campBaseTariff, hourlyBaseTariff, isBanana, isCamp, isRental, tarifaSeleccionada, tarifasActividad.length]);
+  }, [bananaBaseTariff, campBaseTariff, isBanana, isCamp, isRental, rentalSelectedTariff, tarifaSeleccionada, tarifasActividad.length]);
 
   const campTurnoOptions = useMemo<CampamentoTurnoOption[]>(
     () => buildCampamentoTurnoOptions(campHorarioReglas),
@@ -449,35 +466,52 @@ export default function ModalNuevaReserva({
     if (!isRental) return [];
 
     const minutosInicio = minutesFromTime(formData.horaInicio);
-    if (minutosInicio === null) {
-      const minHours = actividadSeleccionada?.duracion_minima_min
-        ? Math.max(1, Math.ceil(actividadSeleccionada.duracion_minima_min / 60))
-        : 1;
-      const maxHours = actividadSeleccionada?.duracion_maxima_min
-        ? Math.max(minHours, Math.floor(actividadSeleccionada.duracion_maxima_min / 60))
-        : 12;
-      return Array.from({ length: Math.max(maxHours - minHours + 1, 0) }, (_, index) => minHours + index);
+    return tarifasActividad
+      .filter((tarifa) => {
+        const duracionMin = getDurationMinutes(buildTarifaDurationValue(tarifa));
+        if (duracionMin === null) {
+          return false;
+        }
+
+        if (minutosInicio === null) {
+          return true;
+        }
+
+        return minutosInicio + duracionMin <= 1439;
+      })
+      .sort((left, right) => {
+        const leftDuration = getDurationMinutes(buildTarifaDurationValue(left)) ?? 0;
+        const rightDuration = getDurationMinutes(buildTarifaDurationValue(right)) ?? 0;
+
+        if (leftDuration !== rightDuration) {
+          return leftDuration - rightDuration;
+        }
+
+        return left.precio - right.precio;
+      });
+  }, [formData.horaInicio, isRental, tarifasActividad]);
+
+  useEffect(() => {
+    if (!isRental || !formData.duracion) {
+      return;
     }
 
-    const maxHoursSameDay = Math.floor((1439 - minutosInicio) / 60);
-    if (maxHoursSameDay <= 0) {
-      return [];
+    const hasSelectedDuration = rentalDurationOptions.some(
+      (tarifa) => buildTarifaDurationValue(tarifa) === formData.duracion
+    );
+
+    if (hasSelectedDuration) {
+      return;
     }
 
-    const minHours = actividadSeleccionada?.duracion_minima_min
-      ? Math.max(1, Math.ceil(actividadSeleccionada.duracion_minima_min / 60))
-      : 1;
-    const configuredMaxHours = actividadSeleccionada?.duracion_maxima_min
-      ? Math.max(minHours, Math.floor(actividadSeleccionada.duracion_maxima_min / 60))
-      : maxHoursSameDay;
-    const maxHours = Math.min(maxHoursSameDay, configuredMaxHours);
-
-    if (maxHours < minHours) {
-      return [];
-    }
-
-    return Array.from({ length: maxHours - minHours + 1 }, (_, index) => minHours + index);
-  }, [actividadSeleccionada, formData.horaInicio, isRental]);
+    setFormData((prev) => ({
+      ...prev,
+      duracion: '',
+      fechaFin: '',
+      horaFin: '',
+      precio: 0
+    }));
+  }, [formData.duracion, isRental, rentalDurationOptions]);
 
   useEffect(() => {
     if (!isCamp) {
@@ -639,30 +673,37 @@ export default function ModalNuevaReserva({
         return;
       }
 
-      if (!actividadSeleccionada || !formData.fechaInicio || !formData.horaInicio || formData.cantidadReservada < 1) {
+      if (
+        !actividadSeleccionada ||
+        !formData.fechaInicio ||
+        !formData.horaInicio ||
+        !formData.duracion ||
+        formData.cantidadReservada < 1
+      ) {
         if (!cancelled) {
           setRentalAvailability(EMPTY_RENTAL_AVAILABILITY);
         }
         return;
       }
 
-      const hours = rentalHoursSelected ?? 1;
-      const range = calculateRentalRange(formData.fechaInicio, formData.horaInicio, hours);
+      const range = rentalDurationSelectedMin
+        ? calculateRentalRange(formData.fechaInicio, formData.horaInicio, rentalDurationSelectedMin)
+        : null;
       if (!range) {
         if (!cancelled) {
           setRentalAvailability({
             status: 'error',
-            message: 'Selecciona una hora de inicio valida.'
+            message: 'Selecciona una duración y una hora de inicio válidas.'
           });
         }
         return;
       }
 
-      if (rentalHoursSelected && range.crossesDay) {
+      if (range.crossesDay) {
         if (!cancelled) {
           setRentalAvailability({
             status: 'error',
-            message: 'La duracion seleccionada supera las 23:59 del mismo dia.'
+            message: 'La duración seleccionada supera las 23:59 del mismo día.'
           });
         }
         return;
@@ -687,10 +728,7 @@ export default function ModalNuevaReserva({
       if (disponibilidad.success && disponibilidad.disponible) {
         setRentalAvailability({
           status: 'available',
-          message:
-            rentalHoursSelected && rentalHoursSelected > 1
-              ? 'Disponible para toda la duracion seleccionada.'
-              : 'Disponible. Selecciona la duracion final o continua con la reserva.',
+          message: 'Disponible para toda la duración seleccionada.',
           stockDisponible: disponibilidad.stockDisponible,
           stockTotal: disponibilidad.stockTotal,
           reservadas: disponibilidad.reservadas,
@@ -753,11 +791,12 @@ export default function ModalNuevaReserva({
     consultarStockDisponible,
     currentStep,
     formData.cantidadReservada,
+    formData.duracion,
     formData.fechaInicio,
     formData.horaInicio,
     isOpen,
     isRental,
-    rentalHoursSelected
+    rentalDurationSelectedMin
   ]);
 
   const handleInputChange = async (field: string, value: string | number | boolean) => {
@@ -860,7 +899,7 @@ export default function ModalNuevaReserva({
 
         if (field === 'duracion' && newData.duracion) {
           const selectedTarifa = tarifasActividad.find(
-            (tarifa) => `${tarifa.duracion_valor}-${tarifa.duracion_unidad}` === newData.duracion
+            (tarifa) => buildTarifaDurationValue(tarifa) === newData.duracion
           );
           if (selectedTarifa) {
             const requiresManualPrice = selectedTarifa.precio === 0 && selectedTarifa.metadata?.precio_manual === true;
@@ -880,9 +919,9 @@ export default function ModalNuevaReserva({
         }
       } else {
         if (newData.duracion && newData.fechaInicio && newData.horaInicio) {
-          const rentalHours = parseRentalHours(newData.duracion);
-          if (rentalHours) {
-            const range = calculateRentalRange(newData.fechaInicio, newData.horaInicio, rentalHours);
+          const rentalDurationMin = getDurationMinutes(newData.duracion);
+          if (rentalDurationMin) {
+            const range = calculateRentalRange(newData.fechaInicio, newData.horaInicio, rentalDurationMin);
             newData.fechaFin = range?.fechaFin ?? '';
             newData.horaFin = range && !range.crossesDay ? range.horaFin : '';
           }
@@ -891,15 +930,18 @@ export default function ModalNuevaReserva({
           newData.horaFin = '';
         }
 
-        if ((field === 'duracion' || field === 'cantidadReservada' || field === 'actividad') && precioManualPendiente) {
+        const selectedRentalTarifa = tarifasActividad.find(
+          (tarifa) => buildTarifaDurationValue(tarifa) === newData.duracion
+        ) ?? null;
+
+        if ((field === 'duracion' || field === 'cantidadReservada' || field === 'actividad') && requiresManualPrice(selectedRentalTarifa)) {
           newData.precio = 0;
         }
 
-        if (!precioManualPendiente && hourlyBaseTariff) {
-          const rentalHours = parseRentalHours(newData.duracion);
-          if (rentalHours) {
-            newData.precio = Number((hourlyBaseTariff.precio * newData.cantidadReservada * rentalHours).toFixed(2));
-          }
+        if (selectedRentalTarifa && !requiresManualPrice(selectedRentalTarifa)) {
+          newData.precio = Number((selectedRentalTarifa.precio * newData.cantidadReservada).toFixed(2));
+        } else if (field === 'duracion' && !newData.duracion) {
+          newData.precio = 0;
         }
       }
 
@@ -971,7 +1013,7 @@ export default function ModalNuevaReserva({
       if (actividad.codigo === 'BANANA') {
         const bananaTarifa = tarifas[0] ?? null;
         const bananaDuration = bananaTarifa
-          ? `${bananaTarifa.duracion_valor}-${bananaTarifa.duracion_unidad}`
+          ? buildTarifaDurationValue(bananaTarifa)
           : '';
         const requiresManualPrice =
           !bananaTarifa ||
@@ -1009,7 +1051,7 @@ export default function ModalNuevaReserva({
 
       if (!nextIsRental) {
         if (tarifas.length === 1) {
-          const duracion = `${tarifas[0].duracion_valor}-${tarifas[0].duracion_unidad}`;
+          const duracion = buildTarifaDurationValue(tarifas[0]);
           const requiresManualPrice = tarifas[0].precio === 0 && tarifas[0].metadata?.precio_manual === true;
           const precioCalculado = requiresManualPrice
             ? 0
@@ -1063,18 +1105,28 @@ export default function ModalNuevaReserva({
           );
         }
       } else {
-        const fetchedHourlyBaseTariff = getHourlyBaseTariff(tarifas);
-        const requiresManualPrice =
-          !fetchedHourlyBaseTariff ||
-          fetchedHourlyBaseTariff.precio === 0 ||
-          fetchedHourlyBaseTariff.metadata?.precio_manual === true;
+        const availableRentalTariffs = tarifas
+          .filter((tarifa) => getDurationMinutes(buildTarifaDurationValue(tarifa)) !== null)
+          .sort((left, right) => {
+            const leftDuration = getDurationMinutes(buildTarifaDurationValue(left)) ?? 0;
+            const rightDuration = getDurationMinutes(buildTarifaDurationValue(right)) ?? 0;
+            return leftDuration - rightDuration;
+          });
 
         setFormData((prev) => {
-          const duration = prev.duracion || buildRentalDurationValue(1);
-          const hours = parseRentalHours(duration) ?? 1;
-          const range = prev.fechaInicio && prev.horaInicio
-            ? calculateRentalRange(prev.fechaInicio, prev.horaInicio, hours)
+          const duration = availableRentalTariffs.length === 1
+            ? buildTarifaDurationValue(availableRentalTariffs[0])
+            : availableRentalTariffs.some((tarifa) => buildTarifaDurationValue(tarifa) === prev.duracion)
+              ? prev.duracion
+              : '';
+          const selectedRentalTariff = availableRentalTariffs.find(
+            (tarifa) => buildTarifaDurationValue(tarifa) === duration
+          ) ?? null;
+          const durationMin = duration ? getDurationMinutes(duration) : null;
+          const range = prev.fechaInicio && prev.horaInicio && durationMin
+            ? calculateRentalRange(prev.fechaInicio, prev.horaInicio, durationMin)
             : null;
+          const shouldUseManualPrice = duration ? requiresManualPrice(selectedRentalTariff) : false;
 
           return {
             ...prev,
@@ -1082,9 +1134,9 @@ export default function ModalNuevaReserva({
             duracion: duration,
             fechaFin: range?.fechaFin ?? prev.fechaFin,
             horaFin: range && !range.crossesDay ? range.horaFin : '',
-            precio: requiresManualPrice || !fetchedHourlyBaseTariff
+            precio: shouldUseManualPrice || !selectedRentalTariff
               ? 0
-              : Number((fetchedHourlyBaseTariff.precio * prev.cantidadReservada * hours).toFixed(2))
+              : Number((selectedRentalTariff.precio * prev.cantidadReservada).toFixed(2))
           };
         });
         setCurrentStep(1);
@@ -1134,7 +1186,7 @@ export default function ModalNuevaReserva({
         const nextCantidad = field === 'cantidadReservada'
           ? Number(value || 1)
           : (showBananaQuantitySelector ? formData.cantidadReservada : 1);
-        const durationToUse = formData.duracion || (bananaBaseTariff ? `${bananaBaseTariff.duracion_valor}-${bananaBaseTariff.duracion_unidad}` : '');
+        const durationToUse = formData.duracion || (bananaBaseTariff ? buildTarifaDurationValue(bananaBaseTariff) : '');
 
         if (nextFechaInicio && nextHoraInicio && durationToUse) {
           const nuevaHoraFin = calculateGenericHoraFin(nextHoraInicio, durationToUse);
@@ -1201,7 +1253,7 @@ export default function ModalNuevaReserva({
 
     if (field === 'numeroPersonas' && formData.duracion) {
       const selectedTarifa = tarifasActividad.find(
-        (tarifa) => `${tarifa.duracion_valor}-${tarifa.duracion_unidad}` === formData.duracion
+        (tarifa) => buildTarifaDurationValue(tarifa) === formData.duracion
       );
       const requiresManualPrice = selectedTarifa?.precio === 0 && selectedTarifa.metadata?.precio_manual === true;
       if (selectedTarifa && typeof value === 'number' && !requiresManualPrice) {
@@ -1445,11 +1497,11 @@ export default function ModalNuevaReserva({
       newErrors.horaInicio = 'No hay margen horario suficiente para una reserva dentro del mismo dia.';
     }
 
-    const hours = rentalHoursSelected;
-    if (hours) {
-      const range = calculateRentalRange(formData.fechaInicio, formData.horaInicio, hours);
+    const durationMin = rentalDurationSelectedMin;
+    if (durationMin) {
+      const range = calculateRentalRange(formData.fechaInicio, formData.horaInicio, durationMin);
       if (!range || range.crossesDay) {
-        newErrors.duracion = 'La duracion seleccionada supera las 23:59 del mismo dia.';
+        newErrors.duracion = 'La duración seleccionada supera las 23:59 del mismo día.';
       }
     }
 
@@ -1562,22 +1614,6 @@ export default function ModalNuevaReserva({
       newErrors.actividad = 'Este campamento no tiene horarios recurrentes configurados.';
     } else if (campTurnoOptions.length > 1 && !campTurnoSeleccionado) {
       newErrors.campTurno = 'Debes seleccionar un turno para el campamento.';
-    }
-
-    if (!formData.numeroPersonas || formData.numeroPersonas < 1) {
-      newErrors.numeroPersonas = 'El número de personas debe ser al menos 1';
-    }
-
-    if (
-      actividadSeleccionada?.numero_personas &&
-      actividadSeleccionada.numero_personas > 0 &&
-      formData.numeroPersonas > actividadSeleccionada.numero_personas
-    ) {
-      newErrors.numeroPersonas = `El número máximo de personas para esta actividad es ${actividadSeleccionada.numero_personas}`;
-    }
-
-    if (precioManualPendiente && formData.precio <= 0) {
-      newErrors.precio = 'Debes indicar un precio manual mayor que 0';
     }
 
     if (
@@ -1706,6 +1742,61 @@ export default function ModalNuevaReserva({
       return;
     }
 
+    if (isCamp) {
+      if (!actividadSeleccionada || !campamentoMetadata) {
+        setErrors((prev) => ({
+          ...prev,
+          actividad: prev.actividad || 'No se ha podido preparar el programa de campamento.'
+        }));
+        return;
+      }
+
+      const result = await crearProgramaCampamento({
+        servicioId: actividadSeleccionada.id,
+        fechaInicio: campamentoMetadata.fecha_inicio,
+        fechaFin: campamentoMetadata.fecha_fin,
+        diasSemana: campamentoMetadata.dias_semana,
+        horaInicio: campamentoMetadata.hora_inicio,
+        horaFin: campamentoMetadata.hora_fin,
+        turnoCodigo: campamentoMetadata.turno_codigo ?? null,
+        turnoLabel: campamentoMetadata.turno_label ?? null,
+        notas: formData.nota || ''
+      });
+
+      if (!result.success) {
+        onToast({
+          visible: true,
+          message: result.message,
+          type: 'error'
+        });
+        return;
+      }
+
+      onToast({
+        visible: true,
+        message: 'Programa de campamento creado correctamente',
+        type: 'success'
+      });
+
+      await onSubmit({
+        empresa: formData.empresa,
+        tipoActividad: 'campamento',
+        actividad: formData.actividad,
+        cantidadReservada: 0,
+        numeroPersonas: 0,
+        precio: 0,
+        fechaInicio: formData.fechaInicio,
+        fechaFin: formData.fechaFin,
+        horaInicio: formData.horaInicio,
+        horaFin: formData.horaFin,
+        nota: formData.nota || undefined,
+        campamentoMetadata
+      });
+
+      handleClose();
+      return;
+    }
+
     setShowModalPago(true);
     setPaymentCompleted(false);
   };
@@ -1783,7 +1874,7 @@ export default function ModalNuevaReserva({
     if (rentalAvailability.status === 'idle') {
       return (
         <div className="rounded-2xl border border-dashed border-outline-variant/50 bg-surface-container-low px-4 py-4 text-sm text-on-surface-variant">
-          Selecciona fecha, hora y unidades. En cuanto tengamos esos datos, comprobaremos un hueco provisional de 1 hora.
+          Selecciona fecha, hora, unidades y duración. Cuando estén completos, comprobaremos la disponibilidad real de esa tarifa.
         </div>
       );
     }
@@ -1791,7 +1882,7 @@ export default function ModalNuevaReserva({
     if (rentalAvailability.status === 'checking') {
       return (
         <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-4 text-sm text-primary-dark">
-          Comprobando disponibilidad para {rentalAvailability.checkedDurationMin ? `${rentalAvailability.checkedDurationMin / 60} h` : '1 h'}...
+          Comprobando disponibilidad para {rentalAvailability.checkedDurationMin ? formatDurationLabel(buildDurationValue(rentalAvailability.checkedDurationMin, 'minuto')) : 'la duración seleccionada'}...
         </div>
       );
     }
@@ -2459,7 +2550,7 @@ export default function ModalNuevaReserva({
                 <div className="rounded-2xl bg-surface-container px-4 py-3 text-on-surface-variant">
                   <div className="text-xs uppercase tracking-[0.14em]">Tarifa base</div>
                   <p className="mt-1 font-semibold text-on-surface">
-                    {Number(bananaBaseTariff.precio).toFixed(2)} € por persona · {formatDurationLabel(`${bananaBaseTariff.duracion_valor}-${bananaBaseTariff.duracion_unidad}`)}
+                    {Number(bananaBaseTariff.precio).toFixed(2)} € por persona · {formatDurationLabel(buildTarifaDurationValue(bananaBaseTariff))}
                   </p>
                 </div>
               ) : null}
@@ -2805,11 +2896,14 @@ export default function ModalNuevaReserva({
                 } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:cursor-not-allowed disabled:opacity-50`}
               >
                 <option value="">Selecciona una duración</option>
-                {rentalDurationOptions.map((hours) => (
-                  <option key={hours} value={buildRentalDurationValue(hours)}>
-                    {hours} {hours === 1 ? 'hora' : 'horas'}
-                  </option>
-                ))}
+                {rentalDurationOptions.map((tarifa) => {
+                  const durationValue = buildTarifaDurationValue(tarifa);
+                  return (
+                    <option key={tarifa.id} value={durationValue}>
+                      {formatDurationLabel(durationValue)}
+                    </option>
+                  );
+                })}
               </select>
               {errors.duracion && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.duracion}</p>}
             </div>
@@ -2895,11 +2989,11 @@ export default function ModalNuevaReserva({
             </div>
             {precioManualPendiente ? (
               <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                Introduce el precio total manualmente. Cuando exista una tarifa horaria definitiva se rellenará sola.
+                Introduce el precio total manualmente porque la tarifa seleccionada sigue marcada como manual.
               </p>
             ) : (
               <p className="mt-1 text-xs text-on-surface-variant">
-                Precio automático según tarifa horaria y unidades seleccionadas.
+                Precio automático según la tarifa seleccionada y las unidades reservadas.
               </p>
             )}
             {errors.precio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.precio}</p>}
@@ -3017,7 +3111,7 @@ export default function ModalNuevaReserva({
                   >
                     <option value="">Selecciona una duración</option>
                     {tarifasActividad.map((tarifa) => {
-                      const durationValue = `${tarifa.duracion_valor}-${tarifa.duracion_unidad}`;
+                      const durationValue = buildTarifaDurationValue(tarifa);
                       return (
                         <option key={tarifa.id} value={durationValue}>
                           {formatDurationLabel(durationValue)}
@@ -3364,7 +3458,7 @@ export default function ModalNuevaReserva({
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Paso 2/2</p>
-            <p className="mt-1 text-lg font-black text-on-surface">Configura fechas, turno y personas</p>
+            <p className="mt-1 text-lg font-black text-on-surface">Configura rango, turno y notas del programa</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/25 text-sm font-black text-primary">1</div>
@@ -3447,66 +3541,13 @@ export default function ModalNuevaReserva({
             </div>
 
             <div>
-              <label htmlFor="numeroPersonas-camp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Número de Personas *
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Resumen horario
               </label>
-              <input
-                type="number"
-                id="numeroPersonas-camp"
-                min="1"
-                max={maxNumeroPersonas}
-                value={formData.numeroPersonas}
-                onChange={(e) => handleInputChange('numeroPersonas', Math.min(parseInt(e.target.value, 10) || 1, maxNumeroPersonas))}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                  errors.numeroPersonas ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
-                } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
-                placeholder="1"
-              />
-              {errors.numeroPersonas && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.numeroPersonas}</p>}
-              {actividadSeleccionada?.numero_personas ? (
-                <p className="mt-1 text-xs text-on-surface-variant">Máximo {actividadSeleccionada.numero_personas} personas para esta actividad.</p>
-              ) : (
-                <p className="mt-1 text-xs text-on-surface-variant">Sin límite de plazas configurado en la actividad.</p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="precio-camp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Precio Total (€)
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                id="precio-camp"
-                value={Number(formData.precio || 0).toFixed(2)}
-                onChange={(e) => handleInputChange('precio', parseFloat(e.target.value) || 0)}
-                disabled={!precioManualPendiente}
-                min="0"
-                step="0.01"
-                className={`w-full px-3 py-2 pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                  errors.precio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
-                } ${
-                  precioManualPendiente
-                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
-                    : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                }`}
-                placeholder="0.00"
-              />
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                <span className="text-gray-500 dark:text-gray-400 text-sm">€</span>
+              <div className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
+                {campHorarioResumen || 'Selecciona un turno válido'}
               </div>
             </div>
-            {precioManualPendiente ? (
-              <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                Este campamento no tiene un precio automático válido y debe indicarse manualmente.
-              </p>
-            ) : (
-              <p className="mt-1 text-xs text-on-surface-variant">
-                Precio calculado según la tarifa del campamento y el número de personas.
-              </p>
-            )}
-            {errors.precio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.precio}</p>}
           </div>
 
           <div>
@@ -3515,12 +3556,11 @@ export default function ModalNuevaReserva({
             </label>
             <textarea
               id="nota-camp"
-              rows={3}
+              rows={4}
               value={formData.nota}
               onChange={(e) => handleInputChange('nota', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
-              placeholder="Notas adicionales sobre el campamento..."
-              style={{ height: '88px', minHeight: '88px', maxHeight: '88px' }}
+              placeholder="Notas del programa de campamento..."
             />
           </div>
         </div>
@@ -3549,8 +3589,8 @@ export default function ModalNuevaReserva({
                   <div className="mt-1 font-semibold text-on-surface">{campOccurrences.length}</div>
                 </div>
                 <div className="rounded-2xl bg-surface-container px-4 py-3">
-                  <div className="text-xs uppercase tracking-[0.14em]">Precio</div>
-                  <div className="mt-1 font-semibold text-on-surface">{Number(formData.precio || 0).toFixed(2)} €</div>
+                  <div className="text-xs uppercase tracking-[0.14em]">Flujo</div>
+                  <div className="mt-1 font-semibold text-on-surface">Programa base</div>
                 </div>
               </div>
               {campFirstOccurrence && campLastOccurrence ? (
@@ -3585,6 +3625,9 @@ export default function ModalNuevaReserva({
                 ) : null}
               </div>
             )}
+            <div className="mt-4 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm text-primary-dark">
+              Este paso crea el programa principal. Las familias y pagos se añadirán después desde el detalle del programa.
+            </div>
           </div>
         </div>
       </div>
@@ -3611,7 +3654,7 @@ export default function ModalNuevaReserva({
             disabled={loadingActividades}
             className="primary-gradient inline-flex items-center rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
           >
-            Continuar al pago
+            Crear programa
             <ChevronRightIcon className="ml-2 h-4 w-4" />
           </button>
         </div>
@@ -4038,7 +4081,7 @@ export default function ModalNuevaReserva({
               >
                 <option value="">Selecciona una duración</option>
                 {tarifasActividad.map((tarifa) => {
-                  const durationValue = `${tarifa.duracion_valor}-${tarifa.duracion_unidad}`;
+                  const durationValue = buildTarifaDurationValue(tarifa);
                   return (
                     <option key={tarifa.id} value={durationValue}>
                       {formatDurationLabel(durationValue)}
@@ -4323,6 +4366,18 @@ export default function ModalNuevaReserva({
       </div>
     </>
   );
+
+  if (campamentoProgramaContext) {
+    return (
+      <ModalNuevaReservaCampamentoInscripcion
+        isOpen={isOpen}
+        programa={campamentoProgramaContext}
+        onClose={handleClose}
+        onSubmit={onSubmit}
+        onToast={onToast}
+      />
+    );
+  }
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
