@@ -11,9 +11,9 @@ import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 import TableSkeleton from '@/components/shared/TableSkeleton';
 import OverlayPanel from '@/components/shared/OverlayPanel';
 
-const UserIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+const NewItemIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
   </svg>
 );
 
@@ -202,18 +202,18 @@ export default function ClientesPage() {
 
   return (
     <div className="page-container space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Clientes</h1>
         <Button
           variant="primary"
-          icon={<UserIcon />}
-          className="primary-gradient min-h-11 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110 sm:w-auto"
+          icon={<NewItemIcon />}
+          className="primary-gradient min-h-11 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
           onClick={() => {
             setModoModal('nuevo');
             setIsModalOpen(true);
           }}
         >
-          Nuevo Cliente
+          Nuevo
         </Button>
       </div>
 

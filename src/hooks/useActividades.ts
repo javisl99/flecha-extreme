@@ -147,6 +147,29 @@ export interface SiguienteDisponibilidadServicio {
   motivo?: string;
 }
 
+export interface ReservaItem {
+  id: string;
+  inicio: string;
+  fin: string;
+  cantidad: number;
+  precio_unitario?: number;
+  subtotal: number;
+  estado: string;
+  tarifa_id?: string | null;
+  tarifa_codigo?: string | null;
+  tarifa_nombre?: string | null;
+  metadata?: ReservaServicioItemMetadata;
+}
+
+export interface ReservaServicioItemInput {
+  inicio: string;
+  fin: string;
+  cantidad: number;
+  subtotal: number;
+  tarifa_id?: string | null;
+  metadata?: ReservaServicioItemMetadata;
+}
+
 export interface Reserva {
   id: string;
   kind?: 'reserva' | 'campamento_programa';
@@ -169,6 +192,8 @@ export interface Reserva {
   cantidad_reservada: number;
   numero_personas_reserva?: number;
   metadata?: ReservaServicioItemMetadata;
+  items?: ReservaItem[];
+  numero_tramos?: number;
   nota?: string;
   ticket_url?: string;
   ticket_url_reserva?: string;
@@ -253,6 +278,111 @@ const CATEGORIA_TO_TIPO: Record<CategoriaServicio, ActividadDB['tipo']> = {
 type MetodoPago = 'efectivo' | 'tpv' | 'tpv_online' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles' | 'transferencia';
 
 const ESTADOS_RESERVA = ['confirmada', 'pendiente', 'completada', 'cancelada'] as const;
+
+function compareIsoDateStrings(left: string, right: string) {
+  return new Date(left).getTime() - new Date(right).getTime();
+}
+
+function normalizeReservaItems(
+  rawItems: Array<{
+    id?: string | null;
+    inicio?: string | null;
+    fin?: string | null;
+    cantidad?: number | string | null;
+    precio_unitario?: number | string | null;
+    subtotal?: number | string | null;
+    estado?: string | null;
+    tarifa_id?: string | null;
+    metadata?: ReservaServicioItemMetadata | null;
+    tarifa?: { id?: string | null; codigo?: string | null; nombre_tarifa?: string | null } | Array<{ id?: string | null; codigo?: string | null; nombre_tarifa?: string | null }> | null;
+  }> | null | undefined
+): ReservaItem[] {
+  return (rawItems ?? [])
+    .filter((item): item is NonNullable<typeof item> => Boolean(item?.inicio && item?.fin))
+    .map((item, index) => {
+      const tarifaRaw = Array.isArray(item.tarifa) ? item.tarifa[0] : item.tarifa;
+      return {
+        id: item.id ?? `item-${index}`,
+        inicio: item.inicio ?? '',
+        fin: item.fin ?? '',
+        cantidad: Number(item.cantidad ?? 1),
+        precio_unitario: item.precio_unitario !== undefined && item.precio_unitario !== null ? Number(item.precio_unitario) : undefined,
+        subtotal: Number(item.subtotal ?? 0),
+        estado: item.estado ?? 'pendiente',
+        tarifa_id: item.tarifa_id ?? null,
+        tarifa_codigo: tarifaRaw?.codigo ?? null,
+        tarifa_nombre: tarifaRaw?.nombre_tarifa ?? null,
+        metadata: (item.metadata as ReservaServicioItemMetadata | null) ?? undefined
+      };
+    })
+    .sort((left, right) => compareIsoDateStrings(left.inicio, right.inicio));
+}
+
+function buildReservaFromRow(row: {
+  id: string;
+  cliente_id?: string | null;
+  campamento_programa_id?: string | null;
+  estado: string;
+  observaciones?: string | null;
+  total_neto?: number | string | null;
+  ticket_url?: string | null;
+  ticket_url_reserva?: string | null;
+  created_at: string;
+  cliente?: { id?: string; nombre: string; apellidos: string } | Array<{ id?: string; nombre: string; apellidos: string }> | null;
+  empresa?: { id?: string; nombre: string } | Array<{ id?: string; nombre: string }> | null;
+  items?: Array<{
+    id?: string | null;
+    inicio?: string | null;
+    fin?: string | null;
+    cantidad?: number | string | null;
+    precio_unitario?: number | string | null;
+    subtotal?: number | string | null;
+    estado?: string | null;
+    tarifa_id?: string | null;
+    metadata?: ReservaServicioItemMetadata | null;
+    servicio?: { id?: string | null; nombre?: string | null; categoria?: string | null } | Array<{ id?: string | null; nombre?: string | null; categoria?: string | null }> | null;
+    tarifa?: { id?: string | null; codigo?: string | null; nombre_tarifa?: string | null } | Array<{ id?: string | null; codigo?: string | null; nombre_tarifa?: string | null }> | null;
+  }> | null;
+}): Reserva {
+  const items = normalizeReservaItems(row.items);
+  const firstItem = items[0];
+  const clienteItem = Array.isArray(row.cliente) ? row.cliente[0] : row.cliente;
+  const empresaItem = Array.isArray(row.empresa) ? row.empresa[0] : row.empresa;
+  const firstRawItem = (row.items ?? [])[0];
+  const servicioItem = Array.isArray(firstRawItem?.servicio) ? firstRawItem.servicio[0] : firstRawItem?.servicio;
+  const actividadNombre = servicioItem?.nombre ?? 'Actividad no encontrada';
+  const itemMetadata = firstItem?.metadata;
+  const fechaInicio = firstItem?.inicio ?? row.created_at;
+  const fechaFin = items.length > 0 ? items[items.length - 1].fin : row.created_at;
+
+  return {
+    id: row.id,
+    kind: 'reserva',
+    id_cliente: row.cliente_id ?? undefined,
+    cliente: clienteItem
+      ? {
+          id: clienteItem.id,
+          nombre: clienteItem.nombre,
+          apellidos: clienteItem.apellidos
+        }
+      : undefined,
+    actividad: { nombre: actividadNombre },
+    empresa: empresaItem ? { nombre: empresaItem.nombre } : undefined,
+    fecha_inicio: fechaInicio,
+    fecha_fin: fechaFin,
+    precio: Number(row.total_neto ?? items.reduce((total, item) => total + item.subtotal, 0)),
+    estado: row.estado,
+    cantidad_reservada: Number(firstItem?.cantidad ?? 1),
+    numero_personas_reserva: Number(itemMetadata?.numero_personas ?? firstItem?.cantidad ?? 1),
+    metadata: itemMetadata,
+    items,
+    numero_tramos: items.length,
+    nota: row.observaciones ?? undefined,
+    ticket_url: row.ticket_url ?? undefined,
+    ticket_url_reserva: row.ticket_url_reserva ?? undefined,
+    campamento_programa_id: row.campamento_programa_id ?? null
+  };
+}
 
 function mapServicioToActividadDB(servicio: {
   id: string;
@@ -1485,6 +1615,7 @@ export function useActividades() {
     id_actividad: string;
     id_empresa: string;
     cantidad_reservada: number;
+    tarifa_id?: string | null;
     numero_personas?: number;
     precio: number;
     fecha_inicio: string;
@@ -1492,14 +1623,54 @@ export function useActividades() {
     estado: 'confirmada' | 'pendiente' | 'completada' | 'cancelada';
     nota?: string;
     metadata?: ReservaServicioItemMetadata;
+    items?: ReservaServicioItemInput[];
   }): Promise<{ success: boolean; message: string; reservaId?: string }> => {
     try {
       setLoading(true);
       setError(null);
 
-      const precioTotal = Number(datosReserva.precio ?? 0);
-      const cantidad = Math.max(1, Number(datosReserva.cantidad_reservada ?? 1));
-      const precioUnitario = cantidad > 0 ? Number((precioTotal / cantidad).toFixed(2)) : precioTotal;
+      const fallbackCantidad = Math.max(1, Number(datosReserva.cantidad_reservada ?? 1));
+      const rawItems = datosReserva.items && datosReserva.items.length > 0
+        ? datosReserva.items
+        : [{
+            inicio: datosReserva.fecha_inicio,
+            fin: datosReserva.fecha_fin,
+            cantidad: fallbackCantidad,
+            subtotal: Number(datosReserva.precio ?? 0),
+            tarifa_id: datosReserva.tarifa_id ?? null,
+            metadata: datosReserva.metadata
+          }];
+      const itemsPayload = rawItems.map((item) => {
+        const cantidad = Math.max(1, Number(item.cantidad ?? fallbackCantidad));
+        const subtotal = Number(item.subtotal ?? 0);
+        const metadata: ReservaServicioItemMetadata = {
+          ...(datosReserva.metadata ?? {}),
+          ...(item.metadata ?? {})
+        };
+
+        if (datosReserva.numero_personas && datosReserva.numero_personas > 0) {
+          metadata.numero_personas = datosReserva.numero_personas;
+        }
+
+        return {
+          servicio_id: datosReserva.id_actividad,
+          tarifa_id: item.tarifa_id ?? datosReserva.tarifa_id ?? null,
+          inicio: item.inicio,
+          fin: item.fin,
+          cantidad,
+          precio_unitario: cantidad > 0 ? Number((subtotal / cantidad).toFixed(2)) : subtotal,
+          descuento_unitario: 0,
+          subtotal,
+          deposito_requerido: 0,
+          deposito_cobrado: 0,
+          estado: datosReserva.estado,
+          notas: datosReserva.nota ?? null,
+          metadata
+        };
+      });
+      const precioTotal = Number(
+        itemsPayload.reduce((total, item) => total + Number(item.subtotal ?? 0), 0).toFixed(2)
+      );
 
       const { data: reservaData, error: reservaError } = await supabase
         .from('reserva_servicio')
@@ -1524,31 +1695,12 @@ export function useActividades() {
         throw reservaError ?? new Error('No se pudo crear la reserva');
       }
 
-      const itemMetadata: ReservaServicioItemMetadata = {
-        ...(datosReserva.metadata ?? {})
-      };
-
-      if (datosReserva.numero_personas && datosReserva.numero_personas > 0) {
-        itemMetadata.numero_personas = datosReserva.numero_personas;
-      }
-
-      const { error: itemError } = await supabase.from('reserva_servicio_item').insert([
-        {
+      const { error: itemError } = await supabase.from('reserva_servicio_item').insert(
+        itemsPayload.map((item) => ({
           reserva_id: reservaData.id,
-          servicio_id: datosReserva.id_actividad,
-          inicio: datosReserva.fecha_inicio,
-          fin: datosReserva.fecha_fin,
-          cantidad,
-          precio_unitario: precioUnitario,
-          descuento_unitario: 0,
-          subtotal: precioTotal,
-          deposito_requerido: 0,
-          deposito_cobrado: 0,
-          estado: datosReserva.estado,
-          notas: datosReserva.nota ?? null,
-          metadata: itemMetadata
-        }
-      ]);
+          ...item
+        }))
+      );
 
       if (itemError) {
         await supabase.from('reserva_servicio').delete().eq('id', reservaData.id);
@@ -1703,10 +1855,13 @@ export function useActividades() {
             inicio,
             fin,
             cantidad,
+            precio_unitario,
             subtotal,
-          estado,
-          metadata,
-          servicio:servicio(id, nombre, categoria)
+            estado,
+            tarifa_id,
+            metadata,
+            servicio:servicio(id, nombre, categoria),
+            tarifa:servicio_tarifa(id,codigo,nombre_tarifa)
           )
         `)
         .order('created_at', { ascending: false });
@@ -1715,40 +1870,7 @@ export function useActividades() {
         throw fetchError;
       }
 
-      const reservasBase: Reserva[] = (data ?? []).map((r) => {
-        const firstItem = (r.items ?? [])[0];
-        const servicioItem = Array.isArray(firstItem?.servicio) ? firstItem.servicio[0] : firstItem?.servicio;
-        const clienteItem = Array.isArray(r.cliente) ? r.cliente[0] : r.cliente;
-        const empresaItem = Array.isArray(r.empresa) ? r.empresa[0] : r.empresa;
-        const actividadNombre = servicioItem?.nombre ?? 'Actividad no encontrada';
-        const itemMetadata = (firstItem?.metadata as ReservaServicioItemMetadata | null) ?? undefined;
-
-        return {
-          id: r.id,
-          kind: 'reserva',
-          id_cliente: r.cliente_id ?? undefined,
-          cliente: clienteItem
-            ? {
-                id: clienteItem.id,
-                nombre: clienteItem.nombre,
-                apellidos: clienteItem.apellidos
-              }
-            : undefined,
-          actividad: { nombre: actividadNombre },
-          empresa: empresaItem ? { nombre: empresaItem.nombre } : undefined,
-          fecha_inicio: firstItem?.inicio ?? r.created_at,
-          fecha_fin: firstItem?.fin ?? r.created_at,
-          precio: Number(r.total_neto ?? firstItem?.subtotal ?? 0),
-          estado: r.estado,
-          cantidad_reservada: Number(firstItem?.cantidad ?? 1),
-          numero_personas_reserva: Number(itemMetadata?.numero_personas ?? firstItem?.cantidad ?? 1),
-          metadata: itemMetadata,
-          nota: r.observaciones ?? undefined,
-          ticket_url: r.ticket_url ?? undefined,
-          ticket_url_reserva: r.ticket_url_reserva ?? undefined,
-          campamento_programa_id: r.campamento_programa_id ?? null
-        };
-      });
+      const reservasBase: Reserva[] = (data ?? []).map((row) => buildReservaFromRow(row));
 
       const reservas = reservasBase.filter((reserva) => {
         if (!reserva.campamento_programa_id) {
@@ -1796,6 +1918,69 @@ export function useActividades() {
       setLoading(false);
     }
   }, [obtenerProgramasCampamento, supabase]);
+
+  const obtenerReservaPorId = useCallback(async (
+    reservaId: string
+  ): Promise<{ success: boolean; reserva?: Reserva; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error: fetchError } = await supabase
+        .from('reserva_servicio')
+        .select(`
+          id,
+          cliente_id,
+          campamento_programa_id,
+          estado,
+          observaciones,
+          total_neto,
+          ticket_url,
+          ticket_url_reserva,
+          created_at,
+          cliente:cliente(id, nombre, apellidos, movil, email),
+          empresa:empresa(id, nombre),
+          items:reserva_servicio_item(
+            id,
+            inicio,
+            fin,
+            cantidad,
+            precio_unitario,
+            subtotal,
+            estado,
+            tarifa_id,
+            metadata,
+            servicio:servicio(id, nombre, categoria),
+            tarifa:servicio_tarifa(id,codigo,nombre_tarifa)
+          )
+        `)
+        .eq('id', reservaId)
+        .maybeSingle();
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      if (!data) {
+        return { success: false, message: 'Reserva no encontrada' };
+      }
+
+      const reserva: Reserva = buildReservaFromRow(data);
+
+      return {
+        success: true,
+        reserva,
+        message: 'Reserva obtenida correctamente'
+      };
+    } catch (err: unknown) {
+      console.error('Error al obtener reserva por id:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al obtener reserva por id';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase]);
 
   const actualizarReserva = async (id: string, datosReserva: {
     estado?: 'confirmada' | 'pendiente' | 'completada' | 'cancelada';
@@ -2287,6 +2472,7 @@ export function useActividades() {
     obtenerIdEmpresa,
     obtenerIdCliente,
     obtenerReservas,
+    obtenerReservaPorId,
     actualizarReserva,
     eliminarReserva,
     consultarStockDisponible,

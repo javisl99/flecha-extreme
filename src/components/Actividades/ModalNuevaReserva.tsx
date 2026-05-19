@@ -33,11 +33,20 @@ interface ModalNuevaReservaProps {
     cantidadReservada: number;
     numeroPersonas: number;
     precio: number;
+    tarifaId?: string;
     fechaInicio: string;
     fechaFin: string;
     horaInicio: string;
     horaFin: string;
     nota?: string;
+    rangos?: Array<{
+      id: string;
+      fechaInicio: string;
+      fechaFin: string;
+      horaInicio: string;
+      horaFin: string;
+      duracionMin: number;
+    }>;
     campamentoMetadata?: CampamentoMetadata;
     reservaFechaInicio?: string;
     reservaFechaFin?: string;
@@ -63,6 +72,14 @@ interface RentalAvailabilityState {
   reservadas?: number;
   checkedDurationMin?: number;
   suggestion?: RentalSuggestion;
+}
+
+interface CursoRangeDraft {
+  id: string;
+  fechaInicio: string;
+  fechaFin: string;
+  horaInicio: string;
+  horaFin: string;
 }
 
 const EMPTY_RENTAL_AVAILABILITY: RentalAvailabilityState = {
@@ -218,6 +235,21 @@ function formatDisplayDate(fecha: string) {
   });
 }
 
+const spanishNumberFormatter = new Intl.NumberFormat('es-ES', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2
+});
+
+const spanishPriceFormatter = new Intl.NumberFormat('es-ES', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
+function formatSpanishNumber(value: number, options?: { fixedDecimals?: boolean }) {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  return options?.fixedDecimals ? spanishPriceFormatter.format(safeValue) : spanishNumberFormatter.format(safeValue);
+}
+
 function formatDurationLabel(value: string) {
   if (!value) return '';
 
@@ -229,39 +261,86 @@ function formatDurationLabel(value: string) {
 
   if (rawUnit === 'minuto' || rawUnit === 'minutos') {
     if (amount < 60) {
-      return `${amount} ${amount === 1 ? 'minuto' : 'minutos'}`;
+      return `${formatSpanishNumber(amount)} ${amount === 1 ? 'minuto' : 'minutos'}`;
     }
 
     const hours = Math.floor(amount / 60);
     const minutes = amount % 60;
     if (minutes === 0) {
-      return `${hours} ${hours === 1 ? 'hora' : 'horas'}`;
+      return `${formatSpanishNumber(hours)} ${hours === 1 ? 'hora' : 'horas'}`;
     }
 
-    return `${hours} ${hours === 1 ? 'hora' : 'horas'} y ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
+    return `${formatSpanishNumber(hours)} ${hours === 1 ? 'hora' : 'horas'} y ${formatSpanishNumber(minutes)} ${minutes === 1 ? 'minuto' : 'minutos'}`;
   }
 
   if (rawUnit === 'hora' || rawUnit === 'horas') {
-    return `${amount} ${amount === 1 ? 'hora' : 'horas'}`;
+    return `${formatSpanishNumber(amount)} ${amount === 1 ? 'hora' : 'horas'}`;
   }
 
   if (rawUnit === 'dia' || rawUnit === 'dias') {
-    return `${amount} ${amount === 1 ? 'día' : 'días'}`;
+    return `${formatSpanishNumber(amount)} ${amount === 1 ? 'día' : 'días'}`;
   }
 
   if (rawUnit === 'semana' || rawUnit === 'semanas') {
-    return `${amount} ${amount === 1 ? 'semana' : 'semanas'}`;
+    return `${formatSpanishNumber(amount)} ${amount === 1 ? 'semana' : 'semanas'}`;
   }
 
   if (rawUnit === 'mes' || rawUnit === 'meses') {
-    return `${amount} ${amount === 1 ? 'mes' : 'meses'}`;
+    return `${formatSpanishNumber(amount)} ${amount === 1 ? 'mes' : 'meses'}`;
   }
 
   if (rawUnit === 'año' || rawUnit === 'años') {
-    return `${amount} ${amount === 1 ? 'año' : 'años'}`;
+    return `${formatSpanishNumber(amount)} ${amount === 1 ? 'año' : 'años'}`;
   }
 
   return value;
+}
+
+function getTarifaNombreLabel(tarifa: TarifaActividad) {
+  const metadataLabel = typeof tarifa.metadata?.nombre_comercial === 'string' ? tarifa.metadata.nombre_comercial : '';
+  return metadataLabel || tarifa.nombre_tarifa || formatDurationLabel(buildTarifaDurationValue(tarifa));
+}
+
+function tarifaPermiteMultiTramo(tarifa: TarifaActividad | null) {
+  return tarifa?.metadata?.permite_multi_tramo === true;
+}
+
+function createCursoRangeDraft(dateValue = getTodayInputValue(), timeValue = getCurrentTimeInputValue()): CursoRangeDraft {
+  return {
+    id: `${dateValue}-${timeValue}-${Math.random().toString(36).slice(2, 8)}`,
+    fechaInicio: dateValue,
+    fechaFin: dateValue,
+    horaInicio: timeValue,
+    horaFin: ''
+  };
+}
+
+function calculateCourseRangeDuration(range: CursoRangeDraft) {
+  if (!range.fechaInicio || !range.fechaFin || !range.horaInicio || !range.horaFin) {
+    return 0;
+  }
+
+  const inicio = new Date(`${range.fechaInicio}T${range.horaInicio}:00`);
+  const fin = new Date(`${range.fechaFin}T${range.horaFin}:00`);
+  const diffMs = fin.getTime() - inicio.getTime();
+
+  if (!Number.isFinite(diffMs) || diffMs <= 0) {
+    return 0;
+  }
+
+  return Math.round(diffMs / 60000);
+}
+
+function compareCursoRanges(left: CursoRangeDraft, right: CursoRangeDraft) {
+  return new Date(`${left.fechaInicio}T${left.horaInicio}:00`).getTime() - new Date(`${right.fechaInicio}T${right.horaInicio}:00`).getTime();
+}
+
+function formatMinutesSummary(totalMinutes: number) {
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) {
+    return '0 minutos';
+  }
+
+  return formatDurationLabel(buildDurationValue(totalMinutes, 'minuto'));
 }
 
 function requiresManualPrice(tarifa: TarifaActividad | null) {
@@ -270,6 +349,20 @@ function requiresManualPrice(tarifa: TarifaActividad | null) {
   }
 
   return tarifa.precio === 0 || tarifa.metadata?.precio_manual === true;
+}
+
+function getRouteMaterialLabels(poolCode?: string | null) {
+  const normalized = (poolCode ?? '').toLowerCase();
+
+  if (normalized === 'kayak') {
+    return { pluralDisplay: 'Kayaks', pluralText: 'kayaks' };
+  }
+
+  if (normalized === 'paddlesup') {
+    return { pluralDisplay: 'PaddleSUPs', pluralText: 'paddleSUPs' };
+  }
+
+  return { pluralDisplay: 'Unidades', pluralText: 'unidades' };
 }
 
 export default function ModalNuevaReserva({
@@ -298,6 +391,7 @@ export default function ModalNuevaReserva({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showModalPago, setShowModalPago] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [closingCampamentoFlow, setClosingCampamentoFlow] = useState(false);
   const [stockInfo, setStockInfo] = useState<{
     stockDisponible: number;
     stockTotal: number;
@@ -308,6 +402,12 @@ export default function ModalNuevaReserva({
   const [rentalAvailability, setRentalAvailability] = useState<RentalAvailabilityState>(EMPTY_RENTAL_AVAILABILITY);
   const [campHorarioReglas, setCampHorarioReglas] = useState<ServicioHorarioRegla[]>([]);
   const [campTurnoSeleccionado, setCampTurnoSeleccionado] = useState('');
+  const [showCourseRangesModal, setShowCourseRangesModal] = useState(false);
+  const [courseRanges, setCourseRanges] = useState<CursoRangeDraft[]>([]);
+  const [courseRangeEditor, setCourseRangeEditor] = useState<CursoRangeDraft[]>([]);
+  const [courseRangeErrors, setCourseRangeErrors] = useState<Record<string, string>>({});
+  const [isValidatingCourseRanges, setIsValidatingCourseRanges] = useState(false);
+  const [courseRangesValidationMessage, setCourseRangesValidationMessage] = useState('');
 
   const isRental = formData.tipoActividad === 'alquiler';
   const isCourse = formData.tipoActividad === 'curso';
@@ -336,9 +436,33 @@ export default function ModalNuevaReserva({
     () => (isRental ? tarifaSeleccionada : null),
     [isRental, tarifaSeleccionada]
   );
+  const courseSelectedTariff = useMemo(
+    () => (isCourse ? tarifaSeleccionada : null),
+    [isCourse, tarifaSeleccionada]
+  );
+  const courseDurationSelectedMin = useMemo(
+    () => (isCourse ? getDurationMinutes(formData.duracion) : null),
+    [formData.duracion, isCourse]
+  );
+  const isCourseMultiRangeTariff = useMemo(
+    () => tarifaPermiteMultiTramo(courseSelectedTariff),
+    [courseSelectedTariff]
+  );
   const rentalDurationSelectedMin = useMemo(
     () => (isRental ? getDurationMinutes(formData.duracion) : null),
     [formData.duracion, isRental]
+  );
+  const routeHasFixedDuration = useMemo(() => {
+    if (!isRoute || tarifasActividad.length !== 1) {
+      return false;
+    }
+
+    const durationMin = getDurationMinutes(buildTarifaDurationValue(tarifasActividad[0]));
+    return durationMin !== null && durationMin > 0;
+  }, [isRoute, tarifasActividad]);
+  const routeMaterialLabels = useMemo(
+    () => getRouteMaterialLabels(actividadSeleccionada?.pool_inventario_codigo),
+    [actividadSeleccionada?.pool_inventario_codigo]
   );
   const usesPerPersonPricing = useMemo(
     () => !isRental && (actividadSeleccionada?.modo_precio === 'por_persona' || isCourse),
@@ -461,6 +585,35 @@ export default function ModalNuevaReserva({
     () => (campamentoMetadata ? buildCampamentoDateRangeLabel(campamentoMetadata) : ''),
     [campamentoMetadata]
   );
+  const sortedCourseRanges = useMemo(
+    () => [...courseRanges].sort(compareCursoRanges),
+    [courseRanges]
+  );
+  const courseAssignedMinutes = useMemo(
+    () => sortedCourseRanges.reduce((total, range) => total + calculateCourseRangeDuration(range), 0),
+    [sortedCourseRanges]
+  );
+  const courseRemainingMinutes = useMemo(() => {
+    if (!courseDurationSelectedMin) {
+      return 0;
+    }
+
+    return courseDurationSelectedMin - courseAssignedMinutes;
+  }, [courseAssignedMinutes, courseDurationSelectedMin]);
+  const courseRangeAggregate = useMemo(() => {
+    if (sortedCourseRanges.length === 0) {
+      return null;
+    }
+
+    const first = sortedCourseRanges[0];
+    const last = sortedCourseRanges[sortedCourseRanges.length - 1];
+    return {
+      fechaInicio: first.fechaInicio,
+      fechaFin: last.fechaFin,
+      horaInicio: first.horaInicio,
+      horaFin: last.horaFin
+    };
+  }, [sortedCourseRanges]);
 
   const rentalDurationOptions = useMemo(() => {
     if (!isRental) return [];
@@ -578,14 +731,63 @@ export default function ModalNuevaReserva({
     setRentalAvailability(EMPTY_RENTAL_AVAILABILITY);
     setCampHorarioReglas([]);
     setCampTurnoSeleccionado('');
+    setShowCourseRangesModal(false);
+    setCourseRanges([]);
+    setCourseRangeEditor([]);
+    setCourseRangeErrors({});
+    setIsValidatingCourseRanges(false);
+    setCourseRangesValidationMessage('');
     setErrors({});
   };
 
   useEffect(() => {
     if (isOpen) {
+      setClosingCampamentoFlow(false);
       resetModalState();
+      return;
     }
+
+    setClosingCampamentoFlow(false);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isCourseMultiRangeTariff) {
+      if (courseRanges.length > 0) {
+        setCourseRanges([]);
+      }
+      if (courseRangeEditor.length > 0) {
+        setCourseRangeEditor([]);
+      }
+      if (courseRangesValidationMessage) {
+        setCourseRangesValidationMessage('');
+      }
+      return;
+    }
+
+    setFormData((prev) => {
+      const nextFechaInicio = courseRangeAggregate?.fechaInicio ?? '';
+      const nextFechaFin = courseRangeAggregate?.fechaFin ?? '';
+      const nextHoraInicio = courseRangeAggregate?.horaInicio ?? '';
+      const nextHoraFin = courseRangeAggregate?.horaFin ?? '';
+
+      if (
+        prev.fechaInicio === nextFechaInicio &&
+        prev.fechaFin === nextFechaFin &&
+        prev.horaInicio === nextHoraInicio &&
+        prev.horaFin === nextHoraFin
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        fechaInicio: nextFechaInicio,
+        fechaFin: nextFechaFin,
+        horaInicio: nextHoraInicio,
+        horaFin: nextHoraFin
+      };
+    });
+  }, [courseRangeAggregate, courseRangeEditor.length, courseRanges, courseRangesValidationMessage, isCourseMultiRangeTariff]);
 
   const consultarStock = async (
     actividadId: string,
@@ -634,6 +836,17 @@ export default function ModalNuevaReserva({
     horaFin: formData.horaFin,
     nota: formData.nota,
     campamentoMetadata: campamentoMetadata ?? undefined,
+    tarifaId: tarifaSeleccionada?.id,
+    rangos: isCourseMultiRangeTariff
+      ? sortedCourseRanges.map((range) => ({
+          id: range.id,
+          fechaInicio: range.fechaInicio,
+          fechaFin: range.fechaFin,
+          horaInicio: range.horaInicio,
+          horaFin: range.horaFin,
+          duracionMin: calculateCourseRangeDuration(range)
+        }))
+      : undefined,
     reservaFechaInicio: campFirstOccurrence?.date ?? formData.fechaInicio,
     reservaFechaFin: campLastOccurrence?.date ?? formData.fechaFin,
     resumenHorario: isCamp ? campHorarioResumen : undefined,
@@ -801,6 +1014,7 @@ export default function ModalNuevaReserva({
 
   const handleInputChange = async (field: string, value: string | number | boolean) => {
     const nextIsRental = field === 'tipoActividad' ? value === 'alquiler' : isRental;
+    const nextIsCourse = field === 'tipoActividad' ? value === 'curso' : isCourse;
     const nextIsCamp = field === 'tipoActividad' ? value === 'campamento' : isCamp;
     const nextIsBanana = field === 'tipoActividad'
       ? false
@@ -810,6 +1024,17 @@ export default function ModalNuevaReserva({
           formData.actividad.toLowerCase() === 'banana'
         );
     const nextIsRoute = field === 'tipoActividad' ? value === 'ruta' : isRoute;
+    const nextRouteFixedDuration =
+      nextIsRoute &&
+      tarifasActividad.length === 1 &&
+      (() => {
+        const durationMin = getDurationMinutes(buildTarifaDurationValue(tarifasActividad[0]));
+        return durationMin !== null && durationMin > 0;
+      })();
+
+    if (field === 'horaFin' && nextRouteFixedDuration) {
+      return;
+    }
 
     setFormData((prev) => {
       const newData = { ...prev, [field]: value };
@@ -950,6 +1175,13 @@ export default function ModalNuevaReserva({
 
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+
+    if (nextIsCourse && ['actividad', 'duracion', 'numeroPersonas'].includes(field)) {
+      setCourseRanges([]);
+      setCourseRangeEditor([]);
+      setCourseRangeErrors({});
+      setCourseRangesValidationMessage('');
     }
 
     if (field === 'tipoActividad') {
@@ -1273,6 +1505,143 @@ export default function ModalNuevaReserva({
     }
   };
 
+  const updateCourseRangeEditorField = (rangeId: string, field: keyof CursoRangeDraft, value: string) => {
+    setCourseRangeEditor((prev) =>
+      prev.map((range) => {
+        if (range.id !== rangeId) {
+          return range;
+        }
+
+        if (field === 'fechaInicio') {
+          return {
+            ...range,
+            fechaInicio: value,
+            fechaFin: value
+          };
+        }
+
+        return {
+          ...range,
+          [field]: value
+        };
+      })
+    );
+    setCourseRangeErrors((prev) => {
+      const next = { ...prev };
+      delete next[rangeId];
+      delete next.__summary;
+      return next;
+    });
+  };
+
+  const addCourseRangeEditorRow = () => {
+    const lastRange = courseRangeEditor[courseRangeEditor.length - 1];
+    setCourseRangeEditor((prev) => [
+      ...prev,
+      createCursoRangeDraft(lastRange?.fechaInicio || getTodayInputValue(), lastRange?.horaFin || lastRange?.horaInicio || getCurrentTimeInputValue())
+    ]);
+  };
+
+  const removeCourseRangeEditorRow = (rangeId: string) => {
+    setCourseRangeEditor((prev) => prev.filter((range) => range.id !== rangeId));
+    setCourseRangeErrors((prev) => {
+      const next = { ...prev };
+      delete next[rangeId];
+      delete next.__summary;
+      return next;
+    });
+  };
+
+  const validateAndSaveCourseRanges = async () => {
+    if (!actividadSeleccionada || !courseSelectedTariff || !courseDurationSelectedMin) {
+      return;
+    }
+
+    const nextErrors: Record<string, string> = {};
+    const normalizedRanges = [...courseRangeEditor];
+
+    if (normalizedRanges.length === 0) {
+      nextErrors.__summary = 'Añade al menos un tramo.';
+    }
+
+    normalizedRanges.forEach((range) => {
+      if (!range.fechaInicio || !range.horaInicio || !range.horaFin) {
+        nextErrors[range.id] = 'Completa fecha y horario del tramo.';
+        return;
+      }
+
+      if (range.fechaFin !== range.fechaInicio) {
+        nextErrors[range.id] = 'Cada tramo debe empezar y terminar el mismo día.';
+        return;
+      }
+
+      if (range.fechaInicio === today && range.horaInicio < getCurrentTimeInputValue()) {
+        nextErrors[range.id] = 'No puedes usar una hora de inicio anterior a la actual.';
+        return;
+      }
+
+      if (calculateCourseRangeDuration(range) <= 0) {
+        nextErrors[range.id] = 'La hora de fin debe ser posterior a la hora de inicio.';
+      }
+    });
+
+    const sortedRanges = normalizedRanges.sort(compareCursoRanges);
+    for (let index = 1; index < sortedRanges.length; index += 1) {
+      const prev = sortedRanges[index - 1];
+      const current = sortedRanges[index];
+      const prevEnd = new Date(`${prev.fechaFin}T${prev.horaFin}:00`).getTime();
+      const currentStart = new Date(`${current.fechaInicio}T${current.horaInicio}:00`).getTime();
+      if (prevEnd > currentStart) {
+        nextErrors[current.id] = 'Este tramo se solapa con el anterior.';
+      }
+    }
+
+    const assignedMinutes = sortedRanges.reduce((total, range) => total + calculateCourseRangeDuration(range), 0);
+    if (assignedMinutes !== courseDurationSelectedMin) {
+      nextErrors.__summary = `La suma de tramos debe completar exactamente ${formatMinutesSummary(courseDurationSelectedMin)}.`;
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setCourseRangeErrors(nextErrors);
+      return;
+    }
+
+    setIsValidatingCourseRanges(true);
+    try {
+      for (const range of sortedRanges) {
+        const availability = await consultarStockDisponible(
+          actividadSeleccionada.id,
+          range.fechaInicio,
+          range.horaInicio,
+          range.horaFin,
+          effectiveInventoryQuantity
+        );
+
+        if (!availability.success) {
+          nextErrors[range.id] = availability.message || 'No se pudo validar la disponibilidad de este tramo.';
+          continue;
+        }
+
+        if (!availability.disponible || (availability.stockDisponible ?? 0) < effectiveInventoryQuantity) {
+          nextErrors[range.id] = availability.message || 'No hay disponibilidad suficiente para este tramo.';
+        }
+      }
+
+      if (Object.keys(nextErrors).length > 0) {
+        setCourseRangeErrors(nextErrors);
+        return;
+      }
+
+      setCourseRanges(sortedRanges.map((range) => ({ ...range })));
+      setCourseRangeErrors({});
+      setCourseRangesValidationMessage('Tramos guardados y validados correctamente.');
+      setErrors((prev) => ({ ...prev, rangosCurso: '' }));
+      setShowCourseRangesModal(false);
+    } finally {
+      setIsValidatingCourseRanges(false);
+    }
+  };
+
   const handleCampTurnoChange = (turnoKey: string) => {
     setCampTurnoSeleccionado(turnoKey);
     setErrors((prev) => ({
@@ -1417,7 +1786,7 @@ export default function ModalNuevaReserva({
           : `El número máximo de personas es ${maxNumeroPersonas}`;
     }
 
-    if (stockInfo && stockInfo.stockDisponible < effectiveInventoryQuantity) {
+    if (!isCourseMultiRangeTariff && stockInfo && stockInfo.stockDisponible < effectiveInventoryQuantity) {
       if (usesGroupedInventory) {
         newErrors.numeroPersonas = `No hay material suficiente para ${formData.numeroPersonas} personas en esa franja.`;
       } else if (usesPerPersonPricing) {
@@ -1427,7 +1796,7 @@ export default function ModalNuevaReserva({
       }
     }
 
-    if (stockInfo && stockInfo.stockDisponible === 0) {
+    if (!isCourseMultiRangeTariff && stockInfo && stockInfo.stockDisponible === 0) {
       newErrors.actividad = usesGroupedInventory
         ? 'No hay material disponible para esta actividad en la fecha seleccionada'
         : usesPerPersonPricing
@@ -1439,22 +1808,36 @@ export default function ModalNuevaReserva({
       newErrors.precio = 'Debes indicar un precio manual mayor que 0';
     }
 
-    if (!formData.fechaInicio) {
-      newErrors.fechaInicio = 'La fecha de inicio es obligatoria';
-    }
+    if (isCourseMultiRangeTariff) {
+      if (courseRanges.length === 0) {
+        newErrors.rangosCurso = 'Debes configurar al menos un tramo para repartir las horas del curso.';
+      }
 
-    if (!formData.fechaFin) {
-      newErrors.fechaFin = 'La fecha de fin es obligatoria';
-    }
+      if (!courseDurationSelectedMin || courseAssignedMinutes !== courseDurationSelectedMin) {
+        newErrors.rangosCurso = `La suma de tramos debe completar exactamente ${formatDurationLabel(formData.duracion)}.`;
+      }
 
-    if (!formData.horaInicio) {
-      newErrors.horaInicio = 'La hora de inicio es obligatoria';
-    } else if (formData.fechaInicio === today && formData.horaInicio < getCurrentTimeInputValue()) {
-      newErrors.horaInicio = 'No se puede seleccionar una hora anterior a la hora actual';
-    }
+      if (courseRemainingMinutes !== 0) {
+        newErrors.rangosCurso = `Ajusta los tramos para cuadrar las ${formatDurationLabel(formData.duracion)} del curso.`;
+      }
+    } else {
+      if (!formData.fechaInicio) {
+        newErrors.fechaInicio = 'La fecha de inicio es obligatoria';
+      }
 
-    if (formData.fechaInicio && formData.fechaFin && formData.fechaFin < formData.fechaInicio) {
-      newErrors.fechaFin = 'La fecha de fin debe ser igual o posterior a la fecha de inicio';
+      if (!formData.fechaFin) {
+        newErrors.fechaFin = 'La fecha de fin es obligatoria';
+      }
+
+      if (!formData.horaInicio) {
+        newErrors.horaInicio = 'La hora de inicio es obligatoria';
+      } else if (formData.fechaInicio === today && formData.horaInicio < getCurrentTimeInputValue()) {
+        newErrors.horaInicio = 'No se puede seleccionar una hora anterior a la hora actual';
+      }
+
+      if (formData.fechaInicio && formData.fechaFin && formData.fechaFin < formData.fechaInicio) {
+        newErrors.fechaFin = 'La fecha de fin debe ser igual o posterior a la fecha de inicio';
+      }
     }
 
     setErrors(newErrors);
@@ -1818,11 +2201,22 @@ export default function ModalNuevaReserva({
         cantidadReservada: effectiveInventoryQuantity,
         numeroPersonas: formData.numeroPersonas,
         precio: formData.precio,
+        tarifaId: tarifaSeleccionada?.id,
         fechaInicio: formData.fechaInicio,
         fechaFin: formData.fechaFin,
         horaInicio: formData.horaInicio,
         horaFin: formData.horaFin,
         nota: formData.nota || undefined,
+        rangos: isCourseMultiRangeTariff
+          ? sortedCourseRanges.map((range) => ({
+              id: range.id,
+              fechaInicio: range.fechaInicio,
+              fechaFin: range.fechaFin,
+              horaInicio: range.horaInicio,
+              horaFin: range.horaFin,
+              duracionMin: calculateCourseRangeDuration(range)
+            }))
+          : undefined,
         campamentoMetadata: campamentoMetadata ?? undefined,
         reservaFechaInicio: campFirstOccurrence?.date ?? undefined,
         reservaFechaFin: campLastOccurrence?.date ?? undefined
@@ -1846,6 +2240,11 @@ export default function ModalNuevaReserva({
   const handleClose = () => {
     resetModalState();
     onClose();
+  };
+
+  const handleCloseCampamentoInscripcion = () => {
+    setClosingCampamentoFlow(true);
+    handleClose();
   };
 
   const handleUseSuggestedSlot = () => {
@@ -1969,6 +2368,74 @@ export default function ModalNuevaReserva({
   const renderCourseAvailabilityCard = () => {
     if (currentStep !== 2) return null;
 
+    if (isCourseMultiRangeTariff) {
+      const objetivoLabel = formData.duracion ? formatDurationLabel(formData.duracion) : 'la duración seleccionada';
+      return (
+        <div className="rounded-2xl border border-outline-variant/35 bg-surface-container-low px-4 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-on-surface">Distribución horaria del curso</p>
+              <p className="mt-1 text-sm text-on-surface-variant">
+                Reparte las {objetivoLabel} del curso en tantos tramos como necesites. Validaremos cada tramo antes de continuar.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setCourseRangeEditor(courseRanges.length > 0 ? courseRanges.map((range) => ({ ...range })) : [createCursoRangeDraft()]);
+                setCourseRangeErrors({});
+                setShowCourseRangesModal(true);
+              }}
+              className="inline-flex shrink-0 items-center rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/15 cursor-pointer"
+            >
+              Configurar rangos
+            </button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
+            <div className="rounded-xl bg-white/70 px-3 py-2 text-on-surface-variant">
+              <div className="font-bold text-on-surface">{sortedCourseRanges.length}</div>
+              <div>Tramos</div>
+            </div>
+            <div className="rounded-xl bg-white/70 px-3 py-2 text-on-surface-variant">
+              <div className="font-bold text-on-surface">{formatMinutesSummary(courseAssignedMinutes)}</div>
+              <div>Asignadas</div>
+            </div>
+            <div className="rounded-xl bg-white/70 px-3 py-2 text-on-surface-variant">
+              <div className={`font-bold ${courseRemainingMinutes === 0 ? 'text-green-700' : 'text-amber-700'}`}>
+                {formatMinutesSummary(Math.abs(courseRemainingMinutes))}
+              </div>
+              <div>{courseRemainingMinutes === 0 ? 'Completado' : courseRemainingMinutes > 0 ? 'Restantes' : 'Exceso'}</div>
+            </div>
+          </div>
+
+          {sortedCourseRanges.length > 0 ? (
+            <div className="mt-4 space-y-2">
+              {sortedCourseRanges.map((range, index) => (
+                <div key={range.id} className="rounded-xl border border-outline-variant/20 bg-surface-container-lowest px-3 py-2 text-sm text-on-surface">
+                  <span className="font-semibold">Tramo {index + 1}</span>
+                  <span className="ml-2 text-on-surface-variant">
+                    {formatDisplayDate(range.fechaInicio)} · {range.horaInicio} - {range.horaFin}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl border border-dashed border-outline-variant/50 px-3 py-3 text-sm text-on-surface-variant">
+              Aún no has configurado los rangos del curso.
+            </div>
+          )}
+
+          {courseRangesValidationMessage ? (
+            <p className="mt-3 text-sm text-green-700">{courseRangesValidationMessage}</p>
+          ) : null}
+          {errors.rangosCurso ? (
+            <p className="mt-3 text-sm text-red-600 dark:text-red-400">{errors.rangosCurso}</p>
+          ) : null}
+        </div>
+      );
+    }
+
     if (!actividadSeleccionada || !formData.fechaInicio || !formData.horaInicio || !formData.duracion || effectiveReservedQuantity < 1) {
       return (
         <div className="rounded-2xl border border-dashed border-outline-variant/50 bg-surface-container-low px-4 py-4 text-sm text-on-surface-variant">
@@ -2015,7 +2482,7 @@ export default function ModalNuevaReserva({
                 </div>
                 <div className="rounded-xl bg-white/70 px-3 py-2 dark:bg-green-950/20">
                   <div className="font-bold">{stockInfo.reservadas}</div>
-                  <div>{usesGroupedInventory ? 'Unidades reservadas' : 'Reservadas'}</div>
+                  <div>{usesGroupedInventory ? 'Uni. reservadas' : 'Reservadas'}</div>
                 </div>
               </div>
             </div>
@@ -2045,7 +2512,7 @@ export default function ModalNuevaReserva({
                 </div>
                 <div className="rounded-xl bg-white/70 px-3 py-2 dark:bg-red-950/20">
                   <div className="font-bold">{stockInfo.reservadas}</div>
-                  <div>{usesGroupedInventory ? 'Unidades reservadas' : 'Reservadas'}</div>
+                  <div>{usesGroupedInventory ? 'Uni. reservadas' : 'Reservadas'}</div>
                 </div>
               </div>
             </div>
@@ -2095,8 +2562,8 @@ export default function ModalNuevaReserva({
           <div className="min-w-0 flex-1">
             <p className={`text-sm font-semibold ${hasAvailability ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
               {hasAvailability
-                ? 'Hay kayaks disponibles para esta ruta en la franja seleccionada.'
-                : 'No hay kayaks suficientes para esta ruta en la franja seleccionada.'}
+                ? `Hay ${routeMaterialLabels.pluralText} disponibles para esta ruta en la franja seleccionada.`
+                : `No hay ${routeMaterialLabels.pluralText} suficientes para esta ruta en la franja seleccionada.`}
             </p>
             <div className={`mt-2 grid grid-cols-3 gap-3 text-xs ${hasAvailability ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
               <div className="rounded-xl bg-white/70 px-3 py-2 dark:bg-slate-950/20">
@@ -2483,7 +2950,7 @@ export default function ModalNuevaReserva({
                 </p>
               ) : (
                 <p className="mt-1 text-xs text-on-surface-variant">
-                  Precio calculado por persona{bananaBaseTariff ? ` (${Number(bananaBaseTariff.precio).toFixed(2)} € por persona)` : ''}.
+                  Precio calculado por persona{bananaBaseTariff ? ` (${formatSpanishNumber(Number(bananaBaseTariff.precio), { fixedDecimals: true })} € por persona)` : ''}.
                 </p>
               )}
               {errors.precio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.precio}</p>}
@@ -2533,7 +3000,7 @@ export default function ModalNuevaReserva({
                 </div>
                 <div className="rounded-2xl bg-surface-container px-4 py-3">
                   <div className="text-xs uppercase tracking-[0.14em]">Precio</div>
-                  <div className="mt-1 font-semibold text-on-surface">{Number(formData.precio || 0).toFixed(2)} €</div>
+                  <div className="mt-1 font-semibold text-on-surface">{formatSpanishNumber(Number(formData.precio || 0), { fixedDecimals: true })} €</div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 text-on-surface-variant">
@@ -2550,7 +3017,7 @@ export default function ModalNuevaReserva({
                 <div className="rounded-2xl bg-surface-container px-4 py-3 text-on-surface-variant">
                   <div className="text-xs uppercase tracking-[0.14em]">Tarifa base</div>
                   <p className="mt-1 font-semibold text-on-surface">
-                    {Number(bananaBaseTariff.precio).toFixed(2)} € por persona · {formatDurationLabel(buildTarifaDurationValue(bananaBaseTariff))}
+                    {formatSpanishNumber(Number(bananaBaseTariff.precio), { fixedDecimals: true })} € por persona · {formatDurationLabel(buildTarifaDurationValue(bananaBaseTariff))}
                   </p>
                 </div>
               ) : null}
@@ -3114,7 +3581,7 @@ export default function ModalNuevaReserva({
                       const durationValue = buildTarifaDurationValue(tarifa);
                       return (
                         <option key={tarifa.id} value={durationValue}>
-                          {formatDurationLabel(durationValue)}
+                          {getTarifaNombreLabel(tarifa)} · {formatDurationLabel(durationValue)} · {formatSpanishNumber(Number(tarifa.precio), { fixedDecimals: true })}€
                         </option>
                       );
                     })}
@@ -3161,76 +3628,105 @@ export default function ModalNuevaReserva({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <label htmlFor="fechaInicio-curso" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Fecha de Inicio *
-              </label>
-              <input
-                type="date"
-                id="fechaInicio-curso"
-                value={formData.fechaInicio}
-                onChange={(e) => handleInputChange('fechaInicio', e.target.value)}
-                min={today}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                  errors.fechaInicio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
-                } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
-              />
-              {errors.fechaInicio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.fechaInicio}</p>}
+          {isCourseMultiRangeTariff ? (
+            <div className="rounded-3xl border border-outline-variant/35 bg-surface-container-low p-4">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Curso multi-tramo</p>
+                  <p className="mt-1 text-sm text-on-surface-variant">
+                    Esta tarifa permite repartir sus horas en varios rangos. Configura los tramos desde el bloque de disponibilidad.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm md:min-w-[260px]">
+                  <div className="rounded-2xl bg-surface-container px-4 py-3">
+                    <div className="text-xs uppercase tracking-[0.14em] text-on-surface-variant">Primer tramo</div>
+                    <div className="mt-1 font-semibold text-on-surface">
+                      {courseRangeAggregate ? `${formatDisplayDate(courseRangeAggregate.fechaInicio)} · ${courseRangeAggregate.horaInicio}` : '--'}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-surface-container px-4 py-3">
+                    <div className="text-xs uppercase tracking-[0.14em] text-on-surface-variant">Último tramo</div>
+                    <div className="mt-1 font-semibold text-on-surface">
+                      {courseRangeAggregate ? `${formatDisplayDate(courseRangeAggregate.fechaFin)} · ${courseRangeAggregate.horaFin}` : '--'}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label htmlFor="fechaInicio-curso" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Fecha de Inicio *
+                  </label>
+                  <input
+                    type="date"
+                    id="fechaInicio-curso"
+                    value={formData.fechaInicio}
+                    onChange={(e) => handleInputChange('fechaInicio', e.target.value)}
+                    min={today}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                      errors.fechaInicio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                  />
+                  {errors.fechaInicio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.fechaInicio}</p>}
+                </div>
 
-        <div>
-          <label htmlFor="fechaFin-curso" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Fecha de Fin
-          </label>
-          <input
-            type="text"
-            id="fechaFin-curso"
-            value={formData.fechaFin ? formatDisplayDate(formData.fechaFin) : ''}
-            disabled
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-            placeholder="Se calculará automáticamente"
-          />
-          {errors.fechaFin && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.fechaFin}</p>}
-        </div>
-          </div>
+                <div>
+                  <label htmlFor="fechaFin-curso" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Fecha de Fin
+                  </label>
+                  <input
+                    type="text"
+                    id="fechaFin-curso"
+                    value={formData.fechaFin ? formatDisplayDate(formData.fechaFin) : ''}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                    placeholder="Se calculará automáticamente"
+                  />
+                  {errors.fechaFin && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.fechaFin}</p>}
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <label htmlFor="horaInicio-curso" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Hora de Inicio *
-              </label>
-              <input
-                type="time"
-                id="horaInicio-curso"
-                value={formData.horaInicio}
-                onChange={(e) => handleInputChange('horaInicio', e.target.value)}
-                disabled={!formData.fechaInicio}
-                min={formData.fechaInicio === today ? getCurrentTimeInputValue() : undefined}
-                step={timeInputStepSeconds}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                  !formData.fechaInicio ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-                } ${
-                  errors.horaInicio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
-                } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed`}
-              />
-              {errors.horaInicio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.horaInicio}</p>}
-            </div>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label htmlFor="horaInicio-curso" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Hora de Inicio *
+                  </label>
+                  <input
+                    type="time"
+                    id="horaInicio-curso"
+                    value={formData.horaInicio}
+                    onChange={(e) => handleInputChange('horaInicio', e.target.value)}
+                    disabled={!formData.fechaInicio}
+                    min={formData.fechaInicio === today ? getCurrentTimeInputValue() : undefined}
+                    step={timeInputStepSeconds}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                      !formData.fechaInicio ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                    } ${
+                      errors.horaInicio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed`}
+                  />
+                  {errors.horaInicio && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.horaInicio}</p>}
+                </div>
 
-            <div>
-              <label htmlFor="horaFin-curso" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Hora de Fin
-              </label>
-              <input
-                type="text"
-                id="horaFin-curso"
-                value={formData.horaFin || ''}
-                disabled
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                placeholder="09:00"
-              />
-            </div>
-          </div>
+                <div>
+                  <label htmlFor="horaFin-curso" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Hora de Fin
+                  </label>
+                  <input
+                    type="text"
+                    id="horaFin-curso"
+                    value={formData.horaFin || ''}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                    placeholder="09:00"
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
@@ -3304,7 +3800,7 @@ export default function ModalNuevaReserva({
                   </div>
                   <div>
                     <div className="text-xs uppercase tracking-[0.14em]">Precio</div>
-                    <div className="mt-1 font-semibold text-on-surface">{Number(formData.precio || 0).toFixed(2)} €</div>
+                    <div className="mt-1 font-semibold text-on-surface">{formatSpanishNumber(Number(formData.precio || 0), { fixedDecimals: true })} €</div>
                   </div>
                 </div>
               </div>
@@ -3845,21 +4341,26 @@ export default function ModalNuevaReserva({
 
             <div>
               <label htmlFor="horaFin-ruta" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Hora de Fin *
+                Hora de Fin {routeHasFixedDuration ? '(automática)' : '*'}
               </label>
               <input
                 type="time"
                 id="horaFin-ruta"
                 value={formData.horaFin}
                 onChange={(e) => handleInputChange('horaFin', e.target.value)}
-                disabled={!formData.fechaInicio || !formData.horaInicio}
+                disabled={routeHasFixedDuration || !formData.fechaInicio || !formData.horaInicio}
                 step={timeInputStepSeconds}
                 className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                  !formData.fechaInicio || !formData.horaInicio ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                  routeHasFixedDuration || !formData.fechaInicio || !formData.horaInicio ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
                 } ${
                   errors.horaFin ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                 } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed`}
               />
+              {routeHasFixedDuration && (
+                <p className="mt-1 text-xs text-on-surface-variant">
+                  Hora de fin calculada automáticamente por la tarifa seleccionada.
+                </p>
+              )}
               {errors.horaFin && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.horaFin}</p>}
             </div>
           </div>
@@ -3867,7 +4368,7 @@ export default function ModalNuevaReserva({
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             <div>
               <label htmlFor="cantidadReservada-ruta" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Kayaks reservados *
+                Uni. reservadas *
               </label>
               <input
                 type="number"
@@ -3975,7 +4476,7 @@ export default function ModalNuevaReserva({
               <div className="rounded-2xl bg-surface-container px-4 py-3 text-on-surface-variant">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <div className="text-xs uppercase tracking-[0.14em]">Kayaks</div>
+                    <div className="text-xs uppercase tracking-[0.14em]">{routeMaterialLabels.pluralDisplay}</div>
                     <div className="mt-1 font-semibold text-on-surface">{formData.cantidadReservada || '--'}</div>
                   </div>
                   <div>
@@ -4207,7 +4708,7 @@ export default function ModalNuevaReserva({
         {!usesPerPersonPricing && (
           <div>
             <label htmlFor="cantidadReservada" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Unidades Reservadas *
+              Uni. Reservadas *
             </label>
             <input
               type="number"
@@ -4372,11 +4873,15 @@ export default function ModalNuevaReserva({
       <ModalNuevaReservaCampamentoInscripcion
         isOpen={isOpen}
         programa={campamentoProgramaContext}
-        onClose={handleClose}
+        onClose={handleCloseCampamentoInscripcion}
         onSubmit={onSubmit}
         onToast={onToast}
       />
     );
+  }
+
+  if (closingCampamentoFlow) {
+    return null;
   }
 
   return (
@@ -4440,6 +4945,167 @@ export default function ModalNuevaReserva({
           </div>
         </div>
       </Dialog>
+
+      <Transition appear show={showCourseRangesModal} as={Fragment}>
+        <Dialog as="div" className="relative z-[70]" onClose={() => setShowCourseRangesModal(false)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-150"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto p-4">
+            <div className="flex min-h-full items-center justify-center">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-200"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-150"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-4xl overflow-hidden rounded-2xl border border-outline-variant/35 bg-surface-container-lowest shadow-xl">
+                  <div className="primary-gradient rounded-t-2xl flex items-center justify-between px-6 py-4 text-white">
+                    <div>
+                      <Dialog.Title className="font-headline text-2xl font-extrabold tracking-tight">Configurar rangos del curso</Dialog.Title>
+                      <p className="mt-1 text-sm text-white/85">
+                        Reparte {formData.duracion ? formatDurationLabel(formData.duracion) : 'la duración del curso'} en los tramos que necesites.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="cursor-pointer rounded-md text-white hover:text-gray-200"
+                      onClick={() => setShowCourseRangesModal(false)}
+                    >
+                      <span className="sr-only">Cerrar</span>
+                      <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-5 p-6">
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="rounded-2xl bg-surface-container-low px-4 py-3">
+                        <div className="text-xs uppercase tracking-[0.14em] text-on-surface-variant">Objetivo</div>
+                        <div className="mt-1 font-semibold text-on-surface">{formData.duracion ? formatDurationLabel(formData.duracion) : '--'}</div>
+                      </div>
+                      <div className="rounded-2xl bg-surface-container-low px-4 py-3">
+                        <div className="text-xs uppercase tracking-[0.14em] text-on-surface-variant">Asignadas</div>
+                        <div className="mt-1 font-semibold text-on-surface">
+                          {formatMinutesSummary(courseRangeEditor.reduce((total, range) => total + calculateCourseRangeDuration(range), 0))}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-surface-container-low px-4 py-3">
+                        <div className="text-xs uppercase tracking-[0.14em] text-on-surface-variant">Cantidad</div>
+                        <div className="mt-1 font-semibold text-on-surface">{effectiveInventoryQuantity}</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {courseRangeEditor.map((range, index) => (
+                        <div key={range.id} className="rounded-2xl border border-outline-variant/25 bg-surface-container-low p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-on-surface">Tramo {index + 1}</p>
+                            <button
+                              type="button"
+                              onClick={() => removeCourseRangeEditorRow(range.id)}
+                              disabled={courseRangeEditor.length === 1}
+                              className="cursor-pointer rounded-full border border-outline-variant/35 px-3 py-1 text-xs font-semibold text-on-surface-variant transition hover:border-red-300 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Fecha</label>
+                              <input
+                                type="date"
+                                value={range.fechaInicio}
+                                min={today}
+                                onChange={(e) => updateCourseRangeEditorField(range.id, 'fechaInicio', e.target.value)}
+                                className="w-full px-3 py-2"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Hora inicio</label>
+                              <input
+                                type="time"
+                                value={range.horaInicio}
+                                step={timeInputStepSeconds}
+                                min={range.fechaInicio === today ? getCurrentTimeInputValue() : undefined}
+                                onChange={(e) => updateCourseRangeEditorField(range.id, 'horaInicio', e.target.value)}
+                                className="w-full px-3 py-2"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Hora fin</label>
+                              <input
+                                type="time"
+                                value={range.horaFin}
+                                step={timeInputStepSeconds}
+                                onChange={(e) => updateCourseRangeEditorField(range.id, 'horaFin', e.target.value)}
+                                className="w-full px-3 py-2"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex items-center justify-between gap-3 text-sm">
+                            <span className="text-on-surface-variant">
+                              Duración: {formatDurationLabel(buildDurationValue(calculateCourseRangeDuration(range), 'minuto'))}
+                            </span>
+                            {courseRangeErrors[range.id] ? (
+                              <span className="text-red-600 dark:text-red-400">{courseRangeErrors[range.id]}</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {courseRangeErrors.__summary ? (
+                      <p className="text-sm text-red-600 dark:text-red-400">{courseRangeErrors.__summary}</p>
+                    ) : null}
+
+                    <div className="flex flex-wrap justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={addCourseRangeEditorRow}
+                        className="cursor-pointer rounded-full border border-outline-variant/35 bg-surface-container-low px-4 py-2.5 text-sm font-semibold text-on-surface transition hover:border-primary/25 hover:text-primary"
+                      >
+                        Añadir tramo
+                      </button>
+
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowCourseRangesModal(false)}
+                          className="cursor-pointer rounded-full border border-outline-variant/35 bg-surface-container-low px-4 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={validateAndSaveCourseRanges}
+                          disabled={isValidatingCourseRanges}
+                          className="primary-gradient cursor-pointer rounded-full px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isValidatingCourseRanges ? 'Validando...' : 'Guardar tramos'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
 
       <PagoReservaModal
         isOpen={showModalPago}

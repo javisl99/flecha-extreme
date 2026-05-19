@@ -9,6 +9,7 @@ import ModalNuevoParticipanteCampamento from '@/components/Actividades/ModalNuev
 import { useActividades, type TarifaActividad } from '@/hooks/useActividades';
 import { useCampamentoParticipantes } from '@/hooks/useCampamentoParticipantes';
 import type { CampamentoParticipanteCatalogo, CampamentoPrograma } from '@/lib/campamento';
+import { formatPrice } from '@/lib/formatUtils';
 
 interface ModalNuevaReservaCampamentoInscripcionProps {
   isOpen: boolean;
@@ -274,6 +275,7 @@ export default function ModalNuevaReservaCampamentoInscripcion({
 
   const handleClosePago = () => {
     if (paymentCompleted) {
+      setShowPagoModal(false);
       onClose();
       return;
     }
@@ -504,7 +506,7 @@ export default function ModalNuevaReservaCampamentoInscripcion({
                           </div>
                           <div className="text-right">
                             <p className="text-xs text-primary/80">Total</p>
-                            <p className="text-2xl font-black text-primary-dark">{total.toFixed(2)} €</p>
+                            <p className="text-2xl font-black text-primary-dark">{formatPrice(total)}</p>
                           </div>
                         </div>
                       </div>

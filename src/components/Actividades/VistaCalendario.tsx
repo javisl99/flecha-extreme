@@ -188,6 +188,18 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
             }));
           }
 
+          if (reserva.items && reserva.items.length > 0) {
+            return reserva.items.map((item) => ({
+              id: item.id,
+              title: actividad,
+              subtitle: `${cliente} · ${empresa}`,
+              start: new Date(item.inicio),
+              end: new Date(item.fin),
+              resource: reserva,
+              estado: reserva.estado,
+            }));
+          }
+
           return [{
             id: reserva.id,
             title: actividad,

@@ -208,10 +208,20 @@ export default function ReservasPage() {
       return buildCampamentoDateRangeLabel(campamentoMetadata);
     }
 
+    if ((reserva.numero_tramos ?? 0) > 1) {
+      const inicio = formatearFecha(reserva.fecha_inicio);
+      const fin = formatearFecha(reserva.fecha_fin);
+      return inicio === fin ? inicio : `${inicio} - ${fin}`;
+    }
+
     return formatearFecha(reserva.fecha_inicio);
   };
 
   const formatearHorarioReserva = (reserva: Reserva) => {
+    if ((reserva.numero_tramos ?? 0) > 1) {
+      return `${reserva.numero_tramos} tramos`;
+    }
+
     if (reserva.kind === 'campamento_programa' && reserva.campamento_programa) {
       return buildCampamentoHorarioSummary(buildCampamentoProgramaMetadata(reserva.campamento_programa));
     }
@@ -450,7 +460,16 @@ export default function ReservasPage() {
                           onClick={() => handleFilaClick(reserva)}
                         >
                           <td className="px-6 py-4 text-sm font-semibold text-on-surface">{mostrarCliente(reserva)}</td>
-                          <td className="px-6 py-4 text-sm font-semibold text-primary-dark">{mostrarActividad(reserva)}</td>
+                          <td className="px-6 py-4 text-sm font-semibold text-primary-dark">
+                            <div className="flex items-center gap-2">
+                              <span>{mostrarActividad(reserva)}</span>
+                              {(reserva.numero_tramos ?? 0) > 1 ? (
+                                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-primary">
+                                  {reserva.numero_tramos} tramos
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
                           <td className="px-6 py-4 text-sm text-on-surface-variant">{mostrarEmpresa(reserva)}</td>
                           <td className="px-6 py-4 text-center text-sm font-medium text-on-surface-variant">
                             {formatearFechaReserva(reserva)}
@@ -562,7 +581,14 @@ export default function ReservasPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-bold text-on-surface">{mostrarCliente(reserva)}</p>
-                          <p className="mt-1 text-sm font-semibold text-primary-dark">{mostrarActividad(reserva)}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-primary-dark">{mostrarActividad(reserva)}</p>
+                            {(reserva.numero_tramos ?? 0) > 1 ? (
+                              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-primary">
+                                {reserva.numero_tramos} tramos
+                              </span>
+                            ) : null}
+                          </div>
                           <p className="mt-1 text-sm text-on-surface-variant">{mostrarEmpresa(reserva)}</p>
                         </div>
                         <span className={`${getEstadoColor(estadoVisual)} rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em]`}>

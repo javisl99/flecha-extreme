@@ -11,9 +11,9 @@ import ModalEmpleado from '@/components/Empleados/ModalEmpleado';
 import { FiltrosEmpleados, type FiltrosEmpleadoState } from '@/components/Empleados/FiltrosEmpleados';
 import OverlayPanel from '@/components/shared/OverlayPanel';
 
-const EmpleadosIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+const NewItemIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
   </svg>
 );
 
@@ -201,18 +201,18 @@ export default function EmpleadosPage() {
   return (
     <ProtectedRoute allowedRoles={['admin', 'fl-admin']}>
       <div className="page-container space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Empleados</h1>
           <Button
             variant="primary"
-            icon={<EmpleadosIcon />}
-            className="primary-gradient min-h-11 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110 sm:w-auto"
+            icon={<NewItemIcon />}
+            className="primary-gradient min-h-11 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
             onClick={() => {
               setModoModal('nuevo');
               setIsModalEmpleadoOpen(true);
             }}
           >
-            Nuevo Empleado
+            Nuevo
           </Button>
         </div>
 
