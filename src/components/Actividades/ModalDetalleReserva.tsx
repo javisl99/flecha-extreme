@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/shared/components';
-import { useActividades, type PagoReservaConReembolsos } from '@/hooks/useActividades';
+import { useActividades, type PagoReservaConReembolsos, type Reserva as ActividadReserva } from '@/hooks/useActividades';
 import { useTickets } from '@/hooks/useTickets';
 import { useEmailAPI } from '@/hooks/useEmailAPI';
 import { useSupabase } from '@/hooks/useSupabase';
@@ -15,32 +15,12 @@ import {
   type ReservaServicioItemMetadata
 } from '@/lib/campamento';
 
-interface Reserva {
-  id: string;
-  fecha_inicio: string;
-  fecha_fin: string;
-  id_cliente?: string;
-  cliente?: {
-    id?: string;
-    nombre: string;
-    apellidos: string;
+type Reserva = ActividadReserva & {
+  cliente?: ActividadReserva['cliente'] & {
     email?: string;
   };
-  actividad?: {
-    nombre: string;
-  };
-  empresa?: {
-    nombre: string;
-  };
-  estado: string;
-  precio: number;
-  cantidad_reservada: number;
-  numero_personas_reserva?: number;
   metadata?: ReservaServicioItemMetadata;
-  nota?: string;
-  ticket_url?: string;
-  ticket_url_reserva?: string;
-}
+};
 
 interface ModalDetalleReservaProps {
   isOpen: boolean;
@@ -340,13 +320,26 @@ export default function ModalDetalleReserva({
   const mostrarActividad = () => reserva.actividad?.nombre || 'Actividad no encontrada';
   const mostrarEmpresa = () => reserva.empresa?.nombre || 'Empresa no establecida';
   const cantidadDetalle = getCantidadDetalle(reserva);
+  const sortedItems = useMemo(
+    () => [...(reserva.items ?? [])].sort((left, right) => new Date(left.inicio).getTime() - new Date(right.inicio).getTime()),
+    [reserva.items]
+  );
   const campamentoMetadata = getCampamentoMetadata(reserva.metadata);
+  const multiTramoFechaLabel = sortedItems.length > 1
+    ? (() => {
+        const inicio = formatearFecha(reserva.fecha_inicio);
+        const fin = formatearFecha(reserva.fecha_fin);
+        return inicio === fin ? inicio : `${inicio} - ${fin}`;
+      })()
+    : null;
   const fechaReservaLabel = campamentoMetadata
     ? buildCampamentoDateRangeLabel(campamentoMetadata)
-    : formatearFecha(reserva.fecha_inicio);
+    : multiTramoFechaLabel ?? formatearFecha(reserva.fecha_inicio);
   const horarioReservaLabel = campamentoMetadata
     ? buildCampamentoHorarioSummary(campamentoMetadata)
-    : `${formatearHora(reserva.fecha_inicio)} - ${formatearHora(reserva.fecha_fin)}`;
+    : sortedItems.length > 1
+      ? `${sortedItems.length} tramos`
+      : `${formatearHora(reserva.fecha_inicio)} - ${formatearHora(reserva.fecha_fin)}`;
 
   const refreshResumenPagos = async () => {
     if (!reserva) return;
@@ -683,6 +676,38 @@ export default function ModalDetalleReserva({
                 <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Notas</label>
                 <p className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3 text-sm text-on-surface-variant">{reserva.nota}</p>
               </div>
+            ) : null}
+
+            {sortedItems.length > 1 ? (
+              <section className="space-y-3 rounded-2xl border border-outline-variant/25 bg-surface-container-low p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-headline text-lg font-bold text-on-surface">Tramos de la reserva</h3>
+                    <p className="text-sm text-on-surface-variant">Esta reserva agrupa varios horarios independientes.</p>
+                  </div>
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-primary">
+                    {sortedItems.length} tramos
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {sortedItems.map((item, index) => (
+                    <div key={item.id} className="rounded-xl border border-outline-variant/20 bg-surface-container-lowest px-4 py-3">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="font-semibold text-on-surface">Tramo {index + 1}</p>
+                          <p className="text-sm text-on-surface-variant">
+                            {formatearFecha(item.inicio)} · {formatearHora(item.inicio)} - {formatearHora(item.fin)}
+                          </p>
+                        </div>
+                        <div className="text-sm text-on-surface-variant">
+                          <span className="font-semibold text-on-surface">{formatearImporte(item.subtotal)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
             ) : null}
 
             <section className="space-y-4 rounded-2xl border border-outline-variant/25 bg-surface-container-low p-4">

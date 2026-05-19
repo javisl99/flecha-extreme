@@ -4,7 +4,7 @@ import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ReceiptPercentIcon, CheckCircleIcon, ClockIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { formatPrice } from '@/lib/formatUtils';
-import { useActividades } from '@/hooks/useActividades';
+import { useActividades, type ReservaServicioItemInput } from '@/hooks/useActividades';
 import SurfSpinner from '@/components/shared/SurfSpinner';
 import TicketCompra from '@/components/Tienda/TicketCompra';
 import { SelectorCliente } from '@/components/Actividades/SelectorCliente';
@@ -43,6 +43,14 @@ interface ActividadReserva {
   resumenFechas?: string;
   campamentoProgramaId?: string;
   tarifaId?: string;
+  rangos?: Array<{
+    id: string;
+    fechaInicio: string;
+    fechaFin: string;
+    horaInicio: string;
+    horaFin: string;
+    duracionMin: number;
+  }>;
   participantes?: Array<{
     participanteId?: string;
     nombre: string;
@@ -75,6 +83,48 @@ interface PagoReservaModalProps {
   };
   initialClienteId?: string | null;
   requireCliente?: boolean;
+}
+
+function buildLocalDate(dateValue: string, timeValue: string) {
+  const [year, month, day] = dateValue.split('-').map(Number);
+  const [hours, minutes] = timeValue.split(':').map(Number);
+  return new Date(year, month - 1, day, hours, minutes, 0, 0);
+}
+
+function buildReservaItemsFromRanges(
+  actividad: ActividadReserva,
+  cantidad: number
+): ReservaServicioItemInput[] | null {
+  if (!actividad.rangos || actividad.rangos.length === 0) {
+    return null;
+  }
+
+  const totalMinutes = actividad.rangos.reduce((sum, rango) => sum + rango.duracionMin, 0);
+  const items = actividad.rangos.map((rango, index) => {
+    const inicio = buildLocalDate(rango.fechaInicio, rango.horaInicio);
+    const fin = buildLocalDate(rango.fechaFin, rango.horaFin);
+    const rawSubtotal = totalMinutes > 0
+      ? Number(((actividad.precio * rango.duracionMin) / totalMinutes).toFixed(2))
+      : 0;
+    return {
+      index,
+      inicio: inicio.toISOString(),
+      fin: fin.toISOString(),
+      cantidad,
+      subtotal: rawSubtotal
+    };
+  });
+
+  const subtotalAsignado = items.reduce((sum, item) => sum + item.subtotal, 0);
+  const ajusteFinal = Number((actividad.precio - subtotalAsignado).toFixed(2));
+
+  return items.map((item) => ({
+    inicio: item.inicio,
+    fin: item.fin,
+    cantidad: item.cantidad,
+    subtotal: Number((item.subtotal + (item.index === items.length - 1 ? ajusteFinal : 0)).toFixed(2)),
+    tarifa_id: actividad.tarifaId ?? null
+  }));
 }
 
 export default function PagoReservaModal({ 
@@ -216,6 +266,7 @@ export default function PagoReservaModal({
         
         const fechaInicio = new Date(parseInt(añoInicio), parseInt(mesInicio) - 1, parseInt(diaInicio), parseInt(horaInicio), parseInt(minutoInicio), 0);
         const fechaFin = new Date(parseInt(añoFin), parseInt(mesFin) - 1, parseInt(diaFin), parseInt(horaFin), parseInt(minutoFin), 0);
+        const reservaItems = buildReservaItemsFromRanges(actividad, actividad.cantidad);
         
         const estadoReserva = esReserva ? 'pendiente' : (estado === 'completado' ? 'confirmada' : 'pendiente');
         const resultadoReserva = actividad.campamentoProgramaId && actividad.tarifaId
@@ -243,12 +294,14 @@ export default function PagoReservaModal({
               id_actividad: actividad.id,
               id_empresa: resultadoEmpresa.empresaId!,
               cantidad_reservada: actividad.cantidad,
+              tarifa_id: actividad.tarifaId ?? null,
               numero_personas: actividad.numeroPersonas,
               precio: actividad.precio,
               fecha_inicio: fechaInicio.toISOString(),
               fecha_fin: fechaFin.toISOString(),
               estado: estadoReserva,
               nota: actividad.nota || undefined,
+              items: reservaItems ?? undefined,
               metadata: actividad.campamentoMetadata
                 ? { campamento: actividad.campamentoMetadata }
                 : undefined

@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { usePagos, type Pago } from '@/hooks/usePagos';
 import { usePedidos, type Pedido } from '@/hooks/usePedidos';
 import { useActividades, type Reserva as ReservaActividad } from '@/hooks/useActividades';
+import type { CampamentoInscripcion, CampamentoPrograma } from '@/lib/campamento';
 import { toast } from 'react-hot-toast';
 import TableSkeleton from '@/components/shared/TableSkeleton';
 import DetallePagoModal from '@/components/Pagos/DetallePagoModal';
+import DetallePagoInscripcionCampamentoModal from '@/components/Pagos/DetallePagoInscripcionCampamentoModal';
 import ModalPago from '@/components/Tienda/ModalPago';
 import ModalDetalleReserva from '@/components/Actividades/ModalDetalleReserva';
 import { FiltrosPagos, type FiltrosPagoState } from '@/components/Pagos/FiltrosPagos';
@@ -25,9 +27,12 @@ export default function PagosPage() {
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
   const [isDetalleReservaModalOpen, setIsDetalleReservaModalOpen] = useState(false);
   const [reservaSeleccionada, setReservaSeleccionada] = useState<ReservaActividad | null>(null);
+  const [isDetallePagoCampamentoModalOpen, setIsDetallePagoCampamentoModalOpen] = useState(false);
+  const [programaCampamentoSeleccionado, setProgramaCampamentoSeleccionado] = useState<CampamentoPrograma | null>(null);
+  const [inscripcionCampamentoSeleccionada, setInscripcionCampamentoSeleccionada] = useState<CampamentoInscripcion | null>(null);
   const { pagos, loading, error, refreshPagos, actualizarPago } = usePagos();
   const { obtenerPedidoPorId } = usePedidos();
-  const { obtenerReservas, actualizarReserva } = useActividades();
+  const { obtenerReservas, obtenerReservaPorId, actualizarReserva, obtenerDetalleProgramaCampamento } = useActividades();
   
   const pagosFiltrados = pagos.filter(pago => {
     const cumpleCliente = !filtros.cliente || (
@@ -103,15 +108,24 @@ export default function PagosPage() {
     } else if (pago.origen_tipo === 'reserva' && pago.origen_id) {
       // Si es un pago de reserva, cargar los datos de la reserva y abrir su detalle
       try {
-        const resultado = await obtenerReservas();
-        if (resultado.success && resultado.reservas) {
-          const reserva = resultado.reservas.find((r) => r.id === pago.origen_id);
-          if (reserva) {
-            setReservaSeleccionada(reserva);
-            setIsDetalleReservaModalOpen(true);
-          } else {
-            toast.error('No se pudo encontrar la reserva');
+        const resultado = await obtenerReservaPorId(pago.origen_id);
+        if (resultado.success && resultado.reserva) {
+          const reserva = resultado.reserva;
+          if (reserva.campamento_programa_id) {
+            const detallePrograma = await obtenerDetalleProgramaCampamento(reserva.campamento_programa_id);
+            if (detallePrograma.success && detallePrograma.programa) {
+              const inscripcion = detallePrograma.programa.inscripciones.find((item) => item.id === reserva.id) ?? null;
+              setPagoSeleccionado(pago);
+              setReservaSeleccionada(reserva);
+              setProgramaCampamentoSeleccionado(detallePrograma.programa);
+              setInscripcionCampamentoSeleccionada(inscripcion);
+              setIsDetallePagoCampamentoModalOpen(true);
+              return;
+            }
           }
+
+          setReservaSeleccionada(reserva);
+          setIsDetalleReservaModalOpen(true);
         } else {
           toast.error('No se pudo cargar la información de la reserva');
         }
@@ -156,17 +170,11 @@ export default function PagosPage() {
   };
 
   const refreshReservaSeleccionada = async (reservaId: string) => {
-    const resultado = await obtenerReservas();
-    if (!resultado.success || !resultado.reservas) {
+    const resultado = await obtenerReservaPorId(reservaId);
+    if (!resultado.success || !resultado.reserva) {
       throw new Error('No se pudo refrescar la reserva');
     }
-
-    const reservaActualizada = resultado.reservas.find((reserva) => reserva.id === reservaId);
-    if (!reservaActualizada) {
-      throw new Error('No se pudo encontrar la reserva actualizada');
-    }
-
-    setReservaSeleccionada(reservaActualizada);
+    setReservaSeleccionada(resultado.reserva);
   };
 
   const handleActualizarEstadoReserva = async (reserva: ReservaActividad, nuevoEstado: string) => {
@@ -505,6 +513,23 @@ export default function PagosPage() {
         reserva={reservaSeleccionada}
         onActualizarEstado={handleActualizarEstadoReserva}
         onReservaActualizada={handleReservaActualizada}
+      />
+
+      <DetallePagoInscripcionCampamentoModal
+        isOpen={isDetallePagoCampamentoModalOpen}
+        onClose={() => {
+          setIsDetallePagoCampamentoModalOpen(false);
+          setPagoSeleccionado(null);
+          setReservaSeleccionada(null);
+          setProgramaCampamentoSeleccionado(null);
+          setInscripcionCampamentoSeleccionada(null);
+        }}
+        pago={pagoSeleccionado}
+        reserva={reservaSeleccionada}
+        programa={programaCampamentoSeleccionado}
+        inscripcion={inscripcionCampamentoSeleccionada}
+        onCompletarPago={handleCompletarPago}
+        onCancelarPago={handleCancelarPago}
       />
     </div>
   );
