@@ -3,18 +3,22 @@ import supabaseClient from '@/lib/supabaseClient';
 import { resolvePaymentMethodIdByCode } from '@/lib/contabilidadCatalogos';
 
 type TipoParking = 'embarcacion' | 'tabla' | 'kayak';
+type ParkingPeriodo = 'dia' | 'semana' | 'quincena' | 'mes';
 type MetodoPago =
   | 'efectivo'
   | 'tpv'
   | 'transferencia'
-  | 'bizum_alfonso'
+  | 'bizum_alfonso';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 type EstadoReservaParking = 'pendiente' | 'activa' | 'cancelada' | 'finalizada';
+
 const PARKING_SERVICE_CODES: Record<TipoParking, string> = {
   embarcacion: 'PARKING_EMBARCACION',
   tabla: 'PARKING_TABLA',
   kayak: 'PARKING_KAYAK'
 };
+
+const PARKING_PERIOD_ORDER: ParkingPeriodo[] = ['dia', 'semana', 'quincena', 'mes'];
 
 interface PlazaParking {
   id: string;
@@ -40,7 +44,7 @@ interface ReservaParking {
 interface TarifaParking {
   id: string;
   tipo: TipoParking;
-  periodo: 'mes' | 'quincena';
+  periodo: ParkingPeriodo;
   precio: number;
 }
 
@@ -60,19 +64,47 @@ function toDateOnly(value: string): string {
   return value.includes('T') ? value.split('T')[0] : value;
 }
 
-function getParkingPeriodoFromMetadata(metadata: unknown): 'mes' | 'quincena' | null {
+function getTodayDateOnly() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getParkingPeriodoFromMetadata(metadata: unknown): ParkingPeriodo | null {
   if (!metadata || typeof metadata !== 'object') {
     return null;
   }
 
   const periodo = (metadata as { parking_periodo?: unknown }).parking_periodo;
-  return periodo === 'mes' || periodo === 'quincena' ? periodo : null;
+  return PARKING_PERIOD_ORDER.includes(periodo as ParkingPeriodo) ? (periodo as ParkingPeriodo) : null;
 }
 
-function reservaSigueActiva(fechaFin: string, estado: EstadoReservaParking): boolean {
-  if (!['pendiente', 'activa'].includes(estado)) return false;
-  const hoy = new Date().toISOString().slice(0, 10);
-  return fechaFin > hoy;
+function isEstadoBloqueante(estado: EstadoReservaParking): boolean {
+  return estado === 'pendiente' || estado === 'activa';
+}
+
+function isReservaActivaAtDate(reserva: ReservaParking, fechaRef: string): boolean {
+  if (!isEstadoBloqueante(reserva.estado)) return false;
+  return reserva.fecha_inicio <= fechaRef && fechaRef < reserva.fecha_fin;
+}
+
+function sortByParkingPeriodo(input: TarifaParking[]) {
+  return [...input].sort((a, b) => PARKING_PERIOD_ORDER.indexOf(a.periodo) - PARKING_PERIOD_ORDER.indexOf(b.periodo));
+}
+
+function rangesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
+  return startA < endB && startB < endA;
+}
+
+function formatDateInput(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
 }
 
 export function useParking() {
@@ -125,8 +157,8 @@ export function useParking() {
         id_cliente: reserva.cliente_id ?? '',
         id_plaza: reserva.plaza_id,
         id_tarifa: reserva.tarifa_id,
-        fecha_inicio: reserva.fecha_inicio,
-        fecha_fin: reserva.fecha_fin,
+        fecha_inicio: toDateOnly(reserva.fecha_inicio),
+        fecha_fin: toDateOnly(reserva.fecha_fin),
         estado: reserva.estado
       }));
 
@@ -144,6 +176,7 @@ export function useParking() {
       setLoading(true);
       setError(null);
 
+      const fechaRef = getTodayDateOnly();
       const [plazasResult, reservasData] = await Promise.all([
         supabaseClient.from('parking_plaza').select('id,codigo,tipo,activo,updated_at'),
         fetchReservasParking()
@@ -155,7 +188,7 @@ export function useParking() {
 
       const plazasConEstado = (plazasResult.data ?? []).map((plaza) => {
         const reservaActual = reservasData.find((reserva) => {
-          return reserva.id_plaza === plaza.id && reservaSigueActiva(reserva.fecha_fin, reserva.estado);
+          return reserva.id_plaza === plaza.id && isReservaActivaAtDate(reserva, fechaRef);
         });
 
         const reservada = Boolean(reservaActual);
@@ -186,46 +219,145 @@ export function useParking() {
     return plazas.filter((plaza) => plaza.tipo === tipo);
   };
 
-  const getPlazasDisponibles = async (tipo: TipoParking) => {
-    try {
-      setLoading(true);
-      setError(null);
+  const getReservaActual = useCallback(
+    (plazaId: string, fechaRef: string = getTodayDateOnly()): ReservaParking | undefined => {
+      const normalizedFechaRef = toDateOnly(fechaRef) || getTodayDateOnly();
+      return reservas.find((reserva) => {
+        return reserva.id_plaza === plazaId && isReservaActivaAtDate(reserva, normalizedFechaRef);
+      });
+    },
+    [reservas]
+  );
 
-      const [plazasResult, reservasData] = await Promise.all([
-        supabaseClient
-          .from('parking_plaza')
-          .select('id,codigo,tipo,activo,updated_at')
-          .eq('tipo', tipo)
-          .eq('activo', true),
-        fetchReservasParking()
-      ]);
+  const getReservasFuturas = useCallback(
+    (plazaId: string, fechaRef: string = getTodayDateOnly()): ReservaParking[] => {
+      const normalizedFechaRef = toDateOnly(fechaRef) || getTodayDateOnly();
+      return reservas
+        .filter((reserva) => {
+          return reserva.id_plaza === plazaId && isEstadoBloqueante(reserva.estado) && reserva.fecha_inicio > normalizedFechaRef;
+        })
+        .sort((left, right) => left.fecha_inicio.localeCompare(right.fecha_inicio));
+    },
+    [reservas]
+  );
 
-      if (plazasResult.error) {
-        throw plazasResult.error;
+  const getPlazasDisponiblesEnRango = useCallback(
+    async (tipo: TipoParking, fechaInicio: string, fechaFin: string) => {
+      try {
+        setError(null);
+
+        const inicio = toDateOnly(fechaInicio);
+        const fin = toDateOnly(fechaFin);
+
+        if (!inicio || !fin || fin <= inicio) {
+          return [];
+        }
+
+        const [plazasResult, reservasData] = await Promise.all([
+          supabaseClient
+            .from('parking_plaza')
+            .select('id,codigo,tipo,activo,updated_at')
+            .eq('tipo', tipo)
+            .eq('activo', true),
+          fetchReservasParking()
+        ]);
+
+        if (plazasResult.error) {
+          throw plazasResult.error;
+        }
+
+        const disponibles = (plazasResult.data ?? []).filter((plaza) => {
+          const hasOverlap = reservasData.some((reserva) => {
+            if (reserva.id_plaza !== plaza.id || !isEstadoBloqueante(reserva.estado)) {
+              return false;
+            }
+
+            return rangesOverlap(inicio, fin, reserva.fecha_inicio, reserva.fecha_fin);
+          });
+
+          return !hasOverlap;
+        });
+
+        return ordenarPlazas(
+          disponibles.map((plaza) => ({
+            id: plaza.id,
+            codigo: plaza.codigo,
+            tipo: plaza.tipo,
+            activo: plaza.activo,
+            updated_at: plaza.updated_at,
+            disponible: true,
+            reservada: false
+          }))
+        );
+      } catch (err) {
+        console.error('Error al obtener plazas disponibles en rango:', err);
+        setError('Error al cargar las plazas disponibles');
+        return [];
       }
+    },
+    [fetchReservasParking]
+  );
 
-      return (plazasResult.data ?? [])
-        .map((plaza) => {
+  const getPlazasConEstadoEnRango = useCallback(
+    async (tipo: TipoParking, fechaInicio: string, fechaFin: string) => {
+      try {
+        setError(null);
+
+        const inicio = toDateOnly(fechaInicio);
+        const fin = toDateOnly(fechaFin);
+
+        if (!inicio || !fin || fin <= inicio) {
+          return [];
+        }
+
+        const [plazasResult, reservasData] = await Promise.all([
+          supabaseClient
+            .from('parking_plaza')
+            .select('id,codigo,tipo,activo,updated_at')
+            .eq('tipo', tipo)
+            .eq('activo', true),
+          fetchReservasParking()
+        ]);
+
+        if (plazasResult.error) {
+          throw plazasResult.error;
+        }
+
+        const plazasConEstado = (plazasResult.data ?? []).map((plaza) => {
           const reservada = reservasData.some((reserva) => {
-            return reserva.id_plaza === plaza.id && reservaSigueActiva(reserva.fecha_fin, reserva.estado);
+            if (reserva.id_plaza !== plaza.id || !isEstadoBloqueante(reserva.estado)) {
+              return false;
+            }
+
+            return rangesOverlap(inicio, fin, reserva.fecha_inicio, reserva.fecha_fin);
           });
 
           return {
             id: plaza.id,
             codigo: plaza.codigo,
             tipo: plaza.tipo,
+            activo: plaza.activo,
+            updated_at: plaza.updated_at,
             disponible: !reservada,
             reservada
           } satisfies PlazaParking;
-        })
-        .filter((plaza) => plaza.disponible);
-    } catch (err) {
-      console.error('Error al obtener las plazas disponibles:', err);
-      setError('Error al cargar las plazas disponibles');
-      return [];
-    } finally {
-      setLoading(false);
-    }
+        });
+
+        return ordenarPlazas(plazasConEstado);
+      } catch (err) {
+        console.error('Error al obtener plazas con estado en rango:', err);
+        setError('Error al cargar el estado de las plazas');
+        return [];
+      }
+    },
+    [fetchReservasParking]
+  );
+
+  const getPlazasDisponibles = async (tipo: TipoParking) => {
+    const hoy = new Date(`${getTodayDateOnly()}T00:00:00`);
+    const manana = addDays(hoy, 1);
+
+    return getPlazasDisponiblesEnRango(tipo, formatDateInput(hoy), formatDateInput(manana));
   };
 
   const asignarPlaza = async (plazaId: string, clienteId: string) => {
@@ -251,7 +383,7 @@ export function useParking() {
       }
 
       const created = await crearReserva(plazaId, {
-        fecha_inicio: new Date().toISOString().slice(0, 10),
+        fecha_inicio: getTodayDateOnly(),
         fecha_fin: '',
         id_tarifa: tarifaMensual.id,
         id_cliente: clienteId
@@ -297,15 +429,6 @@ export function useParking() {
     }
   };
 
-  const getReservaActual = useCallback(
-    (plazaId: string): ReservaParking | undefined => {
-      return reservas.find((reserva) => {
-        return reserva.id_plaza === plazaId && reservaSigueActiva(reserva.fecha_fin, reserva.estado);
-      });
-    },
-    [reservas]
-  );
-
   const fetchTarifas = useCallback(async (tipo: string) => {
     try {
       const serviceCode = PARKING_SERVICE_CODES[tipo as TipoParking];
@@ -339,7 +462,7 @@ export function useParking() {
         throw tarifasError;
       }
 
-      const dedupByPeriodo = new Map<'mes' | 'quincena', TarifaParking>();
+      const dedupByPeriodo = new Map<ParkingPeriodo, TarifaParking>();
       for (const tarifa of data ?? []) {
         const periodo = getParkingPeriodoFromMetadata(tarifa.metadata);
         if (!periodo) {
@@ -356,7 +479,7 @@ export function useParking() {
         }
       }
 
-      const mappedTarifas = Array.from(dedupByPeriodo.values());
+      const mappedTarifas = sortByParkingPeriodo(Array.from(dedupByPeriodo.values()));
       setTarifas(mappedTarifas);
       return mappedTarifas;
     } catch (err) {
@@ -568,9 +691,12 @@ export function useParking() {
     fetchTarifas,
     getPlazasByTipo,
     getPlazasDisponibles,
+    getPlazasDisponiblesEnRango,
+    getPlazasConEstadoEnRango,
     asignarPlaza,
     liberarPlaza,
     getReservaActual,
+    getReservasFuturas,
     crearReserva,
     eliminarReserva,
     getPagoReserva
