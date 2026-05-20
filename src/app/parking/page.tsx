@@ -1,12 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useParking } from '@/hooks/useParking';
 import { useClientes } from '@/hooks/useClientes';
 import PlazaInfoModal from '@/components/Parking/PlazaInfoModal';
+import ReservaForm from '@/components/Parking/ReservaForm';
+import PagoReservaParkingModal from '@/components/Parking/PagoReservaParkingModal';
 
+type TipoParking = 'embarcacion' | 'tabla' | 'kayak';
 type MetodoPago = 'efectivo' | 'tpv' | 'transferencia' | 'bizum_alfonso';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
+type EstadoReservaParking = 'pendiente' | 'activa' | 'cancelada' | 'finalizada';
 
 interface PagoParking {
   id: string;
@@ -21,10 +25,34 @@ interface PagoParking {
 
 interface PlazaParking {
   id: string;
-  tipo: string;
+  tipo: TipoParking;
   codigo: string;
   disponible?: boolean;
   reservada?: boolean;
+}
+
+interface TarifaParking {
+  id: string;
+  tipo: TipoParking;
+  periodo: 'dia' | 'semana' | 'quincena' | 'mes';
+  precio: number;
+}
+
+interface ReservaParkingInfo {
+  id: string;
+  id_cliente: string;
+  id_tarifa: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  estado: EstadoReservaParking;
+}
+
+interface ReservaDraft {
+  fecha_inicio: string;
+  fecha_fin: string;
+  id_tarifa: string;
+  plaza_id: string;
+  plaza_codigo: string;
 }
 
 type EstadoPlazaVisual = 'disponible' | 'reservada' | 'ocupada';
@@ -56,10 +84,17 @@ const ESTADO_PLAZA_STYLES: Record<
   }
 };
 
-const tiposParking = [
-  { 
-    tipo: 'embarcacion', 
-    titulo: 'Embarcaciones',
+const tiposParking: Array<{
+  tipo: TipoParking;
+  titulo: string;
+  color: string;
+  colorBorde: string;
+  colorTexto: string;
+  icono: ReactNode;
+}> = [
+  {
+    tipo: 'embarcacion',
+    titulo: 'Zodiaks',
     color: 'bg-blue-100/80',
     colorBorde: 'border-blue-200',
     colorTexto: 'text-blue-900',
@@ -69,8 +104,8 @@ const tiposParking = [
       </svg>
     )
   },
-  { 
-    tipo: 'tabla', 
+  {
+    tipo: 'tabla',
     titulo: 'Tablas',
     color: 'bg-emerald-100/80',
     colorBorde: 'border-emerald-200',
@@ -81,8 +116,8 @@ const tiposParking = [
       </svg>
     )
   },
-  { 
-    tipo: 'kayak', 
+  {
+    tipo: 'kayak',
     titulo: 'Kayaks',
     color: 'bg-amber-100/80',
     colorBorde: 'border-amber-200',
@@ -98,12 +133,14 @@ const tiposParking = [
 ];
 
 export default function ParkingPage() {
-  const { 
-    plazas, 
-    loading, 
-    error, 
-    fetchPlazasParking, 
+  const {
+    plazas,
+    loading,
+    error,
+    fetchPlazasParking,
     getReservaActual,
+    getReservasFuturas,
+    getPlazasConEstadoEnRango,
     crearReserva,
     eliminarReserva,
     fetchTarifas,
@@ -111,6 +148,7 @@ export default function ParkingPage() {
     tarifas
   } = useParking();
   const { getCliente } = useClientes();
+
   const [plazaSeleccionada, setPlazaSeleccionada] = useState<PlazaParking | null>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [pagoInfo, setPagoInfo] = useState<PagoParking | undefined>(undefined);
@@ -121,8 +159,12 @@ export default function ParkingPage() {
     kayak: false
   });
 
+  const [tipoReservaActiva, setTipoReservaActiva] = useState<TipoParking | null>(null);
+  const [showPagoModal, setShowPagoModal] = useState(false);
+  const [reservaDraft, setReservaDraft] = useState<ReservaDraft | null>(null);
+
   const toggleTarjeta = (tipo: string) => {
-    setTarjetasExpandidas(prev => ({
+    setTarjetasExpandidas((prev) => ({
       ...prev,
       [tipo]: !prev[tipo]
     }));
@@ -134,27 +176,27 @@ export default function ParkingPage() {
 
   useEffect(() => {
     const fetchPagoInfo = async () => {
-      if (plazaSeleccionada) {
-        const reservaActual = getReservaActual(plazaSeleccionada.id);
-        if (reservaActual?.id) {
-          const [pago, cliente] = await Promise.all([
-            getPagoReserva(reservaActual.id),
-            reservaActual.id_cliente ? getCliente(reservaActual.id_cliente) : null
-          ]);
-          setPagoInfo(pago || undefined);
-          setClienteInfo(cliente || null);
-        } else {
-          setPagoInfo(undefined);
-          setClienteInfo(null);
-        }
+      if (!plazaSeleccionada) return;
+
+      const reservaActual = getReservaActual(plazaSeleccionada.id);
+      if (reservaActual?.id) {
+        const [pago, cliente] = await Promise.all([
+          getPagoReserva(reservaActual.id),
+          reservaActual.id_cliente ? getCliente(reservaActual.id_cliente) : null
+        ]);
+        setPagoInfo(pago || undefined);
+        setClienteInfo(cliente || null);
+      } else {
+        setPagoInfo(undefined);
+        setClienteInfo(null);
       }
     };
 
     fetchPagoInfo();
   }, [plazaSeleccionada, getReservaActual, getPagoReserva, getCliente]);
 
-  const getPlazasPorTipo = (tipo: string) => {
-    return plazas.filter(plaza => plaza.tipo === tipo);
+  const getPlazasPorTipo = (tipo: TipoParking) => {
+    return plazas.filter((plaza) => plaza.tipo === tipo);
   };
 
   const handleClickPlaza = async (plaza: PlazaParking) => {
@@ -163,7 +205,15 @@ export default function ParkingPage() {
     setModalAbierto(true);
   };
 
+  const handleOpenReservaTipo = async (tipo: TipoParking) => {
+    await fetchTarifas(tipo);
+    setTipoReservaActiva(tipo);
+    setReservaDraft(null);
+    setShowPagoModal(false);
+  };
+
   const handleCrearReserva = async (data: {
+    plaza_id: string;
     fecha_inicio: string;
     fecha_fin: string;
     id_tarifa: string;
@@ -174,20 +224,24 @@ export default function ParkingPage() {
       estado: EstadoPago;
     };
   }) => {
-    if (!plazaSeleccionada) return;
-    
-    const success = await crearReserva(plazaSeleccionada.id, data);
+    const success = await crearReserva(data.plaza_id, {
+      fecha_inicio: data.fecha_inicio,
+      fecha_fin: data.fecha_fin,
+      id_tarifa: data.id_tarifa,
+      id_cliente: data.id_cliente,
+      pago: data.pago
+    });
+
     if (success) {
-      setModalAbierto(false);
-      setPlazaSeleccionada(null);
-      setPagoInfo(undefined);
-      setClienteInfo(null);
+      setTipoReservaActiva(null);
+      setShowPagoModal(false);
+      setReservaDraft(null);
     }
   };
 
   const handleEliminarReserva = async () => {
     if (!plazaSeleccionada) return;
-    
+
     const success = await eliminarReserva(plazaSeleccionada.id);
     if (success) {
       setModalAbierto(false);
@@ -235,15 +289,15 @@ export default function ParkingPage() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {tiposParking.map((tipoParking) => {
           const plazasTipo = getPlazasPorTipo(tipoParking.tipo);
-          const plazasDisponibles = plazasTipo.filter(plaza => plaza.disponible !== false && !plaza.reservada);
+          const plazasDisponibles = plazasTipo.filter((plaza) => plaza.disponible !== false && !plaza.reservada);
           const estaExpandida = tarjetasExpandidas[tipoParking.tipo];
-          
+
           return (
             <section
               key={tipoParking.tipo}
               className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient"
             >
-              <div 
+              <div
                 className={`flex cursor-pointer items-center justify-between border-b px-5 py-4 lg:cursor-default ${tipoParking.color} ${tipoParking.colorBorde}`}
                 onClick={() => toggleTarjeta(tipoParking.tipo)}
               >
@@ -260,19 +314,31 @@ export default function ParkingPage() {
                     </p>
                   </div>
                 </div>
-                <div className="lg:hidden">
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className={`h-6 w-6 ${tipoParking.colorTexto} transform transition-transform duration-200 ${estaExpandida ? 'rotate-180' : ''}`} 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleOpenReservaTipo(tipoParking.tipo);
+                    }}
+                    className="rounded-full border border-white/50 bg-white/70 px-3 py-1.5 text-xs font-black uppercase tracking-[0.06em] text-slate-800 transition hover:bg-white cursor-pointer"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                    +Reserva
+                  </button>
+                  <div className="lg:hidden">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-6 w-6 ${tipoParking.colorTexto} transform transition-transform duration-200 ${estaExpandida ? 'rotate-180' : ''}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
                 </div>
               </div>
-              
+
               <div className={`transition-all duration-300 ease-in-out ${!estaExpandida ? 'h-0 overflow-hidden lg:h-auto' : ''}`}>
                 <div className="p-4 sm:p-5">
                   <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -307,7 +373,7 @@ export default function ParkingPage() {
         })}
       </div>
 
-      {plazaSeleccionada && (
+      {plazaSeleccionada ? (
         <PlazaInfoModal
           isOpen={modalAbierto}
           onClose={() => {
@@ -318,13 +384,68 @@ export default function ParkingPage() {
           }}
           plaza={plazaSeleccionada}
           reservaInfo={getReservaActual(plazaSeleccionada.id)}
+          reservasFuturas={getReservasFuturas(plazaSeleccionada.id)}
           pagoInfo={pagoInfo}
           clienteInfo={clienteInfo}
-          onCrearReserva={handleCrearReserva}
           onEliminarReserva={handleEliminarReserva}
           tarifas={tarifas}
         />
-      )}
+      ) : null}
+
+      {tipoReservaActiva ? (
+        <ReservaForm
+          isOpen={Boolean(tipoReservaActiva)}
+          onClose={() => {
+            setTipoReservaActiva(null);
+            setReservaDraft(null);
+          }}
+          tipoLabel={tiposParking.find((tipoParking) => tipoParking.tipo === tipoReservaActiva)?.titulo ?? 'Parking'}
+          tarifas={tarifas.filter((tarifa) => tarifa.tipo === tipoReservaActiva)}
+          onBuscarPlazasDisponibles={async ({ fechaInicio, fechaFin }) => {
+            const result = await getPlazasConEstadoEnRango(tipoReservaActiva, fechaInicio, fechaFin);
+            return result.map((plaza) => ({
+              id: plaza.id,
+              codigo: plaza.codigo,
+              disponible: plaza.disponible !== false && !plaza.reservada,
+              reservada: Boolean(plaza.reservada)
+            }));
+          }}
+          onContinue={(data) => {
+            setReservaDraft(data);
+            setTipoReservaActiva(null);
+            setShowPagoModal(true);
+          }}
+        />
+      ) : null}
+
+      {showPagoModal && reservaDraft ? (
+        <PagoReservaParkingModal
+          isOpen={showPagoModal}
+          onClose={() => {
+            setShowPagoModal(false);
+            setReservaDraft(null);
+          }}
+          onBack={() => {
+            if (!reservaDraft) return;
+            const plaza = plazas.find((item) => item.id === reservaDraft.plaza_id);
+            const tipo = (plaza?.tipo ?? null) as TipoParking | null;
+            setShowPagoModal(false);
+            setTipoReservaActiva(tipo);
+          }}
+          onSubmit={(paymentData) => {
+            if (!reservaDraft) return;
+
+            void handleCrearReserva({
+              ...reservaDraft,
+              id_cliente: paymentData.id_cliente,
+              pago: paymentData.pago
+            });
+          }}
+          plazaCodigo={reservaDraft.plaza_codigo}
+          reservaDraft={reservaDraft}
+          tarifa={tarifas.find((tarifa) => tarifa.id === reservaDraft.id_tarifa) ?? null}
+        />
+      ) : null}
     </div>
   );
-} 
+}

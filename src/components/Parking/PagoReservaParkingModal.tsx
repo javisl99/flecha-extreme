@@ -13,7 +13,7 @@ type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
 interface TarifaParking {
   id: string;
   tipo: 'embarcacion' | 'tabla' | 'kayak';
-  periodo: 'mes' | 'quincena';
+  periodo: 'dia' | 'semana' | 'quincena' | 'mes';
   precio: number;
 }
 
@@ -58,6 +58,18 @@ export default function PagoReservaParkingModal({
     () => ACTIVE_PAYMENT_METHOD_OPTIONS as Array<{ value: MetodoPago; label: string }>,
     []
   );
+
+  const getPeriodoLabel = (periodo?: TarifaParking['periodo']) => {
+    if (!periodo) return '--';
+    const labels: Record<TarifaParking['periodo'], string> = {
+      dia: 'Diaria',
+      semana: 'Semanal',
+      quincena: 'Quincenal',
+      mes: 'Mensual'
+    };
+
+    return labels[periodo];
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,7 +217,7 @@ export default function PagoReservaParkingModal({
                             <div className="flex items-center justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Tarifa</span>
                               <span className="font-semibold text-gray-900 dark:text-gray-100">
-                                {tarifa ? (tarifa.periodo === 'mes' ? 'Mensual' : 'Quincenal') : '--'}
+                                {getPeriodoLabel(tarifa?.periodo)}
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
