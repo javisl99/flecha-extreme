@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import supabaseClient from '@/lib/supabaseClient';
 import { resolvePaymentMethodIdByCode } from '@/lib/contabilidadCatalogos';
 
-type TipoParking = 'embarcacion' | 'tabla' | 'kayak';
+export type TipoParking = 'embarcacion' | 'tabla' | 'kayak';
 type ParkingPeriodo = 'dia' | 'semana' | 'quincena' | 'mes';
 type MetodoPago =
   | 'efectivo'
@@ -20,7 +20,7 @@ const PARKING_SERVICE_CODES: Record<TipoParking, string> = {
 
 const PARKING_PERIOD_ORDER: ParkingPeriodo[] = ['dia', 'semana', 'quincena', 'mes'];
 
-interface PlazaParking {
+export interface PlazaParking {
   id: string;
   codigo: string;
   tipo: TipoParking;

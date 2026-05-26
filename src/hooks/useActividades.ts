@@ -158,6 +158,7 @@ export interface ReservaItem {
   tarifa_id?: string | null;
   tarifa_codigo?: string | null;
   tarifa_nombre?: string | null;
+  servicio_categoria?: string | null;
   metadata?: ReservaServicioItemMetadata;
 }
 
@@ -294,6 +295,7 @@ function normalizeReservaItems(
     estado?: string | null;
     tarifa_id?: string | null;
     metadata?: ReservaServicioItemMetadata | null;
+    servicio?: { id?: string | null; nombre?: string | null; categoria?: string | null } | Array<{ id?: string | null; nombre?: string | null; categoria?: string | null }> | null;
     tarifa?: { id?: string | null; codigo?: string | null; nombre_tarifa?: string | null } | Array<{ id?: string | null; codigo?: string | null; nombre_tarifa?: string | null }> | null;
   }> | null | undefined
 ): ReservaItem[] {
@@ -301,6 +303,7 @@ function normalizeReservaItems(
     .filter((item): item is NonNullable<typeof item> => Boolean(item?.inicio && item?.fin))
     .map((item, index) => {
       const tarifaRaw = Array.isArray(item.tarifa) ? item.tarifa[0] : item.tarifa;
+      const servicioRaw = Array.isArray(item.servicio) ? item.servicio[0] : item.servicio;
       return {
         id: item.id ?? `item-${index}`,
         inicio: item.inicio ?? '',
@@ -312,6 +315,7 @@ function normalizeReservaItems(
         tarifa_id: item.tarifa_id ?? null,
         tarifa_codigo: tarifaRaw?.codigo ?? null,
         tarifa_nombre: tarifaRaw?.nombre_tarifa ?? null,
+        servicio_categoria: servicioRaw?.categoria ?? null,
         metadata: (item.metadata as ReservaServicioItemMetadata | null) ?? undefined
       };
     })
