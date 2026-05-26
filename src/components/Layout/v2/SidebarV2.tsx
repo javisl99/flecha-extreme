@@ -88,8 +88,8 @@ export default function SidebarV2({ isOpen, onClose }: SidebarV2Props) {
         } lg:translate-x-0`}
       >
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="px-5 pb-6 pt-5 lg:px-6 lg:pb-8 lg:pt-6">
-            <div className="flex items-center justify-between gap-3">
+          <div className="relative px-5 pb-6 pt-5 lg:px-6 lg:pb-8 lg:pt-6">
+            <div className="flex flex-col items-center text-center">
               <Image
                 src="/cropped-lgo.png"
                 alt="Flecha Extreme"
@@ -98,17 +98,19 @@ export default function SidebarV2({ isOpen, onClose }: SidebarV2Props) {
                 priority
                 className="h-auto w-auto max-w-[150px] sm:max-w-[170px]"
               />
-
-              <button
-                type="button"
-                onClick={onClose}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/8 text-white transition hover:bg-white/15 lg:hidden"
-              >
-                <span className="sr-only">Cerrar navegación</span>
-                <XMarkIcon className="h-5 w-5" />
-              </button>
+              <p className="mt-3 text-[11px] font-black uppercase tracking-[0.18em] text-white/60">
+                ERP FLECHA EXTREME
+              </p>
             </div>
-            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">ERP Cockpit</p>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute right-5 top-5 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/8 text-white transition hover:bg-white/15 lg:hidden"
+            >
+              <span className="sr-only">Cerrar navegación</span>
+              <XMarkIcon className="h-5 w-5" />
+            </button>
           </div>
 
           <nav className="space-y-1 pr-3 lg:pr-4">

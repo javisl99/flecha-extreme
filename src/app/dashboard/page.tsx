@@ -1,100 +1,101 @@
 'use client';
 
-import { useState } from 'react';
 import {
-  CalendarDaysIcon,
-  MapPinIcon,
-  UsersIcon,
-  CubeIcon,
-} from '@heroicons/react/24/outline';
-import { reservasMock } from '@/components/Actividades/data';
-import {
-  DataTableV2,
-  KpiHeroCardV2,
-  MetricCardV2,
-  WindConditionCardV2,
+  AccountBalanceCard,
+  ActivityProgressCard,
+  CashHeroCard,
+  ParkingOccupancyCard,
+  PendingPaymentsPanel,
+  TodayReservationsPanel,
 } from '@/components/Dashboard/v2/DashboardPrimitives';
-import TopbarV2 from '@/components/Layout/v2/TopbarV2';
-import { useContabilidad } from '@/hooks/useContabilidad';
-import { formatCurrency } from '@/lib/contabilidad';
-
-const getCurrentDate = () => {
-  const now = new Date();
-  return now.toISOString().split('T')[0];
-};
-
-const clampProgress = (value: number) => Math.max(0, Math.min(100, value));
+import { useDashboardData } from '@/hooks/useDashboardData';
 
 export default function DashboardPage() {
-  const { loading: contabilidadLoading, getResumenEfeDiario } = useContabilidad();
-  const [fecha] = useState(getCurrentDate());
+  const {
+    hasManagerAccess,
+    accountingUiLoading,
+    reservationsUiLoading,
+    parkingUiLoading,
+    accountingError,
+    reservationsError,
+    parkingError,
+    cashAccount,
+    latestCashMovement,
+    visibleAccounts,
+    todayReservations,
+    activityProgress,
+    parkingSummary,
+    pendingPayments,
+  } = useDashboardData();
 
-  const reservasHoy = reservasMock.filter((reserva) => reserva.fecha === fecha);
-  const reservasPendientes = reservasHoy.filter((reserva) => reserva.estado === 'Pendiente').length;
-  const reservasConfirmadas = reservasHoy.filter((reserva) => reserva.estado === 'Confirmada').length;
-
-  const resumenContable = getResumenEfeDiario(fecha);
-  const ingresos = resumenContable.ingresos;
-  const objetivoOperativo = 1000;
-  const progresoObjetivo = objetivoOperativo > 0 ? clampProgress((ingresos / objetivoOperativo) * 100) : 0;
-
-  const heroValue = contabilidadLoading ? '...' : formatCurrency(ingresos);
-  const trendValue = ingresos > 0 ? '+ Operativo activo' : 'Sin ingresos registrados';
+  const topbarBadge = hasManagerAccess ? 'Vista gerencia' : 'Caja efectivo';
 
   return (
-    <div className="min-h-screen-safe bg-surface text-on-surface">
-      <TopbarV2 title="Dashboard" badge="Base Tarifa Live" ctaLabel="Nuevo registro" ctaHref="/actividades" />
+    <div className="page-container space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Dashboard</h1>
 
-      <section className="page-container-narrow space-y-6 lg:space-y-8">
-        <div className="grid gap-6 lg:h-[420px] lg:grid-cols-12">
-          <KpiHeroCardV2
-            title="Ingresos del día"
-            value={heroValue}
-            trend={trendValue}
-            progressLabel="Objetivo operativo"
-            progressValue={progresoObjetivo}
+        <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
+          <span className="text-[11px] font-black uppercase tracking-[0.08em] text-[#c78a00]">{topbarBadge}</span>
+        </div>
+      </div>
+
+      <section className="space-y-6 lg:space-y-8">
+        {(accountingError || reservationsError) ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+            {accountingError || reservationsError}
+          </div>
+        ) : null}
+
+        <div className="grid gap-6 lg:grid-cols-12">
+          <CashHeroCard
+            account={cashAccount}
+            latestMovement={latestCashMovement}
+            loading={accountingUiLoading}
+            managerAccess={hasManagerAccess}
           />
-          <WindConditionCardV2 />
+
+          <ActivityProgressCard
+            completed={activityProgress.completed}
+            total={activityProgress.total}
+            loading={reservationsUiLoading}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
-          <MetricCardV2
-            title="Alquileres activos"
-            value={String(reservasConfirmadas)}
-            icon={<CalendarDaysIcon className="h-6 w-6" />}
-            barProgress={clampProgress(reservasConfirmadas * 10)}
-          />
-
-          <MetricCardV2
-            title="Plazas parking"
-            value="142/150"
-            icon={<MapPinIcon className="h-6 w-6" />}
-            barColorClass="bg-red-500"
-            barProgress={94}
-          />
-
-          <MetricCardV2
-            title="Clases hoy"
-            value={String(reservasHoy.length)}
-            icon={<UsersIcon className="h-6 w-6" />}
-            barProgress={clampProgress(reservasHoy.length * 10)}
-          />
-
-          <MetricCardV2
-            title="Pedidos tienda"
-            value="8"
-            icon={<CubeIcon className="h-6 w-6" />}
-            subtitle="4 pendientes de envío"
-          />
+          {accountingUiLoading
+            ? Array.from({ length: hasManagerAccess ? 4 : 1 }).map((_, index) => (
+                <AccountBalanceCard
+                  key={`account-skeleton-${index}`}
+                  loading
+                  compact={!hasManagerAccess}
+                />
+              ))
+            : visibleAccounts.map((account) => (
+                <AccountBalanceCard
+                  key={account.cuenta_id}
+                  account={account}
+                  compact={!hasManagerAccess && visibleAccounts.length === 1}
+                />
+              ))}
         </div>
 
-        <DataTableV2 reservas={reservasHoy} />
+        <div className="grid gap-6 xl:grid-cols-12">
+          <TodayReservationsPanel reservations={todayReservations} loading={reservationsUiLoading} />
 
-        {reservasPendientes > 0 ? (
-          <p className="rounded-xl bg-surface-container-low px-4 py-3 text-sm font-semibold text-on-surface-variant">
-            Tienes {reservasPendientes} reservas pendientes por confirmar hoy.
-          </p>
-        ) : null}
+          <div className="space-y-6 xl:col-span-4">
+            <ParkingOccupancyCard
+              summary={parkingSummary}
+              loading={parkingUiLoading}
+              error={parkingError}
+            />
+
+            {hasManagerAccess ? (
+              <PendingPaymentsPanel payments={pendingPayments} loading={accountingUiLoading} />
+            ) : null}
+          </div>
+        </div>
       </section>
     </div>
   );
