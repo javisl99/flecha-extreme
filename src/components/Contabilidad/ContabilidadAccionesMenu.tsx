@@ -11,7 +11,7 @@ interface ContabilidadAccionesMenuProps {
 }
 
 const menuItemClassName =
-  'flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-on-surface transition hover:bg-surface-container-high';
+  'flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-on-surface transition hover:bg-surface-container-high cursor-pointer';
 
 export default function ContabilidadAccionesMenu({
   disabled = false,
@@ -59,7 +59,7 @@ export default function ContabilidadAccionesMenu({
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="primary-gradient flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-primary-light/10 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-primary/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+        className="primary-gradient flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-primary-light/10 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-primary/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto cursor-pointer"
       >
         <PlusIcon className="h-4 w-4" />
         Acciones
