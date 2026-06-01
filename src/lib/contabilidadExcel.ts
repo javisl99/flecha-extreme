@@ -37,7 +37,10 @@ export async function exportContabilidadMovimientosToXlsx({
   const filtrosRows = [
     { Filtro: 'Fecha inicio', Valor: filters.fechaInicio || '-' },
     { Filtro: 'Fecha fin', Valor: filters.fechaFin || '-' },
-    { Filtro: 'Tipo', Valor: filters.tipo || 'Todos' },
+    {
+      Filtro: 'Tipo',
+      Valor: filters.tipo ? accountingTypeLabel(filters.tipo as MovimientoContable['tipo']) : 'Todos',
+    },
     { Filtro: 'Cuenta', Valor: filters.cuenta || 'Todas' },
     { Filtro: 'Origen', Valor: filters.origen || 'Todos' },
     { Filtro: 'Búsqueda', Valor: filters.busqueda || '-' },
