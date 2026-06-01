@@ -54,8 +54,12 @@ export default function IngresoModalV2({
   const labelClassName = 'mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline';
   const inputClassName =
     'h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15';
-  const title = form.id ? 'Editar ingreso / devolución' : 'Nuevo ingreso / devolución';
-  const submitLabel = form.id ? 'Actualizar ingreso' : form.esDevolucion ? 'Registrar devolución' : 'Guardar ingreso';
+  const title = form.id ? 'Editar aportación / devolución' : 'Nueva aportación / devolución';
+  const submitLabel = form.id
+    ? 'Actualizar aportación'
+    : form.esDevolucion
+      ? 'Registrar devolución'
+      : 'Guardar aportación';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-4 backdrop-blur-sm sm:items-center">

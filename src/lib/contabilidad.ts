@@ -71,7 +71,7 @@ export const accountingMethodLabel = (code?: string | null) =>
 export const accountingTypeLabel = (tipo: TipoMovimientoContable) => {
   switch (tipo) {
     case 'ingreso':
-      return 'Ingreso';
+      return 'Aportación';
     case 'gasto':
       return 'Gasto';
     case 'traspaso_entrada':
