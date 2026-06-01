@@ -2,7 +2,14 @@
 
 import { Dispatch, ReactNode, SetStateAction, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowDownTrayIcon,
+  ArrowTrendingDownIcon,
+  ArrowTrendingUpIcon,
+  BanknotesIcon,
+  BuildingLibraryIcon,
+  ScaleIcon,
+} from '@heroicons/react/24/outline';
 import ProtectedRoute from '@/components/Layout/ProtectedRoute';
 import ContabilidadAccionesMenu from '@/components/Contabilidad/ContabilidadAccionesMenu';
 import GastoModalV2, {
@@ -38,6 +45,7 @@ import {
   CuentaContable,
   MetodoPagoContable,
   MovimientoContable,
+  ResumenCuentaContable,
   TipoCuentaContable,
   TipoMovimientoContable,
 } from '@/shared/types';
@@ -266,23 +274,156 @@ function MetricCard({
   label,
   value,
   tone = 'neutral',
+  icon,
+  description,
+  footer,
 }: {
   label: string;
   value: string;
   tone?: 'positive' | 'negative' | 'neutral';
+  icon?: ReactNode;
+  description?: string;
+  footer?: ReactNode;
 }) {
-  const toneClassName =
-    tone === 'positive'
-      ? 'text-emerald-600'
-      : tone === 'negative'
-        ? 'text-red-600'
-        : 'text-primary-dark';
+  const toneClassNames = {
+    positive: {
+      value: 'text-emerald-700',
+      icon: 'bg-emerald-50 text-emerald-600 ring-emerald-100',
+      glow: 'from-emerald-500/16 via-emerald-400/8 to-transparent',
+    },
+    negative: {
+      value: 'text-red-700',
+      icon: 'bg-red-50 text-red-600 ring-red-100',
+      glow: 'from-red-500/16 via-red-400/8 to-transparent',
+    },
+    neutral: {
+      value: 'text-primary-dark',
+      icon: 'bg-primary/10 text-primary ring-primary/10',
+      glow: 'from-primary/14 via-primary/6 to-transparent',
+    },
+  }[tone];
 
   return (
-    <article className={`${cardClassName} p-5`}>
-      <p className="text-sm font-medium text-outline">{label}</p>
-      <p className={`mt-2 font-headline text-3xl font-extrabold ${toneClassName}`}>{value}</p>
+    <article className={`relative overflow-hidden ${cardClassName} p-5`}>
+      <div
+        className={`pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${toneClassNames.glow}`}
+      />
+      <div className="relative space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+              {label}
+            </p>
+            {description ? (
+              <p className="mt-1 text-sm leading-5 text-on-surface-variant">
+                {description}
+              </p>
+            ) : null}
+          </div>
+          {icon ? (
+            <div
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ring-1 ${toneClassNames.icon}`}
+            >
+              {icon}
+            </div>
+          ) : null}
+        </div>
+
+        <p className={`font-headline text-3xl font-extrabold tracking-tight ${toneClassNames.value}`}>
+          {value}
+        </p>
+
+        {footer ? (
+          <div className="rounded-2xl border border-outline-variant/25 bg-surface-container-low/75 px-3 py-2 text-sm font-semibold text-on-surface-variant">
+            {footer}
+          </div>
+        ) : null}
+      </div>
     </article>
+  );
+}
+
+function AccountSummaryCard({
+  resumen,
+  selected,
+  onClick,
+}: {
+  resumen: ResumenCuentaContable;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const AccountIcon = resumen.cuenta.tipo === 'banco' ? BuildingLibraryIcon : BanknotesIcon;
+  const saldoToneClassName = resumen.saldo >= 0 ? 'text-emerald-700' : 'text-red-700';
+
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`group relative cursor-pointer overflow-hidden rounded-[1.5rem] border p-5 text-left shadow-card-ambient transition ${
+        selected
+          ? 'border-primary/35 bg-primary/5 shadow-primary/10'
+          : 'border-outline-variant/30 bg-surface-container-lowest hover:border-primary/25 hover:bg-surface-container-low'
+      }`}
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent opacity-0 transition group-hover:opacity-100" />
+      <div className="relative space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+              {resumen.cuenta.tipo === 'banco' ? 'Cuenta bancaria' : 'Caja contable'}
+            </p>
+            <p className="mt-2 text-lg font-extrabold text-on-surface">
+              {accountLabel(resumen.cuenta)}
+            </p>
+          </div>
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ring-1 ${
+              selected
+                ? 'bg-primary text-white ring-primary/20'
+                : 'bg-primary/10 text-primary ring-primary/10'
+            }`}
+          >
+            <AccountIcon className="h-5 w-5" />
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-outline">
+            Saldo actual
+          </p>
+          <p className={`mt-1 font-headline text-3xl font-extrabold tracking-tight ${saldoToneClassName}`}>
+            {formatCurrency(resumen.saldo)}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-2xl border border-outline-variant/25 bg-surface-container-low/75 p-3">
+            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-outline">
+              Aportaciones
+            </p>
+            <p className="mt-1 text-sm font-extrabold text-emerald-700">
+              {formatCurrency(resumen.ingresos_operativos)}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-outline-variant/25 bg-surface-container-low/75 p-3">
+            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-outline">
+              Gastos
+            </p>
+            <p className="mt-1 text-sm font-extrabold text-red-700">
+              {formatCurrency(resumen.gastos_operativos)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 text-sm font-semibold text-on-surface-variant">
+          <span>{resumen.cuenta.visible_efe ? 'Visible en EFE' : 'Fuera de EFE'}</span>
+          <span className={selected ? 'text-primary' : 'text-outline'}>
+            {selected ? 'Cuenta activa' : 'Ver movimientos'}
+          </span>
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -1055,15 +1196,25 @@ export default function ContabilidadPage() {
     [movimientos, filtros, selectedCuentaId]
   );
 
-  const ingresosOperativos = movimientosFiltrados
-    .filter(isOperationalIncome)
-    .reduce((total, movimiento) => total + movimiento.importe_total, 0);
-  const gastosOperativos = movimientosFiltrados
-    .filter(isOperationalExpense)
-    .reduce((total, movimiento) => total + movimiento.importe_total, 0);
+  const aportacionesOperativas = movimientosFiltrados.filter(isOperationalIncome);
+  const gastosOperativosLista = movimientosFiltrados.filter(isOperationalExpense);
+  const ingresosOperativos = aportacionesOperativas.reduce(
+    (total, movimiento) => total + movimiento.importe_total,
+    0
+  );
+  const gastosOperativos = gastosOperativosLista.reduce(
+    (total, movimiento) => total + movimiento.importe_total,
+    0
+  );
   const saldoOperativo = ingresosOperativos - gastosOperativos;
   const resumenCuentas = getResumenCuentas();
   const resumenEFE = getResumenEfeDiario(fechaEFE);
+  const movimientosEfeEntrada = resumenEFE.movimientos.filter(
+    (movimiento) => movimiento.tipo === 'ingreso' || movimiento.tipo === 'traspaso_entrada'
+  );
+  const movimientosEfeSalida = resumenEFE.movimientos.filter(
+    (movimiento) => movimiento.tipo === 'gasto' || movimiento.tipo === 'traspaso_salida'
+  );
   const selectedCuenta = selectedCuentaId
     ? cuentas.find((cuenta) => cuenta.id === selectedCuentaId) || null
     : null;
@@ -1491,16 +1642,27 @@ export default function ContabilidadPage() {
                 label="Aportaciones operativas"
                 value={formatCurrency(ingresosOperativos)}
                 tone="positive"
+                icon={<ArrowTrendingUpIcon className="h-5 w-5" />}
+                description="Entradas confirmadas dentro del filtro actual."
+                footer={
+                  <span>{aportacionesOperativas.length} entradas confirmadas</span>
+                }
               />
               <MetricCard
                 label="Gastos operativos"
                 value={formatCurrency(gastosOperativos)}
                 tone="negative"
+                icon={<ArrowTrendingDownIcon className="h-5 w-5" />}
+                description="Salidas operativas confirmadas en el periodo."
+                footer={<span>{gastosOperativosLista.length} salidas operativas</span>}
               />
               <MetricCard
                 label="Saldo operativo"
                 value={formatCurrency(saldoOperativo)}
                 tone={saldoOperativo >= 0 ? 'positive' : 'negative'}
+                icon={<ScaleIcon className="h-5 w-5" />}
+                description="Resultado neto de aportaciones menos gastos."
+                footer={<span>Resultado del filtro actual</span>}
               />
             </section>
 
@@ -1535,61 +1697,18 @@ export default function ContabilidadPage() {
         {vistaActual === 'cuentas' ? (
           <>
             <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <button
-                type="button"
-                onClick={() => setSelectedCuentaId('')}
-                className={`rounded-[1.5rem] border p-5 text-left shadow-card-ambient transition ${
-                  selectedCuentaId
-                    ? 'border-outline-variant/30 bg-surface-container-lowest hover:border-primary/20 hover:bg-surface-container-low'
-                    : 'border-primary/20 bg-primary/5'
-                }`}
-              >
-                <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                  Vista global
-                </p>
-                <p className="mt-2 font-headline text-2xl font-extrabold text-primary-dark">
-                  Todas las cuentas
-                </p>
-                <p className="mt-2 text-sm text-on-surface-variant">
-                  Ver saldos, aportaciones y gastos sin fijar una cuenta concreta.
-                </p>
-              </button>
-
-              {resumenCuentas.map((resumen) => {
-                const selected = selectedCuentaId === resumen.cuenta_id;
-                return (
-                  <button
-                    key={resumen.cuenta_id}
-                    type="button"
-                    onClick={() => setSelectedCuentaId(resumen.cuenta_id)}
-                    className={`rounded-[1.5rem] border p-5 text-left shadow-card-ambient transition ${
-                      selected
-                        ? 'border-primary/25 bg-primary/5'
-                        : 'border-outline-variant/30 bg-surface-container-lowest hover:border-primary/20 hover:bg-surface-container-low'
-                    }`}
-                  >
-                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                      {resumen.cuenta.tipo === 'banco' ? 'Banco' : 'Caja'}
-                    </p>
-                    <p className="mt-2 text-lg font-bold text-on-surface">
-                      {accountLabel(resumen.cuenta)}
-                    </p>
-                    <p
-                      className={`mt-3 text-2xl font-extrabold ${
-                        resumen.saldo >= 0 ? 'text-emerald-600' : 'text-red-600'
-                      }`}
-                    >
-                      {formatCurrency(resumen.saldo)}
-                    </p>
-                    <div className="mt-3 grid grid-cols-1 gap-1 text-sm text-on-surface-variant">
-                      <span>
-                        Aportaciones {formatCurrency(resumen.ingresos_operativos)}
-                      </span>
-                      <span>Gastos {formatCurrency(resumen.gastos_operativos)}</span>
-                    </div>
-                  </button>
-                );
-              })}
+              {resumenCuentas.map((resumen) => (
+                <AccountSummaryCard
+                  key={resumen.cuenta_id}
+                  resumen={resumen}
+                  selected={selectedCuentaId === resumen.cuenta_id}
+                  onClick={() =>
+                    setSelectedCuentaId((currentCuentaId) =>
+                      currentCuentaId === resumen.cuenta_id ? '' : resumen.cuenta_id
+                    )
+                  }
+                />
+              ))}
             </section>
 
             <MovimientosSection
@@ -1654,28 +1773,30 @@ export default function ContabilidadPage() {
 
             <div className="space-y-4 p-4 sm:p-6">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
-                  <p className="text-sm text-outline">Aportaciones</p>
-                  <p className="mt-1 text-2xl font-bold text-emerald-600">
-                    {formatCurrency(resumenEFE.ingresos)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
-                  <p className="text-sm text-outline">Gastos</p>
-                  <p className="mt-1 text-2xl font-bold text-red-600">
-                    {formatCurrency(resumenEFE.gastos)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
-                  <p className="text-sm text-outline">Saldo día</p>
-                  <p
-                    className={`mt-1 text-2xl font-bold ${
-                      resumenEFE.saldo >= 0 ? 'text-emerald-600' : 'text-red-600'
-                    }`}
-                  >
-                    {formatCurrency(resumenEFE.saldo)}
-                  </p>
-                </div>
+                <MetricCard
+                  label="Aportaciones del día"
+                  value={formatCurrency(resumenEFE.ingresos)}
+                  tone="positive"
+                  icon={<ArrowTrendingUpIcon className="h-5 w-5" />}
+                  description="Dinero recibido en las cuentas visibles en EFE."
+                  footer={<span>{movimientosEfeEntrada.length} movimientos de entrada</span>}
+                />
+                <MetricCard
+                  label="Gastos del día"
+                  value={formatCurrency(resumenEFE.gastos)}
+                  tone="negative"
+                  icon={<ArrowTrendingDownIcon className="h-5 w-5" />}
+                  description="Salidas y traspasos de salida del día seleccionado."
+                  footer={<span>{movimientosEfeSalida.length} movimientos de salida</span>}
+                />
+                <MetricCard
+                  label="Saldo día"
+                  value={formatCurrency(resumenEFE.saldo)}
+                  tone={resumenEFE.saldo >= 0 ? 'positive' : 'negative'}
+                  icon={<ScaleIcon className="h-5 w-5" />}
+                  description="Diferencia diaria entre entradas y salidas EFE."
+                  footer={<span>{resumenEFE.cuentas.length} cuentas visibles en EFE</span>}
+                />
               </div>
 
               <div className="space-y-4">
