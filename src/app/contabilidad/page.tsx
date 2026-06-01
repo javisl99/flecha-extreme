@@ -1,34 +1,25 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Dispatch, ReactNode, SetStateAction, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import {
-  ArrowDownTrayIcon,
-  ArrowsRightLeftIcon,
-  PlusIcon,
-} from '@heroicons/react/24/outline';
-import { Button } from '@/shared/components';
+import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import ProtectedRoute from '@/components/Layout/ProtectedRoute';
-import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
-import { useContabilidad } from '@/hooks/useContabilidad';
-import { useEmpleados } from '@/hooks/useEmpleados';
-import IngresoModalV2, {
-  type IngresoFormState,
-} from '@/components/Contabilidad/IngresoModal';
+import ContabilidadAccionesMenu from '@/components/Contabilidad/ContabilidadAccionesMenu';
 import GastoModalV2, {
   type GastoFormState,
 } from '@/components/Contabilidad/GastoModal';
+import IngresoModalV2, {
+  type IngresoFormState,
+} from '@/components/Contabilidad/IngresoModal';
+import SwitchVistaContabilidad, {
+  type VistaContabilidadTipo,
+} from '@/components/Contabilidad/SwitchVistaContabilidad';
 import TraspasoModalV2, {
   type TraspasoFormState,
 } from '@/components/Contabilidad/TraspasoModal';
-import {
-  ClaseMetodoPagoContable,
-  CuentaContable,
-  MetodoPagoContable,
-  MovimientoContable,
-  TipoCuentaContable,
-  TipoMovimientoContable,
-} from '@/shared/types';
+import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
+import { useContabilidad, type PendingBizum } from '@/hooks/useContabilidad';
+import { useEmpleados } from '@/hooks/useEmpleados';
 import {
   accountLabel,
   accountingTypeLabel,
@@ -41,8 +32,26 @@ import {
   todayAccountingDate,
 } from '@/lib/contabilidad';
 import { exportContabilidadMovimientosToXlsx } from '@/lib/contabilidadExcel';
+import { Button } from '@/shared/components';
+import {
+  ClaseMetodoPagoContable,
+  CuentaContable,
+  MetodoPagoContable,
+  MovimientoContable,
+  TipoCuentaContable,
+  TipoMovimientoContable,
+} from '@/shared/types';
 
 type FiltroOrigen = 'todos' | 'manual' | 'sync' | 'devolucion' | 'traspaso';
+
+type FiltrosContabilidadState = {
+  fechaInicio: string;
+  fechaFin: string;
+  tipo: '' | TipoMovimientoContable;
+  cuentaId: string;
+  origen: FiltroOrigen;
+  busqueda: string;
+};
 
 type BancoFormState = {
   id: string | null;
@@ -191,6 +200,751 @@ const emptyMetodoForm = (): MetodoFormState => ({
   orden: 10,
 });
 
+const cardClassName =
+  'rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient';
+
+const fieldClassName =
+  'h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15';
+
+const buildFilteredMovimientos = ({
+  movimientos,
+  filtros,
+  cuentaId,
+}: {
+  movimientos: MovimientoContable[];
+  filtros: FiltrosContabilidadState;
+  cuentaId?: string;
+}) =>
+  movimientos.filter((movimiento) => {
+    const fecha = movimiento.fecha_operacion;
+    const origen = filtros.origen;
+    const search = filtros.busqueda.trim().toLowerCase();
+    const sourceLabel = getSourceLabel(movimiento).toLowerCase();
+    const effectiveCuentaId = cuentaId || filtros.cuentaId;
+
+    if (filtros.fechaInicio && fecha < filtros.fechaInicio) return false;
+    if (filtros.fechaFin && fecha > filtros.fechaFin) return false;
+    if (filtros.tipo && movimiento.tipo !== filtros.tipo) return false;
+    if (effectiveCuentaId && movimiento.cuenta_id !== effectiveCuentaId) return false;
+    if (
+      origen === 'manual' &&
+      (!isManualMovement(movimiento) ||
+        movimiento.es_devolucion ||
+        movimiento.tipo.includes('traspaso'))
+    ) {
+      return false;
+    }
+    if (origen === 'sync' && !movimiento.id_pago) return false;
+    if (origen === 'devolucion' && !movimiento.es_devolucion) return false;
+    if (origen === 'traspaso' && !movimiento.tipo.includes('traspaso')) return false;
+
+    if (
+      search &&
+      ![
+        movimiento.concepto,
+        movimiento.comentario || '',
+        paymentMethodLabel(
+          movimiento.metodo_pago,
+          movimiento.metodo_pago?.codigo || movimiento.metodo || null
+        ),
+        accountLabel(movimiento.cuenta, movimiento.caja),
+        sourceLabel,
+        movimiento.gasto?.proveedor || '',
+        movimiento.gasto?.num_factura || '',
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(search)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+function MetricCard({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: string;
+  tone?: 'positive' | 'negative' | 'neutral';
+}) {
+  const toneClassName =
+    tone === 'positive'
+      ? 'text-emerald-600'
+      : tone === 'negative'
+        ? 'text-red-600'
+        : 'text-primary-dark';
+
+  return (
+    <article className={`${cardClassName} p-5`}>
+      <p className="text-sm font-medium text-outline">{label}</p>
+      <p className={`mt-2 font-headline text-3xl font-extrabold ${toneClassName}`}>{value}</p>
+    </article>
+  );
+}
+
+function MovimientosSection({
+  title,
+  description,
+  loading,
+  movimientos,
+  filtros,
+  setFiltros,
+  cuentas,
+  onEditGasto,
+  onEditAportacion,
+  onEditTraspaso,
+  onPrepararDevolucion,
+  onAnular,
+  headerAction,
+  lockedCuenta,
+  onClearLockedCuenta,
+}: {
+  title: string;
+  description?: string;
+  loading: boolean;
+  movimientos: MovimientoContable[];
+  filtros: FiltrosContabilidadState;
+  setFiltros: Dispatch<SetStateAction<FiltrosContabilidadState>>;
+  cuentas: CuentaContable[];
+  onEditGasto: (movimiento: MovimientoContable) => void;
+  onEditAportacion: (movimiento: MovimientoContable) => void;
+  onEditTraspaso: (movimiento: MovimientoContable) => void;
+  onPrepararDevolucion: (movimiento: MovimientoContable) => void;
+  onAnular: (movimiento: MovimientoContable) => void;
+  headerAction?: ReactNode;
+  lockedCuenta?: CuentaContable | null;
+  onClearLockedCuenta?: () => void;
+}) {
+  return (
+    <section className={`overflow-hidden ${cardClassName}`}>
+      <header className="border-b border-outline-variant/20 px-6 py-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="font-headline text-xl font-extrabold text-primary-dark">{title}</h2>
+            {description ? (
+              <p className="mt-1 text-sm text-on-surface-variant">{description}</p>
+            ) : null}
+          </div>
+          {headerAction ? <div className="w-full lg:w-auto">{headerAction}</div> : null}
+        </div>
+      </header>
+
+      <div className="space-y-5 p-4 sm:p-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <label className="text-sm text-on-surface">
+            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+              Desde
+            </span>
+            <input
+              type="date"
+              className={fieldClassName}
+              value={filtros.fechaInicio}
+              onChange={(e) =>
+                setFiltros((prev) => ({ ...prev, fechaInicio: e.target.value }))
+              }
+            />
+          </label>
+
+          <label className="text-sm text-on-surface">
+            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+              Hasta
+            </span>
+            <input
+              type="date"
+              className={fieldClassName}
+              value={filtros.fechaFin}
+              onChange={(e) => setFiltros((prev) => ({ ...prev, fechaFin: e.target.value }))}
+            />
+          </label>
+
+          <label className="text-sm text-on-surface">
+            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+              Tipo
+            </span>
+            <select
+              className={fieldClassName}
+              value={filtros.tipo}
+              onChange={(e) =>
+                setFiltros((prev) => ({
+                  ...prev,
+                  tipo: e.target.value as '' | TipoMovimientoContable,
+                }))
+              }
+            >
+              <option value="">Todos</option>
+              <option value="ingreso">Aportación</option>
+              <option value="gasto">Gasto</option>
+              <option value="traspaso_entrada">Traspaso entrada</option>
+              <option value="traspaso_salida">Traspaso salida</option>
+            </select>
+          </label>
+
+          {lockedCuenta ? (
+            <div className="text-sm text-on-surface">
+              <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                Cuenta activa
+              </span>
+              <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-primary/15 bg-primary/5 px-3 text-sm text-primary-dark">
+                <span className="truncate font-semibold">{accountLabel(lockedCuenta)}</span>
+                {onClearLockedCuenta ? (
+                  <button
+                    type="button"
+                    onClick={onClearLockedCuenta}
+                    className="shrink-0 text-xs font-bold uppercase tracking-[0.08em] text-primary transition hover:opacity-80"
+                  >
+                    Ver todas
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <label className="text-sm text-on-surface">
+              <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                Cuenta
+              </span>
+              <select
+                className={fieldClassName}
+                value={filtros.cuentaId}
+                onChange={(e) =>
+                  setFiltros((prev) => ({ ...prev, cuentaId: e.target.value }))
+                }
+              >
+                <option value="">Todas</option>
+                {cuentas.map((cuenta) => (
+                  <option key={cuenta.id} value={cuenta.id}>
+                    {accountLabel(cuenta)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <label className="text-sm text-on-surface">
+            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+              Origen
+            </span>
+            <select
+              className={fieldClassName}
+              value={filtros.origen}
+              onChange={(e) =>
+                setFiltros((prev) => ({ ...prev, origen: e.target.value as FiltroOrigen }))
+              }
+            >
+              <option value="todos">Todos</option>
+              <option value="manual">Manuales</option>
+              <option value="sync">Sincronizados</option>
+              <option value="devolucion">Devoluciones</option>
+              <option value="traspaso">Traspasos</option>
+            </select>
+          </label>
+
+          <label className="text-sm text-on-surface">
+            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+              Buscar
+            </span>
+            <input
+              type="text"
+              className={fieldClassName}
+              value={filtros.busqueda}
+              onChange={(e) => setFiltros((prev) => ({ ...prev, busqueda: e.target.value }))}
+              placeholder="Concepto, proveedor, factura..."
+            />
+          </label>
+        </div>
+
+        {loading ? (
+          <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low px-4 py-10 text-center text-sm text-outline">
+            Cargando movimientos contables...
+          </div>
+        ) : (
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-surface-container-low/70 backdrop-blur-md">
+                    <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Fecha
+                    </th>
+                    <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Tipo
+                    </th>
+                    <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Cuenta
+                    </th>
+                    <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Concepto
+                    </th>
+                    <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Método / fiscalidad
+                    </th>
+                    <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Importe
+                    </th>
+                    <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movimientos.map((movimiento, index) => {
+                    const esTraspaso =
+                      movimiento.tipo === 'traspaso_entrada' ||
+                      movimiento.tipo === 'traspaso_salida';
+                    const puedeEditar =
+                      isManualMovement(movimiento) && movimiento.estado === 'confirmado';
+                    const puedeRegistrarDevolucion =
+                      movimiento.estado === 'confirmado' &&
+                      movimiento.tipo === 'ingreso' &&
+                      !movimiento.es_devolucion &&
+                      movimiento.importe_total > 0;
+
+                    return (
+                      <tr
+                        key={movimiento.id}
+                        className={`border-b border-outline-variant/10 transition ${
+                          index % 2
+                            ? 'bg-surface-container-low/25 hover:bg-surface-container-low'
+                            : 'hover:bg-surface-container-low'
+                        }`}
+                      >
+                        <td className="px-4 py-3 text-sm text-on-surface-variant">
+                          {movimiento.fecha_operacion}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="flex flex-col gap-1">
+                            <span className="inline-flex w-fit rounded-full bg-surface-container-high px-2.5 py-1 text-xs font-semibold text-on-surface-variant">
+                              {accountingTypeLabel(movimiento.tipo)}
+                            </span>
+                            <span className="inline-flex w-fit rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                              {getSourceLabel(movimiento)}
+                            </span>
+                            {movimiento.estado === 'anulado' ? (
+                              <span className="inline-flex w-fit rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                                Anulado
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-on-surface-variant">
+                          <p>{accountLabel(movimiento.cuenta, movimiento.caja)}</p>
+                          <p className="text-xs text-outline">
+                            {movimiento.cuenta?.banco?.nombre || movimiento.cuenta?.tipo || '-'}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-on-surface">
+                          <p className="font-semibold">{movimiento.concepto}</p>
+                          {movimiento.empleado ? (
+                            <p className="text-xs text-on-surface-variant">
+                              Empleado: {movimiento.empleado.nombre}{' '}
+                              {movimiento.empleado.apellidos}
+                            </p>
+                          ) : null}
+                          {movimiento.comentario ? (
+                            <p className="text-xs text-on-surface-variant">
+                              {movimiento.comentario}
+                            </p>
+                          ) : null}
+                          {movimiento.gasto?.proveedor ? (
+                            <p className="text-xs text-on-surface-variant">
+                              Proveedor: {movimiento.gasto.proveedor}
+                              {movimiento.gasto.num_factura
+                                ? ` · Factura ${movimiento.gasto.num_factura}`
+                                : ''}
+                            </p>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-on-surface-variant">
+                          <p>
+                            {paymentMethodLabel(
+                              movimiento.metodo_pago,
+                              movimiento.metodo_pago?.codigo || movimiento.metodo || null
+                            )}
+                          </p>
+                          <p className="text-xs text-outline">
+                            Base {formatCurrency(movimiento.base_imponible)} · IVA{' '}
+                            {movimiento.iva_pct}%
+                          </p>
+                          <p className="text-xs text-outline">
+                            Impuesto {formatCurrency(movimiento.iva_importe)}
+                          </p>
+                          {movimiento.documentos?.[0] ? (
+                            <a
+                              href={movimiento.documentos[0].url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-semibold text-primary hover:underline"
+                            >
+                              Ver documento
+                            </a>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm font-bold">
+                          <span className={getAmountTone(movimiento)}>
+                            {formatCurrency(movimiento.importe_total)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="flex flex-wrap justify-end gap-2">
+                            {puedeEditar && movimiento.tipo === 'gasto' ? (
+                              <button
+                                type="button"
+                                onClick={() => onEditGasto(movimiento)}
+                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                              >
+                                Editar
+                              </button>
+                            ) : null}
+
+                            {puedeEditar && movimiento.tipo === 'ingreso' ? (
+                              <button
+                                type="button"
+                                onClick={() => onEditAportacion(movimiento)}
+                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                              >
+                                Editar
+                              </button>
+                            ) : null}
+
+                            {puedeEditar && esTraspaso && movimiento.tipo === 'traspaso_salida' ? (
+                              <button
+                                type="button"
+                                onClick={() => onEditTraspaso(movimiento)}
+                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                              >
+                                Editar
+                              </button>
+                            ) : null}
+
+                            {puedeRegistrarDevolucion ? (
+                              <button
+                                type="button"
+                                onClick={() => onPrepararDevolucion(movimiento)}
+                                className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                              >
+                                Devolución
+                              </button>
+                            ) : null}
+
+                            {puedeEditar && (!esTraspaso || movimiento.tipo === 'traspaso_salida') ? (
+                              <button
+                                type="button"
+                                onClick={() => onAnular(movimiento)}
+                                className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                              >
+                                Anular
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {movimientos.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-4 py-10 text-center text-sm font-medium text-outline"
+                      >
+                        No hay movimientos para los filtros actuales.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-3 md:hidden">
+              {movimientos.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+                  No hay movimientos para los filtros actuales.
+                </div>
+              ) : (
+                movimientos.map((movimiento) => {
+                  const esTraspaso =
+                    movimiento.tipo === 'traspaso_entrada' ||
+                    movimiento.tipo === 'traspaso_salida';
+                  const puedeEditar =
+                    isManualMovement(movimiento) && movimiento.estado === 'confirmado';
+                  const puedeRegistrarDevolucion =
+                    movimiento.estado === 'confirmado' &&
+                    movimiento.tipo === 'ingreso' &&
+                    !movimiento.es_devolucion &&
+                    movimiento.importe_total > 0;
+
+                  return (
+                    <div
+                      key={movimiento.id}
+                      className="rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-on-surface">
+                            {movimiento.concepto}
+                          </p>
+                          <p className="mt-1 text-sm text-on-surface-variant">
+                            {movimiento.fecha_operacion}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoPillClass(
+                            movimiento
+                          )}`}
+                        >
+                          {getSourceLabel(movimiento)}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="inline-flex rounded-full bg-surface-container-high px-2.5 py-1 text-xs font-semibold text-on-surface-variant">
+                          {accountingTypeLabel(movimiento.tipo)}
+                        </span>
+                        {movimiento.estado === 'anulado' ? (
+                          <span className="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                            Anulado
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-on-surface-variant">
+                        <p>Cuenta: {accountLabel(movimiento.cuenta, movimiento.caja)}</p>
+                        <p>
+                          Método:{' '}
+                          {paymentMethodLabel(
+                            movimiento.metodo_pago,
+                            movimiento.metodo_pago?.codigo || movimiento.metodo || null
+                          )}
+                        </p>
+                        <p>IVA: {movimiento.iva_pct}%</p>
+                        <p className={`font-bold ${getAmountTone(movimiento)}`}>
+                          {formatCurrency(movimiento.importe_total)}
+                        </p>
+                        {movimiento.comentario ? <p>{movimiento.comentario}</p> : null}
+                        {movimiento.documentos?.[0] ? (
+                          <a
+                            href={movimiento.documentos[0].url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-semibold text-primary hover:underline"
+                          >
+                            Ver documento
+                          </a>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-4 flex flex-col gap-2">
+                        {puedeEditar && movimiento.tipo === 'gasto' ? (
+                          <button
+                            type="button"
+                            onClick={() => onEditGasto(movimiento)}
+                            className="min-h-11 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                          >
+                            Editar gasto
+                          </button>
+                        ) : null}
+
+                        {puedeEditar && movimiento.tipo === 'ingreso' ? (
+                          <button
+                            type="button"
+                            onClick={() => onEditAportacion(movimiento)}
+                            className="min-h-11 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                          >
+                            Editar aportación
+                          </button>
+                        ) : null}
+
+                        {puedeEditar && esTraspaso && movimiento.tipo === 'traspaso_salida' ? (
+                          <button
+                            type="button"
+                            onClick={() => onEditTraspaso(movimiento)}
+                            className="min-h-11 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                          >
+                            Editar traspaso
+                          </button>
+                        ) : null}
+
+                        {puedeRegistrarDevolucion ? (
+                          <button
+                            type="button"
+                            onClick={() => onPrepararDevolucion(movimiento)}
+                            className="min-h-11 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                          >
+                            Registrar devolución
+                          </button>
+                        ) : null}
+
+                        {puedeEditar && (!esTraspaso || movimiento.tipo === 'traspaso_salida') ? (
+                          <button
+                            type="button"
+                            onClick={() => onAnular(movimiento)}
+                            className="min-h-11 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                          >
+                            Anular movimiento
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function BizumPendientesSection({
+  pendingBizums,
+  onCompletar,
+  onCancelar,
+}: {
+  pendingBizums: PendingBizum[];
+  onCompletar: (id: string) => Promise<void>;
+  onCancelar: (id: string) => Promise<void>;
+}) {
+  return (
+    <section className={cardClassName}>
+      <header className="border-b border-outline-variant/20 px-6 py-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-headline text-xl font-extrabold text-primary-dark">
+              Bizum Alfonso pendiente
+            </h2>
+            <p className="text-sm text-on-surface-variant">
+              Bandeja de bizums pendientes de liquidar en Santander.
+            </p>
+          </div>
+          <span className="w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase tracking-[0.08em] text-amber-700">
+            {pendingBizums.length} pendientes
+          </span>
+        </div>
+      </header>
+      <div className="p-4 sm:p-6">
+        {pendingBizums.length === 0 ? (
+          <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low px-4 py-8 text-center text-sm text-outline">
+            No hay Bizums Alfonso pendientes ahora mismo.
+          </div>
+        ) : (
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-surface-container-low/70">
+                    <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Fecha
+                    </th>
+                    <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Cliente
+                    </th>
+                    <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Concepto
+                    </th>
+                    <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Importe
+                    </th>
+                    <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingBizums.map((bizum, index) => (
+                    <tr
+                      key={bizum.id}
+                      className={`border-b border-outline-variant/10 ${
+                        index % 2 ? 'bg-surface-container-low/25' : ''
+                      }`}
+                    >
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">
+                        {new Date(bizum.created_at).toLocaleDateString('es-ES')}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-on-surface">
+                        {bizum.cliente
+                          ? `${bizum.cliente.nombre} ${bizum.cliente.apellidos}`
+                          : 'Sin cliente'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-on-surface">{bizum.concepto}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-on-surface">
+                        {formatCurrency(bizum.importe)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void onCompletar(bizum.id)}
+                            className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                          >
+                            Completar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void onCancelar(bizum.id)}
+                            className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-3 md:hidden">
+              {pendingBizums.map((bizum) => (
+                <div
+                  key={bizum.id}
+                  className="rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-on-surface">{bizum.concepto}</p>
+                      <p className="mt-1 text-sm text-on-surface-variant">
+                        {new Date(bizum.created_at).toLocaleDateString('es-ES')}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-on-surface">
+                      {formatCurrency(bizum.importe)}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm text-on-surface-variant">
+                    {bizum.cliente
+                      ? `${bizum.cliente.nombre} ${bizum.cliente.apellidos}`
+                      : 'Sin cliente'}
+                  </p>
+                  <div className="mt-4 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void onCompletar(bizum.id)}
+                      className="min-h-11 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                    >
+                      Completar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void onCancelar(bizum.id)}
+                      className="min-h-11 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function ContabilidadPage() {
   const {
     movimientos,
@@ -225,12 +979,14 @@ export default function ContabilidadPage() {
   } = useContabilidad();
   const { empleados, loading: empleadosLoading } = useEmpleados();
 
-  const [filtros, setFiltros] = useState({
+  const [vistaActual, setVistaActual] = useState<VistaContabilidadTipo>('movimientos');
+  const [selectedCuentaId, setSelectedCuentaId] = useState('');
+  const [filtros, setFiltros] = useState<FiltrosContabilidadState>({
     fechaInicio: '',
     fechaFin: '',
-    tipo: '' as '' | TipoMovimientoContable,
+    tipo: '',
     cuentaId: '',
-    origen: 'todos' as FiltroOrigen,
+    origen: 'todos',
     busqueda: '',
   });
   const [fechaEFE, setFechaEFE] = useState(todayAccountingDate());
@@ -284,51 +1040,20 @@ export default function ContabilidadPage() {
     };
   };
 
-  const movimientosFiltrados = movimientos.filter((movimiento) => {
-    const fecha = movimiento.fecha_operacion;
-    const origen = filtros.origen;
-    const search = filtros.busqueda.trim().toLowerCase();
-    const sourceLabel = getSourceLabel(movimiento).toLowerCase();
+  const movimientosFiltrados = useMemo(
+    () => buildFilteredMovimientos({ movimientos, filtros }),
+    [movimientos, filtros]
+  );
 
-    if (filtros.fechaInicio && fecha < filtros.fechaInicio) return false;
-    if (filtros.fechaFin && fecha > filtros.fechaFin) return false;
-    if (filtros.tipo && movimiento.tipo !== filtros.tipo) return false;
-    if (filtros.cuentaId && movimiento.cuenta_id !== filtros.cuentaId) return false;
-    if (
-      origen === 'manual' &&
-      (!isManualMovement(movimiento) ||
-        movimiento.es_devolucion ||
-        movimiento.tipo.includes('traspaso'))
-    ) {
-      return false;
-    }
-    if (origen === 'sync' && !movimiento.id_pago) return false;
-    if (origen === 'devolucion' && !movimiento.es_devolucion) return false;
-    if (origen === 'traspaso' && !movimiento.tipo.includes('traspaso')) return false;
-
-    if (
-      search &&
-      ![
-        movimiento.concepto,
-        movimiento.comentario || '',
-        paymentMethodLabel(
-          movimiento.metodo_pago,
-          movimiento.metodo_pago?.codigo || movimiento.metodo || null
-        ),
-        accountLabel(movimiento.cuenta, movimiento.caja),
-        sourceLabel,
-        movimiento.gasto?.proveedor || '',
-        movimiento.gasto?.num_factura || '',
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(search)
-    ) {
-      return false;
-    }
-
-    return true;
-  });
+  const movimientosCuentaFiltrados = useMemo(
+    () =>
+      buildFilteredMovimientos({
+        movimientos,
+        filtros,
+        cuentaId: selectedCuentaId || undefined,
+      }),
+    [movimientos, filtros, selectedCuentaId]
+  );
 
   const ingresosOperativos = movimientosFiltrados
     .filter(isOperationalIncome)
@@ -339,6 +1064,9 @@ export default function ContabilidadPage() {
   const saldoOperativo = ingresosOperativos - gastosOperativos;
   const resumenCuentas = getResumenCuentas();
   const resumenEFE = getResumenEfeDiario(fechaEFE);
+  const selectedCuenta = selectedCuentaId
+    ? cuentas.find((cuenta) => cuenta.id === selectedCuentaId) || null
+    : null;
 
   const totalGastoFormulario = Number(
     (
@@ -355,7 +1083,7 @@ export default function ContabilidadPage() {
   const resetCuenta = () => setCuentaForm(emptyCuentaForm());
   const resetMetodo = () => setMetodoForm(emptyMetodoForm());
 
-  const abrirNuevoIngreso = () => {
+  const abrirNuevaAportacion = () => {
     setIngresoForm(buildDefaultIngresoForm());
     setIsIngresoOpen(true);
   };
@@ -385,7 +1113,7 @@ export default function ContabilidadPage() {
       !ingresoForm.metodoPagoId ||
       !ingresoForm.cuentaId
     ) {
-      toast.error('Revisa concepto, método, cuenta e importe del ingreso');
+      toast.error('Revisa concepto, método, cuenta e importe de la aportación');
       return;
     }
 
@@ -413,15 +1141,15 @@ export default function ContabilidadPage() {
     if (result.success) {
       toast.success(
         ingresoForm.id
-          ? 'Movimiento actualizado'
+          ? 'Aportación actualizada'
           : ingresoForm.esDevolucion
             ? 'Devolución registrada'
-            : 'Ingreso registrado'
+            : 'Aportación registrada'
       );
       resetIngreso();
       setIsIngresoOpen(false);
     } else {
-      toast.error(result.error || 'No se pudo guardar el ingreso');
+      toast.error(result.error || 'No se pudo guardar la aportación');
     }
   };
 
@@ -558,7 +1286,8 @@ export default function ContabilidadPage() {
     const salida =
       movimiento.tipo === 'traspaso_salida'
         ? movimiento
-        : movimientos.find((item) => item.id === movimiento.id_movimiento_relacionado) || movimiento;
+        : movimientos.find((item) => item.id === movimiento.id_movimiento_relacionado) ||
+          movimiento;
 
     const entrada = salida.id_movimiento_relacionado
       ? movimientos.find((item) => item.id === salida.id_movimiento_relacionado)
@@ -700,6 +1429,18 @@ export default function ContabilidadPage() {
     toast.error(result.error || 'No se pudo guardar el método');
   };
 
+  const handleCompletarBizum = async (bizumId: string) => {
+    const result = await completarBizumPendiente(bizumId);
+    if (result.success) toast.success('Bizum completado');
+    else toast.error(result.error || 'No se pudo completar el Bizum');
+  };
+
+  const handleCancelarBizum = async (bizumId: string) => {
+    const result = await cancelarBizumPendiente(bizumId);
+    if (result.success) toast.success('Bizum cancelado');
+    else toast.error(result.error || 'No se pudo cancelar el Bizum');
+  };
+
   if (error) {
     return (
       <ProtectedRoute allowedRoles={['admin', 'fl-admin']}>
@@ -715,227 +1456,165 @@ export default function ContabilidadPage() {
   return (
     <ProtectedRoute allowedRoles={['admin', 'fl-admin']}>
       <div className="page-container space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-3xl">
             <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">
               Contabilidad
             </h1>
             <p className="mt-1 text-sm text-on-surface-variant">
-              Libro contable configurable con catálogos de bancos, cuentas, métodos de pago, EFE
-              diario y exportación Excel.
+              Libro contable configurable con vistas separadas para movimientos,
+              cuentas, EFE, Bizum y configuración.
             </p>
           </div>
-          <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 md:w-auto md:flex-nowrap">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={handleExportExcel}
-              className="min-h-11 shrink-0 whitespace-nowrap rounded-full border-outline-variant/45 bg-surface-container-low px-3.5 py-2 text-[13px] font-semibold text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
-              icon={<ArrowDownTrayIcon className="h-3.5 w-3.5" />}
-            >
-              Exportar Excel
-            </Button>
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => abrirNuevoTraspaso(true)}
-              className="min-h-11 shrink-0 whitespace-nowrap rounded-full border-outline-variant/45 bg-surface-container-low px-3.5 py-2 text-[13px] font-semibold text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
-              icon={<ArrowsRightLeftIcon className="h-3.5 w-3.5" />}
-            >
-              Caja efectivo a personal
-            </Button>
-            <Button
-              variant="primary"
-              type="button"
-              onClick={abrirNuevoIngreso}
-              className="primary-gradient min-h-11 shrink-0 whitespace-nowrap rounded-full border border-primary-light/10 px-3.5 py-2 text-[13px] font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
-              icon={<PlusIcon className="h-3.5 w-3.5" />}
-            >
-              Ingreso
-            </Button>
-            <Button
-              variant="primary"
-              type="button"
-              onClick={abrirNuevoGasto}
-              className="primary-gradient min-h-11 shrink-0 whitespace-nowrap rounded-full border border-primary-light/10 px-3.5 py-2 text-[13px] font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
-              icon={<PlusIcon className="h-3.5 w-3.5" />}
-            >
-              Gasto
-            </Button>
-            <Button
-              variant="primary"
-              type="button"
-              onClick={() => abrirNuevoTraspaso(false)}
-              className="primary-gradient min-h-11 shrink-0 whitespace-nowrap rounded-full border border-primary-light/10 px-3.5 py-2 text-[13px] font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
-              icon={<PlusIcon className="h-3.5 w-3.5" />}
-            >
-              Traspaso
-            </Button>
+
+          <div className="flex w-full flex-col gap-3 xl:w-auto xl:items-end">
+            <SwitchVistaContabilidad
+              vistaActual={vistaActual}
+              onVistaChange={(vista) => setVistaActual(vista)}
+            />
+            <div className="w-full sm:w-auto">
+              <ContabilidadAccionesMenu
+                key={vistaActual}
+                disabled={saving}
+                onNuevaAportacion={abrirNuevaAportacion}
+                onNuevoGasto={abrirNuevoGasto}
+                onNuevoTraspaso={() => abrirNuevoTraspaso(false)}
+              />
+            </div>
           </div>
         </div>
 
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <article className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-card-ambient">
-            <p className="text-sm font-medium text-outline">Ingresos operativos</p>
-            <p className="mt-2 font-headline text-3xl font-extrabold text-emerald-600">
-              {formatCurrency(ingresosOperativos)}
-            </p>
-          </article>
-          <article className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-card-ambient">
-            <p className="text-sm font-medium text-outline">Gastos operativos</p>
-            <p className="mt-2 font-headline text-3xl font-extrabold text-red-600">
-              {formatCurrency(gastosOperativos)}
-            </p>
-          </article>
-          <article className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-card-ambient">
-            <p className="text-sm font-medium text-outline">Saldo operativo</p>
-            <p
-              className={`mt-2 font-headline text-3xl font-extrabold ${
-                saldoOperativo >= 0 ? 'text-emerald-600' : 'text-red-600'
-              }`}
-            >
-              {formatCurrency(saldoOperativo)}
-            </p>
-          </article>
-        </section>
+        {vistaActual === 'movimientos' ? (
+          <>
+            <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <MetricCard
+                label="Aportaciones operativas"
+                value={formatCurrency(ingresosOperativos)}
+                tone="positive"
+              />
+              <MetricCard
+                label="Gastos operativos"
+                value={formatCurrency(gastosOperativos)}
+                tone="negative"
+              />
+              <MetricCard
+                label="Saldo operativo"
+                value={formatCurrency(saldoOperativo)}
+                tone={saldoOperativo >= 0 ? 'positive' : 'negative'}
+              />
+            </section>
 
-        <section className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-          <header className="border-b border-outline-variant/20 px-6 py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="font-headline text-xl font-extrabold text-primary-dark">
-                  Bizum Alfonso pendiente
-                </h2>
-                <p className="text-sm text-on-surface-variant">
-                  Bandeja de bizums pendientes de liquidar en Santander.
-                </p>
-              </div>
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase tracking-[0.08em] text-amber-700">
-                {pendingBizums.length} pendientes
-              </span>
-            </div>
-          </header>
-          <div className="p-6">
-            {pendingBizums.length === 0 ? (
-              <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low px-4 py-8 text-center text-sm text-outline">
-                No hay Bizums Alfonso pendientes ahora mismo.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-collapse text-left">
-                  <thead>
-                    <tr className="bg-surface-container-low/70">
-                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Fecha
-                      </th>
-                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Cliente
-                      </th>
-                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Concepto
-                      </th>
-                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Importe
-                      </th>
-                      <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingBizums.map((bizum, index) => (
-                      <tr
-                        key={bizum.id}
-                        className={`border-b border-outline-variant/10 ${
-                          index % 2 ? 'bg-surface-container-low/25' : ''
-                        }`}
-                      >
-                        <td className="px-4 py-3 text-sm text-on-surface-variant">
-                          {new Date(bizum.created_at).toLocaleDateString('es-ES')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-on-surface">
-                          {bizum.cliente
-                            ? `${bizum.cliente.nombre} ${bizum.cliente.apellidos}`
-                            : 'Sin cliente'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-on-surface">{bizum.concepto}</td>
-                        <td className="px-4 py-3 text-sm font-semibold text-on-surface">
-                          {formatCurrency(bizum.importe)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                const result = await completarBizumPendiente(bizum.id);
-                                if (result.success) toast.success('Bizum completado');
-                                else toast.error(result.error || 'No se pudo completar el Bizum');
-                              }}
-                              className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
-                            >
-                              Completar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                const result = await cancelarBizumPendiente(bizum.id);
-                                if (result.success) toast.success('Bizum cancelado');
-                                else toast.error(result.error || 'No se pudo cancelar el Bizum');
-                              }}
-                              className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <article className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-            <header className="border-b border-outline-variant/20 px-6 py-4">
-              <h2 className="font-headline text-xl font-extrabold text-primary-dark">
-                Saldo por cuentas
-              </h2>
-            </header>
-            <div className="space-y-3 p-6">
-              {resumenCuentas.map((resumen) => (
-                <div
-                  key={resumen.cuenta_id}
-                  className="rounded-xl border border-outline-variant/25 bg-surface-container-low px-4 py-3"
+            <MovimientosSection
+              title="Movimientos contables"
+              description="Consulta, filtra y exporta el libro contable con una vista optimizada para móvil y escritorio."
+              loading={loading}
+              movimientos={movimientosFiltrados}
+              filtros={filtros}
+              setFiltros={setFiltros}
+              cuentas={cuentas}
+              onEditGasto={cargarGastoEnFormulario}
+              onEditAportacion={cargarIngresoEnFormulario}
+              onEditTraspaso={cargarTraspasoEnFormulario}
+              onPrepararDevolucion={prepararDevolucion}
+              onAnular={setMovimientoAAnular}
+              headerAction={
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="min-h-11 w-full rounded-full border-outline-variant/45 bg-surface-container-low px-3.5 py-2 text-[13px] font-semibold text-on-surface-variant hover:bg-surface-container-high hover:text-primary sm:w-auto"
+                  icon={<ArrowDownTrayIcon className="h-3.5 w-3.5" />}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-semibold text-on-surface">
+                  Exportar Excel
+                </Button>
+              }
+            />
+          </>
+        ) : null}
+
+        {vistaActual === 'cuentas' ? (
+          <>
+            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <button
+                type="button"
+                onClick={() => setSelectedCuentaId('')}
+                className={`rounded-[1.5rem] border p-5 text-left shadow-card-ambient transition ${
+                  selectedCuentaId
+                    ? 'border-outline-variant/30 bg-surface-container-lowest hover:border-primary/20 hover:bg-surface-container-low'
+                    : 'border-primary/20 bg-primary/5'
+                }`}
+              >
+                <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                  Vista global
+                </p>
+                <p className="mt-2 font-headline text-2xl font-extrabold text-primary-dark">
+                  Todas las cuentas
+                </p>
+                <p className="mt-2 text-sm text-on-surface-variant">
+                  Ver saldos, aportaciones y gastos sin fijar una cuenta concreta.
+                </p>
+              </button>
+
+              {resumenCuentas.map((resumen) => {
+                const selected = selectedCuentaId === resumen.cuenta_id;
+                return (
+                  <button
+                    key={resumen.cuenta_id}
+                    type="button"
+                    onClick={() => setSelectedCuentaId(resumen.cuenta_id)}
+                    className={`rounded-[1.5rem] border p-5 text-left shadow-card-ambient transition ${
+                      selected
+                        ? 'border-primary/25 bg-primary/5'
+                        : 'border-outline-variant/30 bg-surface-container-lowest hover:border-primary/20 hover:bg-surface-container-low'
+                    }`}
+                  >
+                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      {resumen.cuenta.tipo === 'banco' ? 'Banco' : 'Caja'}
+                    </p>
+                    <p className="mt-2 text-lg font-bold text-on-surface">
                       {accountLabel(resumen.cuenta)}
-                    </span>
-                    <span
-                      className={`font-bold ${
+                    </p>
+                    <p
+                      className={`mt-3 text-2xl font-extrabold ${
                         resumen.saldo >= 0 ? 'text-emerald-600' : 'text-red-600'
                       }`}
                     >
                       {formatCurrency(resumen.saldo)}
-                    </span>
-                  </div>
-                  <div className="mt-2 grid grid-cols-1 gap-1 text-sm text-on-surface-variant md:grid-cols-2">
-                    <span>Ingresos operativos {formatCurrency(resumen.ingresos_operativos)}</span>
-                    <span className="md:text-right">
-                      Gastos operativos {formatCurrency(resumen.gastos_operativos)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
+                    </p>
+                    <div className="mt-3 grid grid-cols-1 gap-1 text-sm text-on-surface-variant">
+                      <span>
+                        Aportaciones {formatCurrency(resumen.ingresos_operativos)}
+                      </span>
+                      <span>Gastos {formatCurrency(resumen.gastos_operativos)}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </section>
 
-          <article className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
+            <MovimientosSection
+              title={selectedCuenta ? `Movimientos de ${accountLabel(selectedCuenta)}` : 'Movimientos por cuenta'}
+              description="Las tarjetas superiores fijan la cuenta activa y el listado se actualiza sin perder el resto de filtros."
+              loading={loading}
+              movimientos={movimientosCuentaFiltrados}
+              filtros={filtros}
+              setFiltros={setFiltros}
+              cuentas={cuentas}
+              onEditGasto={cargarGastoEnFormulario}
+              onEditAportacion={cargarIngresoEnFormulario}
+              onEditTraspaso={cargarTraspasoEnFormulario}
+              onPrepararDevolucion={prepararDevolucion}
+              onAnular={setMovimientoAAnular}
+              lockedCuenta={selectedCuenta}
+              onClearLockedCuenta={selectedCuenta ? () => setSelectedCuentaId('') : undefined}
+            />
+          </>
+        ) : null}
+
+        {vistaActual === 'efe' ? (
+          <section className={cardClassName}>
             <header className="border-b border-outline-variant/20 px-6 py-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                 <div>
                   <h2 className="font-headline text-xl font-extrabold text-primary-dark">
                     Gestión EFE por día
@@ -944,26 +1623,39 @@ export default function ContabilidadPage() {
                     Saldo inicial automático desde el histórico y ajuste manual por cuenta.
                   </p>
                 </div>
-                <label className="text-sm text-on-surface">
-                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                    Fecha
-                  </span>
-                  <input
-                    type="date"
-                    className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                    value={fechaEFE}
-                    onChange={(e) => {
-                      setFechaEFE(e.target.value);
-                      setAjustesEfeDraft({});
-                    }}
-                  />
-                </label>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <label className="text-sm text-on-surface">
+                    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Fecha
+                    </span>
+                    <input
+                      type="date"
+                      className={fieldClassName}
+                      value={fechaEFE}
+                      onChange={(e) => {
+                        setFechaEFE(e.target.value);
+                        setAjustesEfeDraft({});
+                      }}
+                    />
+                  </label>
+
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => abrirNuevoTraspaso(true)}
+                    className="min-h-11 rounded-full border-outline-variant/45 bg-surface-container-low px-4 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+                  >
+                    Caja efectivo a personal
+                  </Button>
+                </div>
               </div>
             </header>
-            <div className="space-y-4 p-6">
+
+            <div className="space-y-4 p-4 sm:p-6">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
-                  <p className="text-sm text-outline">Ingresos</p>
+                  <p className="text-sm text-outline">Aportaciones</p>
                   <p className="mt-1 text-2xl font-bold text-emerald-600">
                     {formatCurrency(resumenEFE.ingresos)}
                   </p>
@@ -1000,10 +1692,14 @@ export default function ContabilidadPage() {
                             {accountLabel(resumenCuenta.cuenta)}
                           </h3>
                           <div className="mt-2 grid grid-cols-2 gap-3 text-sm text-on-surface-variant md:grid-cols-4">
-                            <span>Saldo inicial {formatCurrency(resumenCuenta.saldo_inicial)}</span>
-                            <span>Ingresos {formatCurrency(resumenCuenta.ingresos)}</span>
+                            <span>
+                              Saldo inicial {formatCurrency(resumenCuenta.saldo_inicial)}
+                            </span>
+                            <span>Aportaciones {formatCurrency(resumenCuenta.ingresos)}</span>
                             <span>Gastos {formatCurrency(resumenCuenta.gastos)}</span>
-                            <span>Saldo cierre {formatCurrency(resumenCuenta.saldo_cierre)}</span>
+                            <span>
+                              Saldo cierre {formatCurrency(resumenCuenta.saldo_cierre)}
+                            </span>
                           </div>
                         </div>
 
@@ -1011,7 +1707,7 @@ export default function ContabilidadPage() {
                           <input
                             type="number"
                             step="0.01"
-                            className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                            className={fieldClassName}
                             value={draft?.saldoInicial ?? String(resumenCuenta.saldo_inicial)}
                             onChange={(e) =>
                               setAjustesEfeDraft((prev) => ({
@@ -1029,7 +1725,7 @@ export default function ContabilidadPage() {
                           />
                           <input
                             type="text"
-                            className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                            className={fieldClassName}
                             value={draft?.comentario ?? resumenCuenta.comentario_ajuste ?? ''}
                             onChange={(e) =>
                               setAjustesEfeDraft((prev) => ({
@@ -1064,893 +1760,493 @@ export default function ContabilidadPage() {
                 })}
               </div>
             </div>
-          </article>
-        </section>
+          </section>
+        ) : null}
 
-        <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-          <header className="border-b border-outline-variant/20 px-6 py-4">
-            <h2 className="font-headline text-xl font-extrabold text-primary-dark">
-              Movimientos contables
-            </h2>
-          </header>
+        {vistaActual === 'bizum' ? (
+          <BizumPendientesSection
+            pendingBizums={pendingBizums}
+            onCompletar={handleCompletarBizum}
+            onCancelar={handleCancelarBizum}
+          />
+        ) : null}
 
-          <div className="space-y-5 p-4 sm:p-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-              <label className="text-sm text-on-surface">
-                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                  Desde
-                </span>
-                <input
-                  type="date"
-                  className="h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                  value={filtros.fechaInicio}
-                  onChange={(e) => setFiltros((prev) => ({ ...prev, fechaInicio: e.target.value }))}
-                />
-              </label>
-
-              <label className="text-sm text-on-surface">
-                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                  Hasta
-                </span>
-                <input
-                  type="date"
-                  className="h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                  value={filtros.fechaFin}
-                  onChange={(e) => setFiltros((prev) => ({ ...prev, fechaFin: e.target.value }))}
-                />
-              </label>
-
-              <label className="text-sm text-on-surface">
-                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                  Tipo
-                </span>
-                <select
-                  className="h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                  value={filtros.tipo}
-                  onChange={(e) =>
-                    setFiltros((prev) => ({
-                      ...prev,
-                      tipo: e.target.value as '' | TipoMovimientoContable,
-                    }))
-                  }
-                >
-                  <option value="">Todos</option>
-                  <option value="ingreso">Ingreso</option>
-                  <option value="gasto">Gasto</option>
-                  <option value="traspaso_entrada">Traspaso entrada</option>
-                  <option value="traspaso_salida">Traspaso salida</option>
-                </select>
-              </label>
-
-              <label className="text-sm text-on-surface">
-                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                  Cuenta
-                </span>
-                <select
-                  className="h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                  value={filtros.cuentaId}
-                  onChange={(e) => setFiltros((prev) => ({ ...prev, cuentaId: e.target.value }))}
-                >
-                  <option value="">Todas</option>
-                  {cuentas.map((cuenta) => (
-                    <option key={cuenta.id} value={cuenta.id}>
-                      {accountLabel(cuenta)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="text-sm text-on-surface">
-                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                  Origen
-                </span>
-                <select
-                  className="h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                  value={filtros.origen}
-                  onChange={(e) =>
-                    setFiltros((prev) => ({ ...prev, origen: e.target.value as FiltroOrigen }))
-                  }
-                >
-                  <option value="todos">Todos</option>
-                  <option value="manual">Manuales</option>
-                  <option value="sync">Sincronizados</option>
-                  <option value="devolucion">Devoluciones</option>
-                  <option value="traspaso">Traspasos</option>
-                </select>
-              </label>
-
-              <label className="text-sm text-on-surface">
-                <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                  Buscar
-                </span>
-                <input
-                  type="text"
-                  className="h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                  value={filtros.busqueda}
-                  onChange={(e) => setFiltros((prev) => ({ ...prev, busqueda: e.target.value }))}
-                  placeholder="Concepto, proveedor, factura..."
-                />
-              </label>
-            </div>
-
-            {loading ? (
-              <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low px-4 py-10 text-center text-sm text-outline">
-                Cargando movimientos contables...
-              </div>
-            ) : (
-              <div className="hidden overflow-x-auto md:block">
-                <table className="min-w-full border-collapse text-left">
-                  <thead>
-                    <tr className="bg-surface-container-low/70 backdrop-blur-md">
-                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Fecha
-                      </th>
-                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Tipo
-                      </th>
-                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Cuenta
-                      </th>
-                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Concepto
-                      </th>
-                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Método / fiscalidad
-                      </th>
-                      <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Importe
-                      </th>
-                      <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {movimientosFiltrados.map((movimiento, index) => {
-                      const esTraspaso =
-                        movimiento.tipo === 'traspaso_entrada' ||
-                        movimiento.tipo === 'traspaso_salida';
-                      const puedeEditar =
-                        isManualMovement(movimiento) && movimiento.estado === 'confirmado';
-                      const puedeRegistrarDevolucion =
-                        movimiento.estado === 'confirmado' &&
-                        movimiento.tipo === 'ingreso' &&
-                        !movimiento.es_devolucion &&
-                        movimiento.importe_total > 0;
-
-                      return (
-                        <tr
-                          key={movimiento.id}
-                          className={`border-b border-outline-variant/10 transition ${
-                            index % 2
-                              ? 'bg-surface-container-low/25 hover:bg-surface-container-low'
-                              : 'hover:bg-surface-container-low'
-                          }`}
-                        >
-                          <td className="px-4 py-3 text-sm text-on-surface-variant">
-                            {movimiento.fecha_operacion}
-                          </td>
-                          <td className="px-4 py-3 text-sm">
-                            <div className="flex flex-col gap-1">
-                              <span className="inline-flex w-fit rounded-full bg-surface-container-high px-2.5 py-1 text-xs font-semibold text-on-surface-variant">
-                                {accountingTypeLabel(movimiento.tipo)}
-                              </span>
-                              <span className="inline-flex w-fit rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                {getSourceLabel(movimiento)}
-                              </span>
-                              {movimiento.estado === 'anulado' ? (
-                                <span className="inline-flex w-fit rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
-                                  Anulado
-                                </span>
-                              ) : null}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-on-surface-variant">
-                            <p>{accountLabel(movimiento.cuenta, movimiento.caja)}</p>
-                            <p className="text-xs text-outline">
-                              {movimiento.cuenta?.banco?.nombre || movimiento.cuenta?.tipo || '-'}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-on-surface">
-                            <p className="font-semibold">{movimiento.concepto}</p>
-                            {movimiento.empleado ? (
-                              <p className="text-xs text-on-surface-variant">
-                                Empleado: {movimiento.empleado.nombre} {movimiento.empleado.apellidos}
-                              </p>
-                            ) : null}
-                            {movimiento.comentario ? (
-                              <p className="text-xs text-on-surface-variant">{movimiento.comentario}</p>
-                            ) : null}
-                            {movimiento.gasto?.proveedor ? (
-                              <p className="text-xs text-on-surface-variant">
-                                Proveedor: {movimiento.gasto.proveedor}
-                                {movimiento.gasto.num_factura
-                                  ? ` · Factura ${movimiento.gasto.num_factura}`
-                                  : ''}
-                              </p>
-                            ) : null}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-on-surface-variant">
-                            <p>
-                              {paymentMethodLabel(
-                                movimiento.metodo_pago,
-                                movimiento.metodo_pago?.codigo || movimiento.metodo || null
-                              )}
-                            </p>
-                            <p className="text-xs text-outline">
-                              Base {formatCurrency(movimiento.base_imponible)} · IVA {movimiento.iva_pct}%
-                            </p>
-                            <p className="text-xs text-outline">
-                              Impuesto {formatCurrency(movimiento.iva_importe)}
-                            </p>
-                            {movimiento.documentos?.[0] ? (
-                              <a
-                                href={movimiento.documentos[0].url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs font-semibold text-primary hover:underline"
-                              >
-                                Ver documento
-                              </a>
-                            ) : null}
-                          </td>
-                          <td className="px-4 py-3 text-right text-sm font-bold">
-                            <span className={getAmountTone(movimiento)}>
-                              {formatCurrency(movimiento.importe_total)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm">
-                            <div className="flex flex-wrap justify-end gap-2">
-                              {puedeEditar && movimiento.tipo === 'gasto' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => cargarGastoEnFormulario(movimiento)}
-                                  className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                                >
-                                  Editar
-                                </button>
-                              ) : null}
-
-                              {puedeEditar && movimiento.tipo === 'ingreso' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => cargarIngresoEnFormulario(movimiento)}
-                                  className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                                >
-                                  Editar
-                                </button>
-                              ) : null}
-
-                              {puedeEditar && esTraspaso && movimiento.tipo === 'traspaso_salida' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => cargarTraspasoEnFormulario(movimiento)}
-                                  className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                                >
-                                  Editar
-                                </button>
-                              ) : null}
-
-                              {puedeRegistrarDevolucion ? (
-                                <button
-                                  type="button"
-                                  onClick={() => prepararDevolucion(movimiento)}
-                                  className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
-                                >
-                                  Devolución
-                                </button>
-                              ) : null}
-
-                              {puedeEditar && (!esTraspaso || movimiento.tipo === 'traspaso_salida') ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setMovimientoAAnular(movimiento)}
-                                  className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-                                >
-                                  Anular
-                                </button>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-
-                    {movimientosFiltrados.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="px-4 py-10 text-center text-sm font-medium text-outline">
-                          No hay movimientos para los filtros actuales.
-                        </td>
-                      </tr>
-                    ) : null}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {!loading ? (
-              <div className="space-y-3 md:hidden">
-                {movimientosFiltrados.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
-                    No hay movimientos para los filtros actuales.
-                  </div>
-                ) : (
-                  movimientosFiltrados.map((movimiento) => {
-                    const esTraspaso = movimiento.tipo === 'traspaso_entrada' || movimiento.tipo === 'traspaso_salida';
-                    const puedeEditar = isManualMovement(movimiento) && movimiento.estado === 'confirmado';
-                    const puedeRegistrarDevolucion =
-                      movimiento.estado === 'confirmado' &&
-                      movimiento.tipo === 'ingreso' &&
-                      !movimiento.es_devolucion &&
-                      movimiento.importe_total > 0;
-
-                    return (
-                      <div
-                        key={movimiento.id}
-                        className="rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-bold text-on-surface">{movimiento.concepto}</p>
-                            <p className="mt-1 text-sm text-on-surface-variant">{movimiento.fecha_operacion}</p>
-                          </div>
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoPillClass(movimiento)}`}>
-                            {getSourceLabel(movimiento)}
-                          </span>
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <span className="inline-flex rounded-full bg-surface-container-high px-2.5 py-1 text-xs font-semibold text-on-surface-variant">
-                            {accountingTypeLabel(movimiento.tipo)}
-                          </span>
-                          {movimiento.estado === 'anulado' ? (
-                            <span className="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
-                              Anulado
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-on-surface-variant">
-                          <p>Caja: {accountLabel(movimiento.cuenta, movimiento.caja)}</p>
-                          <p>
-                            Método:{' '}
-                            {paymentMethodLabel(
-                              movimiento.metodo_pago,
-                              movimiento.metodo_pago?.codigo || movimiento.metodo || null
-                            )}
-                          </p>
-                          <p>IVA: {movimiento.iva_pct}%</p>
-                          <p className={`font-bold ${getAmountTone(movimiento)}`}>{formatCurrency(movimiento.importe_total)}</p>
-                          {movimiento.comentario ? <p>{movimiento.comentario}</p> : null}
-                          {movimiento.documentos?.[0] ? (
-                            <a
-                              href={movimiento.documentos[0].url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-semibold text-primary hover:underline"
-                            >
-                              Ver documento
-                            </a>
-                          ) : null}
-                        </div>
-
-                        <div className="mt-4 flex flex-col gap-2">
-                          {puedeEditar && !movimiento.id_pago && movimiento.tipo === 'gasto' ? (
-                            <button
-                              type="button"
-                              onClick={() => cargarGastoEnFormulario(movimiento)}
-                              className="min-h-11 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                            >
-                              Editar gasto
-                            </button>
-                          ) : null}
-
-                          {puedeEditar && !movimiento.id_pago && movimiento.tipo === 'ingreso' ? (
-                            <button
-                              type="button"
-                              onClick={() => cargarIngresoEnFormulario(movimiento)}
-                              className="min-h-11 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                            >
-                              Editar ingreso
-                            </button>
-                          ) : null}
-
-                          {puedeEditar && esTraspaso && movimiento.tipo === 'traspaso_salida' ? (
-                            <button
-                              type="button"
-                              onClick={() => cargarTraspasoEnFormulario(movimiento)}
-                              className="min-h-11 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                            >
-                              Editar traspaso
-                            </button>
-                          ) : null}
-
-                          {puedeRegistrarDevolucion ? (
-                            <button
-                              type="button"
-                              onClick={() => prepararDevolucion(movimiento)}
-                              className="min-h-11 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-                            >
-                              Registrar devolución
-                            </button>
-                          ) : null}
-
-                          {puedeEditar && (!esTraspaso || movimiento.tipo === 'traspaso_salida') ? (
-                            <button
-                              type="button"
-                              onClick={() => setMovimientoAAnular(movimiento)}
-                              className="min-h-11 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                            >
-                              Anular movimiento
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-        <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <article className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-            <header className="border-b border-outline-variant/20 px-6 py-4">
-              <h2 className="font-headline text-xl font-extrabold text-primary-dark">Bancos</h2>
-            </header>
-            <div className="space-y-4 p-6">
-              <div className="space-y-3 rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
-                <input
-                  type="text"
-                  className="h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                  value={bancoForm.nombre}
-                  onChange={(e) => setBancoForm((prev) => ({ ...prev, nombre: e.target.value }))}
-                  placeholder="Nombre del banco"
-                />
-                <div className="grid grid-cols-2 gap-3">
+        {vistaActual === 'configuracion' ? (
+          <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <article className={cardClassName}>
+              <header className="border-b border-outline-variant/20 px-6 py-4">
+                <h2 className="font-headline text-xl font-extrabold text-primary-dark">Bancos</h2>
+              </header>
+              <div className="space-y-4 p-6">
+                <div className="space-y-3 rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
                   <input
                     type="text"
-                    className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                    value={bancoForm.codigo}
-                    onChange={(e) => setBancoForm((prev) => ({ ...prev, codigo: e.target.value }))}
-                    placeholder="Código"
+                    className={fieldClassName}
+                    value={bancoForm.nombre}
+                    onChange={(e) => setBancoForm((prev) => ({ ...prev, nombre: e.target.value }))}
+                    placeholder="Nombre del banco"
                   />
-                  <input
-                    type="number"
-                    className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                    value={bancoForm.orden}
-                    onChange={(e) =>
-                      setBancoForm((prev) => ({ ...prev, orden: Number(e.target.value) || 0 }))
-                    }
-                    placeholder="Orden"
-                  />
-                </div>
-                <label className="inline-flex items-center gap-2 text-sm text-on-surface">
-                  <input
-                    type="checkbox"
-                    checked={bancoForm.activo}
-                    onChange={(e) => setBancoForm((prev) => ({ ...prev, activo: e.target.checked }))}
-                  />
-                  Activo
-                </label>
-                <div className="flex justify-end gap-2">
-                  {bancoForm.id ? (
-                    <Button
-                      variant="outline"
-                      type="button"
-                      onClick={resetBanco}
-                      className="rounded-full border-outline-variant/45 bg-surface-container-low px-4 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
-                    >
-                      Cancelar
-                    </Button>
-                  ) : null}
-                  <Button
-                    variant="primary"
-                    type="button"
-                    loading={saving}
-                    onClick={handleGuardarBanco}
-                    className="primary-gradient rounded-full px-4 text-white shadow-lg shadow-primary/20 hover:brightness-110"
-                  >
-                    {bancoForm.id ? 'Actualizar' : 'Crear'}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {bancos.map((banco) => (
-                  <div
-                    key={banco.id}
-                    className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-on-surface">{banco.nombre}</p>
-                        <p className="text-xs text-outline">
-                          {banco.codigo} · orden {banco.orden}
-                        </p>
-                      </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
-                          banco.activo
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-surface-container-high text-on-surface-variant'
-                        }`}
-                      >
-                        {banco.activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </div>
-                    <div className="mt-3 flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setBancoForm({ ...banco, id: banco.id })}
-                        className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const result = await toggleBancoActivo(banco.id, !banco.activo);
-                          if (result.success) toast.success('Estado del banco actualizado');
-                          else toast.error(result.error || 'No se pudo actualizar el banco');
-                        }}
-                        className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                      >
-                        {banco.activo ? 'Desactivar' : 'Activar'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </article>
-
-          <article className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-            <header className="border-b border-outline-variant/20 px-6 py-4">
-              <h2 className="font-headline text-xl font-extrabold text-primary-dark">Cuentas</h2>
-            </header>
-            <div className="space-y-4 p-6">
-              <div className="space-y-3 rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                    value={cuentaForm.nombre}
-                    onChange={(e) => setCuentaForm((prev) => ({ ...prev, nombre: e.target.value }))}
-                    placeholder="Nombre de la cuenta"
-                  />
-                  <input
-                    type="text"
-                    className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                    value={cuentaForm.codigo}
-                    onChange={(e) => setCuentaForm((prev) => ({ ...prev, codigo: e.target.value }))}
-                    placeholder="Código"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <select
-                    className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                    value={cuentaForm.tipo}
-                    onChange={(e) =>
-                      setCuentaForm((prev) => ({
-                        ...prev,
-                        tipo: e.target.value as TipoCuentaContable,
-                        banco_id: e.target.value === 'banco' ? prev.banco_id : '',
-                      }))
-                    }
-                  >
-                    <option value="caja">Caja</option>
-                    <option value="banco">Banco</option>
-                  </select>
-                  <select
-                    className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                    value={cuentaForm.banco_id}
-                    onChange={(e) => setCuentaForm((prev) => ({ ...prev, banco_id: e.target.value }))}
-                    disabled={cuentaForm.tipo !== 'banco'}
-                  >
-                    <option value="">Sin banco</option>
-                    {bancos.map((banco) => (
-                      <option key={banco.id} value={banco.id}>
-                        {banco.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="inline-flex items-center gap-2 text-sm text-on-surface">
+                  <div className="grid grid-cols-2 gap-3">
                     <input
-                      type="checkbox"
-                      checked={cuentaForm.activo}
-                      onChange={(e) =>
-                        setCuentaForm((prev) => ({ ...prev, activo: e.target.checked }))
-                      }
+                      type="text"
+                      className={fieldClassName}
+                      value={bancoForm.codigo}
+                      onChange={(e) => setBancoForm((prev) => ({ ...prev, codigo: e.target.value }))}
+                      placeholder="Código"
                     />
-                    Activa
-                  </label>
-                  <label className="inline-flex items-center gap-2 text-sm text-on-surface">
                     <input
-                      type="checkbox"
-                      checked={cuentaForm.visible_efe}
+                      type="number"
+                      className={fieldClassName}
+                      value={bancoForm.orden}
                       onChange={(e) =>
-                        setCuentaForm((prev) => ({ ...prev, visible_efe: e.target.checked }))
+                        setBancoForm((prev) => ({ ...prev, orden: Number(e.target.value) || 0 }))
                       }
+                      placeholder="Orden"
                     />
-                    Visible en EFE
-                  </label>
-                </div>
-                <input
-                  type="number"
-                  className="h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                  value={cuentaForm.orden}
-                  onChange={(e) =>
-                    setCuentaForm((prev) => ({ ...prev, orden: Number(e.target.value) || 0 }))
-                  }
-                  placeholder="Orden"
-                />
-                <div className="flex justify-end gap-2">
-                  {cuentaForm.id ? (
-                    <Button
-                      variant="outline"
-                      type="button"
-                      onClick={resetCuenta}
-                      className="rounded-full border-outline-variant/45 bg-surface-container-low px-4 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
-                    >
-                      Cancelar
-                    </Button>
-                  ) : null}
-                  <Button
-                    variant="primary"
-                    type="button"
-                    loading={saving}
-                    onClick={handleGuardarCuenta}
-                    className="primary-gradient rounded-full px-4 text-white shadow-lg shadow-primary/20 hover:brightness-110"
-                  >
-                    {cuentaForm.id ? 'Actualizar' : 'Crear'}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {cuentas.map((cuenta) => (
-                  <div
-                    key={cuenta.id}
-                    className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-on-surface">{accountLabel(cuenta)}</p>
-                        <p className="text-xs text-outline">
-                          {cuenta.codigo} · {cuenta.tipo}
-                          {cuenta.banco ? ` · ${cuenta.banco.nombre}` : ''}
-                        </p>
-                      </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
-                          cuenta.activo
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-surface-container-high text-on-surface-variant'
-                        }`}
-                      >
-                        {cuenta.activo ? 'Activa' : 'Inactiva'}
-                      </span>
-                    </div>
-                    <div className="mt-3 flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCuentaForm({
-                            id: cuenta.id,
-                            codigo: cuenta.codigo,
-                            nombre: cuenta.nombre,
-                            tipo: cuenta.tipo,
-                            banco_id: cuenta.banco_id || '',
-                            activo: cuenta.activo,
-                            visible_efe: cuenta.visible_efe,
-                            orden: cuenta.orden,
-                          })
-                        }
-                        className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const result = await toggleCuentaActiva(cuenta.id, !cuenta.activo);
-                          if (result.success) toast.success('Estado de la cuenta actualizado');
-                          else toast.error(result.error || 'No se pudo actualizar la cuenta');
-                        }}
-                        className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                      >
-                        {cuenta.activo ? 'Desactivar' : 'Activar'}
-                      </button>
-                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </article>
-
-          <article className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-            <header className="border-b border-outline-variant/20 px-6 py-4">
-              <h2 className="font-headline text-xl font-extrabold text-primary-dark">
-                Métodos de pago
-              </h2>
-            </header>
-            <div className="space-y-4 p-6">
-              <div className="space-y-3 rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                    value={metodoForm.nombre}
-                    onChange={(e) => setMetodoForm((prev) => ({ ...prev, nombre: e.target.value }))}
-                    placeholder="Nombre del método"
-                  />
-                  <input
-                    type="text"
-                    className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                    value={metodoForm.codigo}
-                    onChange={(e) => setMetodoForm((prev) => ({ ...prev, codigo: e.target.value }))}
-                    placeholder="Código"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <select
-                    className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                    value={metodoForm.clase}
-                    onChange={(e) =>
-                      setMetodoForm((prev) => ({
-                        ...prev,
-                        clase: e.target.value as ClaseMetodoPagoContable,
-                      }))
-                    }
-                  >
-                    <option value="efectivo">Efectivo</option>
-                    <option value="tpv">TPV</option>
-                    <option value="transferencia">Transferencia</option>
-                    <option value="bizum">Bizum</option>
-                    <option value="otro">Otro</option>
-                  </select>
-                  <select
-                    className="h-11 rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                    value={metodoForm.cuenta_liquidacion_id}
-                    onChange={(e) =>
-                      setMetodoForm((prev) => ({
-                        ...prev,
-                        cuenta_liquidacion_id: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Sin cuenta por defecto</option>
-                    {cuentas.map((cuenta) => (
-                      <option key={cuenta.id} value={cuenta.id}>
-                        {accountLabel(cuenta)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
                   <label className="inline-flex items-center gap-2 text-sm text-on-surface">
                     <input
                       type="checkbox"
-                      checked={metodoForm.activo}
+                      checked={bancoForm.activo}
                       onChange={(e) =>
-                        setMetodoForm((prev) => ({ ...prev, activo: e.target.checked }))
+                        setBancoForm((prev) => ({ ...prev, activo: e.target.checked }))
                       }
                     />
                     Activo
                   </label>
-                  <label className="inline-flex items-center gap-2 text-sm text-on-surface">
+                  <div className="flex justify-end gap-2">
+                    {bancoForm.id ? (
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={resetBanco}
+                        className="rounded-full border-outline-variant/45 bg-surface-container-low px-4 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+                      >
+                        Cancelar
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="primary"
+                      type="button"
+                      loading={saving}
+                      onClick={handleGuardarBanco}
+                      className="primary-gradient rounded-full px-4 text-white shadow-lg shadow-primary/20 hover:brightness-110"
+                    >
+                      {bancoForm.id ? 'Actualizar' : 'Crear'}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {bancos.map((banco) => (
+                    <div
+                      key={banco.id}
+                      className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-on-surface">{banco.nombre}</p>
+                          <p className="text-xs text-outline">
+                            {banco.codigo} · orden {banco.orden}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
+                            banco.activo
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-surface-container-high text-on-surface-variant'
+                          }`}
+                        >
+                          {banco.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setBancoForm({ ...banco, id: banco.id })}
+                          className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const result = await toggleBancoActivo(banco.id, !banco.activo);
+                            if (result.success) toast.success('Estado del banco actualizado');
+                            else toast.error(result.error || 'No se pudo actualizar el banco');
+                          }}
+                          className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                        >
+                          {banco.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </article>
+
+            <article className={cardClassName}>
+              <header className="border-b border-outline-variant/20 px-6 py-4">
+                <h2 className="font-headline text-xl font-extrabold text-primary-dark">Cuentas</h2>
+              </header>
+              <div className="space-y-4 p-6">
+                <div className="space-y-3 rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <input
-                      type="checkbox"
-                      checked={metodoForm.permite_pendiente}
+                      type="text"
+                      className={fieldClassName}
+                      value={cuentaForm.nombre}
+                      onChange={(e) =>
+                        setCuentaForm((prev) => ({ ...prev, nombre: e.target.value }))
+                      }
+                      placeholder="Nombre de la cuenta"
+                    />
+                    <input
+                      type="text"
+                      className={fieldClassName}
+                      value={cuentaForm.codigo}
+                      onChange={(e) =>
+                        setCuentaForm((prev) => ({ ...prev, codigo: e.target.value }))
+                      }
+                      placeholder="Código"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      className={fieldClassName}
+                      value={cuentaForm.tipo}
+                      onChange={(e) =>
+                        setCuentaForm((prev) => ({
+                          ...prev,
+                          tipo: e.target.value as TipoCuentaContable,
+                          banco_id: e.target.value === 'banco' ? prev.banco_id : '',
+                        }))
+                      }
+                    >
+                      <option value="caja">Caja</option>
+                      <option value="banco">Banco</option>
+                    </select>
+                    <select
+                      className={fieldClassName}
+                      value={cuentaForm.banco_id}
+                      onChange={(e) =>
+                        setCuentaForm((prev) => ({ ...prev, banco_id: e.target.value }))
+                      }
+                      disabled={cuentaForm.tipo !== 'banco'}
+                    >
+                      <option value="">Sin banco</option>
+                      {bancos.map((banco) => (
+                        <option key={banco.id} value={banco.id}>
+                          {banco.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="inline-flex items-center gap-2 text-sm text-on-surface">
+                      <input
+                        type="checkbox"
+                        checked={cuentaForm.activo}
+                        onChange={(e) =>
+                          setCuentaForm((prev) => ({ ...prev, activo: e.target.checked }))
+                        }
+                      />
+                      Activa
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-sm text-on-surface">
+                      <input
+                        type="checkbox"
+                        checked={cuentaForm.visible_efe}
+                        onChange={(e) =>
+                          setCuentaForm((prev) => ({ ...prev, visible_efe: e.target.checked }))
+                        }
+                      />
+                      Visible en EFE
+                    </label>
+                  </div>
+                  <input
+                    type="number"
+                    className={fieldClassName}
+                    value={cuentaForm.orden}
+                    onChange={(e) =>
+                      setCuentaForm((prev) => ({ ...prev, orden: Number(e.target.value) || 0 }))
+                    }
+                    placeholder="Orden"
+                  />
+                  <div className="flex justify-end gap-2">
+                    {cuentaForm.id ? (
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={resetCuenta}
+                        className="rounded-full border-outline-variant/45 bg-surface-container-low px-4 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+                      >
+                        Cancelar
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="primary"
+                      type="button"
+                      loading={saving}
+                      onClick={handleGuardarCuenta}
+                      className="primary-gradient rounded-full px-4 text-white shadow-lg shadow-primary/20 hover:brightness-110"
+                    >
+                      {cuentaForm.id ? 'Actualizar' : 'Crear'}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {cuentas.map((cuenta) => (
+                    <div
+                      key={cuenta.id}
+                      className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-on-surface">{accountLabel(cuenta)}</p>
+                          <p className="text-xs text-outline">
+                            {cuenta.codigo} · {cuenta.tipo}
+                            {cuenta.banco ? ` · ${cuenta.banco.nombre}` : ''}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
+                            cuenta.activo
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-surface-container-high text-on-surface-variant'
+                          }`}
+                        >
+                          {cuenta.activo ? 'Activa' : 'Inactiva'}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCuentaForm({
+                              id: cuenta.id,
+                              codigo: cuenta.codigo,
+                              nombre: cuenta.nombre,
+                              tipo: cuenta.tipo,
+                              banco_id: cuenta.banco_id || '',
+                              activo: cuenta.activo,
+                              visible_efe: cuenta.visible_efe,
+                              orden: cuenta.orden,
+                            })
+                          }
+                          className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const result = await toggleCuentaActiva(cuenta.id, !cuenta.activo);
+                            if (result.success) toast.success('Estado de la cuenta actualizado');
+                            else toast.error(result.error || 'No se pudo actualizar la cuenta');
+                          }}
+                          className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                        >
+                          {cuenta.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </article>
+
+            <article className={cardClassName}>
+              <header className="border-b border-outline-variant/20 px-6 py-4">
+                <h2 className="font-headline text-xl font-extrabold text-primary-dark">
+                  Métodos de pago
+                </h2>
+              </header>
+              <div className="space-y-4 p-6">
+                <div className="space-y-3 rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      className={fieldClassName}
+                      value={metodoForm.nombre}
+                      onChange={(e) =>
+                        setMetodoForm((prev) => ({ ...prev, nombre: e.target.value }))
+                      }
+                      placeholder="Nombre del método"
+                    />
+                    <input
+                      type="text"
+                      className={fieldClassName}
+                      value={metodoForm.codigo}
+                      onChange={(e) =>
+                        setMetodoForm((prev) => ({ ...prev, codigo: e.target.value }))
+                      }
+                      placeholder="Código"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      className={fieldClassName}
+                      value={metodoForm.clase}
                       onChange={(e) =>
                         setMetodoForm((prev) => ({
                           ...prev,
-                          permite_pendiente: e.target.checked,
+                          clase: e.target.value as ClaseMetodoPagoContable,
                         }))
                       }
-                    />
-                    Permite pendiente
-                  </label>
-                </div>
-                <input
-                  type="number"
-                  className="h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                  value={metodoForm.orden}
-                  onChange={(e) =>
-                    setMetodoForm((prev) => ({ ...prev, orden: Number(e.target.value) || 0 }))
-                  }
-                  placeholder="Orden"
-                />
-                <div className="flex justify-end gap-2">
-                  {metodoForm.id ? (
-                    <Button
-                      variant="outline"
-                      type="button"
-                      onClick={resetMetodo}
-                      className="rounded-full border-outline-variant/45 bg-surface-container-low px-4 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
                     >
-                      Cancelar
+                      <option value="efectivo">Efectivo</option>
+                      <option value="tpv">TPV</option>
+                      <option value="transferencia">Transferencia</option>
+                      <option value="bizum">Bizum</option>
+                      <option value="otro">Otro</option>
+                    </select>
+                    <select
+                      className={fieldClassName}
+                      value={metodoForm.cuenta_liquidacion_id}
+                      onChange={(e) =>
+                        setMetodoForm((prev) => ({
+                          ...prev,
+                          cuenta_liquidacion_id: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">Sin cuenta por defecto</option>
+                      {cuentas.map((cuenta) => (
+                        <option key={cuenta.id} value={cuenta.id}>
+                          {accountLabel(cuenta)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="inline-flex items-center gap-2 text-sm text-on-surface">
+                      <input
+                        type="checkbox"
+                        checked={metodoForm.activo}
+                        onChange={(e) =>
+                          setMetodoForm((prev) => ({ ...prev, activo: e.target.checked }))
+                        }
+                      />
+                      Activo
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-sm text-on-surface">
+                      <input
+                        type="checkbox"
+                        checked={metodoForm.permite_pendiente}
+                        onChange={(e) =>
+                          setMetodoForm((prev) => ({
+                            ...prev,
+                            permite_pendiente: e.target.checked,
+                          }))
+                        }
+                      />
+                      Permite pendiente
+                    </label>
+                  </div>
+                  <input
+                    type="number"
+                    className={fieldClassName}
+                    value={metodoForm.orden}
+                    onChange={(e) =>
+                      setMetodoForm((prev) => ({ ...prev, orden: Number(e.target.value) || 0 }))
+                    }
+                    placeholder="Orden"
+                  />
+                  <div className="flex justify-end gap-2">
+                    {metodoForm.id ? (
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={resetMetodo}
+                        className="rounded-full border-outline-variant/45 bg-surface-container-low px-4 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+                      >
+                        Cancelar
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="primary"
+                      type="button"
+                      loading={saving}
+                      onClick={handleGuardarMetodo}
+                      className="primary-gradient rounded-full px-4 text-white shadow-lg shadow-primary/20 hover:brightness-110"
+                    >
+                      {metodoForm.id ? 'Actualizar' : 'Crear'}
                     </Button>
-                  ) : null}
-                  <Button
-                    variant="primary"
-                    type="button"
-                    loading={saving}
-                    onClick={handleGuardarMetodo}
-                    className="primary-gradient rounded-full px-4 text-white shadow-lg shadow-primary/20 hover:brightness-110"
-                  >
-                    {metodoForm.id ? 'Actualizar' : 'Crear'}
-                  </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {metodosPago.map((metodo) => (
+                    <div
+                      key={metodo.id}
+                      className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-on-surface">
+                            {paymentMethodLabel(metodo)}
+                          </p>
+                          <p className="text-xs text-outline">
+                            {metodo.codigo} · {metodo.clase}
+                            {metodo.cuenta_liquidacion
+                              ? ` · ${accountLabel(metodo.cuenta_liquidacion)}`
+                              : ''}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
+                            metodo.activo
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-surface-container-high text-on-surface-variant'
+                          }`}
+                        >
+                          {metodo.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMetodoForm({
+                              id: metodo.id,
+                              codigo: metodo.codigo,
+                              nombre: metodo.nombre,
+                              clase: metodo.clase,
+                              cuenta_liquidacion_id: metodo.cuenta_liquidacion_id || '',
+                              activo: metodo.activo,
+                              permite_pendiente: metodo.permite_pendiente,
+                              orden: metodo.orden,
+                            })
+                          }
+                          className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const result = await toggleMetodoPagoActivo(
+                              metodo.id,
+                              !metodo.activo
+                            );
+                            if (result.success) toast.success('Estado del método actualizado');
+                            else toast.error(result.error || 'No se pudo actualizar el método');
+                          }}
+                          className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                        >
+                          {metodo.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              <div className="space-y-3">
-                {metodosPago.map((metodo) => (
-                  <div
-                    key={metodo.id}
-                    className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-on-surface">{paymentMethodLabel(metodo)}</p>
-                        <p className="text-xs text-outline">
-                          {metodo.codigo} · {metodo.clase}
-                          {metodo.cuenta_liquidacion
-                            ? ` · ${accountLabel(metodo.cuenta_liquidacion)}`
-                            : ''}
-                        </p>
-                      </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
-                          metodo.activo
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-surface-container-high text-on-surface-variant'
-                        }`}
-                      >
-                        {metodo.activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </div>
-                    <div className="mt-3 flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setMetodoForm({
-                            id: metodo.id,
-                            codigo: metodo.codigo,
-                            nombre: metodo.nombre,
-                            clase: metodo.clase,
-                            cuenta_liquidacion_id: metodo.cuenta_liquidacion_id || '',
-                            activo: metodo.activo,
-                            permite_pendiente: metodo.permite_pendiente,
-                            orden: metodo.orden,
-                          })
-                        }
-                        className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const result = await toggleMetodoPagoActivo(metodo.id, !metodo.activo);
-                          if (result.success) toast.success('Estado del método actualizado');
-                          else toast.error(result.error || 'No se pudo actualizar el método');
-                        }}
-                        className="rounded-full border border-outline-variant/40 bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
-                      >
-                        {metodo.activo ? 'Desactivar' : 'Activar'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </article>
-        </section>
+            </article>
+          </section>
+        ) : null}
 
         <IngresoModalV2
           isOpen={isIngresoOpen}
