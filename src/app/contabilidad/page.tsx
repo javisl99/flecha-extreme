@@ -1,7 +1,17 @@
 'use client';
 
-import { Dispatch, ReactNode, SetStateAction, useMemo, useState } from 'react';
+import {
+  Dispatch,
+  ReactNode,
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { toast } from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 import {
   ArrowDownTrayIcon,
   ArrowTrendingDownIcon,
@@ -213,6 +223,18 @@ const cardClassName =
 
 const fieldClassName =
   'h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-3 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15';
+
+const LoadingSkeletonBlock = ({ className = '' }: { className?: string }) => (
+  <div className={`relative overflow-hidden rounded-2xl bg-surface-container-high ${className}`}>
+    <div className="contabilidad-loading-shimmer absolute inset-y-0 left-0 w-1/2" />
+  </div>
+);
+
+const LoadingSkeletonPill = ({ className = '' }: { className?: string }) => (
+  <div className={`relative overflow-hidden rounded-full bg-surface-container-high ${className}`}>
+    <div className="contabilidad-loading-shimmer absolute inset-y-0 left-0 w-1/2" />
+  </div>
+);
 
 const buildFilteredMovimientos = ({
   movimientos,
@@ -439,6 +461,7 @@ function MovimientosSection({
   onEditAportacion,
   onEditTraspaso,
   onPrepararDevolucion,
+  onAbrirPagoSincronizado,
   onAnular,
   headerAction,
   lockedCuenta,
@@ -455,6 +478,7 @@ function MovimientosSection({
   onEditAportacion: (movimiento: MovimientoContable) => void;
   onEditTraspaso: (movimiento: MovimientoContable) => void;
   onPrepararDevolucion: (movimiento: MovimientoContable) => void;
+  onAbrirPagoSincronizado: (movimiento: MovimientoContable) => void;
   onAnular: (movimiento: MovimientoContable) => void;
   headerAction?: ReactNode;
   lockedCuenta?: CuentaContable | null;
@@ -598,9 +622,94 @@ function MovimientosSection({
         </div>
 
         {loading ? (
-          <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low px-4 py-10 text-center text-sm text-outline">
-            Cargando movimientos contables...
-          </div>
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-surface-container-low/70 backdrop-blur-md">
+                    {Array.from({ length: 7 }).map((_, index) => (
+                      <th
+                        key={index}
+                        className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-outline"
+                      >
+                        <LoadingSkeletonBlock className="h-3 w-16" />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 5 }).map((_, rowIndex) => (
+                    <tr
+                      key={rowIndex}
+                      className={`border-b border-outline-variant/10 ${
+                        rowIndex % 2 ? 'bg-surface-container-low/25' : ''
+                      }`}
+                    >
+                      <td className="px-4 py-4"><LoadingSkeletonBlock className="h-4 w-24" /></td>
+                      <td className="px-4 py-4">
+                        <div className="space-y-2">
+                          <LoadingSkeletonPill className="h-5 w-20" />
+                          <LoadingSkeletonPill className="h-5 w-24" />
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <LoadingSkeletonBlock className="h-4 w-28" />
+                        <LoadingSkeletonBlock className="mt-2 h-3 w-16" />
+                      </td>
+                      <td className="px-4 py-4">
+                        <LoadingSkeletonBlock className="h-4 w-4/5" />
+                        <LoadingSkeletonBlock className="mt-2 h-3 w-2/3" />
+                      </td>
+                      <td className="px-4 py-4">
+                        <LoadingSkeletonBlock className="h-4 w-32" />
+                        <LoadingSkeletonBlock className="mt-2 h-3 w-24" />
+                        <LoadingSkeletonBlock className="mt-2 h-3 w-20" />
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <LoadingSkeletonBlock className="ml-auto h-5 w-20" />
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex justify-end gap-2">
+                          <LoadingSkeletonPill className="h-8 w-14" />
+                          <LoadingSkeletonPill className="h-8 w-14" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-3 md:hidden">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-2">
+                      <LoadingSkeletonBlock className="h-4 w-40" />
+                      <LoadingSkeletonBlock className="h-3 w-28" />
+                    </div>
+                    <LoadingSkeletonPill className="h-5 w-20" />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <LoadingSkeletonPill className="h-5 w-20" />
+                    <LoadingSkeletonPill className="h-5 w-16" />
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <LoadingSkeletonBlock className="h-4 w-4/5" />
+                    <LoadingSkeletonBlock className="h-3 w-3/5" />
+                    <LoadingSkeletonBlock className="h-3 w-2/5" />
+                  </div>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <LoadingSkeletonPill className="h-8 w-16" />
+                    <LoadingSkeletonPill className="h-8 w-16" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
           <>
             <div className="hidden overflow-x-auto md:block">
@@ -637,11 +746,7 @@ function MovimientosSection({
                       movimiento.tipo === 'traspaso_salida';
                     const puedeEditar =
                       isManualMovement(movimiento) && movimiento.estado === 'confirmado';
-                    const puedeRegistrarDevolucion =
-                      movimiento.estado === 'confirmado' &&
-                      movimiento.tipo === 'ingreso' &&
-                      !movimiento.es_devolucion &&
-                      movimiento.importe_total > 0;
+                    const puedeAbrirPagoSincronizado = Boolean(movimiento.id_pago);
 
                     return (
                       <tr
@@ -760,13 +865,13 @@ function MovimientosSection({
                               </button>
                             ) : null}
 
-                            {puedeRegistrarDevolucion ? (
+                            {puedeAbrirPagoSincronizado ? (
                               <button
                                 type="button"
-                                onClick={() => onPrepararDevolucion(movimiento)}
+                                onClick={() => onAbrirPagoSincronizado(movimiento)}
                                 className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                               >
-                                Devolución
+                                Ver pago
                               </button>
                             ) : null}
 
@@ -811,11 +916,7 @@ function MovimientosSection({
                     movimiento.tipo === 'traspaso_salida';
                   const puedeEditar =
                     isManualMovement(movimiento) && movimiento.estado === 'confirmado';
-                  const puedeRegistrarDevolucion =
-                    movimiento.estado === 'confirmado' &&
-                    movimiento.tipo === 'ingreso' &&
-                    !movimiento.es_devolucion &&
-                    movimiento.importe_total > 0;
+                  const puedeAbrirPagoSincronizado = Boolean(movimiento.id_pago);
 
                   return (
                     <div
@@ -908,13 +1009,13 @@ function MovimientosSection({
                           </button>
                         ) : null}
 
-                        {puedeRegistrarDevolucion ? (
+                        {puedeAbrirPagoSincronizado ? (
                           <button
                             type="button"
-                            onClick={() => onPrepararDevolucion(movimiento)}
+                            onClick={() => onAbrirPagoSincronizado(movimiento)}
                             className="min-h-11 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
                           >
-                            Registrar devolución
+                            Ver pago
                           </button>
                         ) : null}
 
@@ -1087,6 +1188,7 @@ function BizumPendientesSection({
 }
 
 export default function ContabilidadPage() {
+  const router = useRouter();
   const {
     movimientos,
     bancos,
@@ -1121,6 +1223,7 @@ export default function ContabilidadPage() {
   const { empleados, loading: empleadosLoading } = useEmpleados();
 
   const [vistaActual, setVistaActual] = useState<VistaContabilidadTipo>('movimientos');
+  const [showPageSkeleton, setShowPageSkeleton] = useState(true);
   const [selectedCuentaId, setSelectedCuentaId] = useState('');
   const [filtros, setFiltros] = useState<FiltrosContabilidadState>({
     fechaInicio: '',
@@ -1146,6 +1249,10 @@ export default function ContabilidadPage() {
   const [isGastoOpen, setIsGastoOpen] = useState(false);
   const [isTraspasoOpen, setIsTraspasoOpen] = useState(false);
   const [movimientoAAnular, setMovimientoAAnular] = useState<MovimientoContable | null>(null);
+  const initialSkeletonStartedAtRef = useRef<number | null>(null);
+  const initialSkeletonTimerRef = useRef<number | null>(null);
+  const transitionSkeletonTimerRef = useRef<number | null>(null);
+  const initialSkeletonCompletedRef = useRef(false);
 
   const activeAccounts = useMemo(() => cuentas.filter((cuenta) => cuenta.activo), [cuentas]);
   const activePaymentMethods = useMemo(
@@ -1592,6 +1699,324 @@ export default function ContabilidadPage() {
     else toast.error(result.error || 'No se pudo cancelar el Bizum');
   };
 
+  const abrirPagoSincronizado = useCallback(
+    (movimiento: MovimientoContable) => {
+      if (!movimiento.id_pago) return;
+
+      router.push(`/pagos?pagoId=${encodeURIComponent(movimiento.id_pago)}`);
+    },
+    [router]
+  );
+
+  useEffect(() => {
+    if (initialSkeletonCompletedRef.current) {
+      return;
+    }
+
+    const MIN_LOADING_MS = 800;
+
+    if (initialSkeletonTimerRef.current !== null) {
+      window.clearTimeout(initialSkeletonTimerRef.current);
+      initialSkeletonTimerRef.current = null;
+    }
+
+    if (loading) {
+      if (initialSkeletonStartedAtRef.current === null) {
+        initialSkeletonStartedAtRef.current = Date.now();
+      }
+
+      setShowPageSkeleton(true);
+      return;
+    }
+
+    if (initialSkeletonStartedAtRef.current === null) {
+      setShowPageSkeleton(false);
+      initialSkeletonCompletedRef.current = true;
+      return;
+    }
+
+    const elapsed = Date.now() - initialSkeletonStartedAtRef.current;
+    const remaining = Math.max(MIN_LOADING_MS - elapsed, 0);
+
+    if (remaining > 0) {
+      initialSkeletonTimerRef.current = window.setTimeout(() => {
+        setShowPageSkeleton(false);
+        initialSkeletonCompletedRef.current = true;
+        initialSkeletonStartedAtRef.current = null;
+        initialSkeletonTimerRef.current = null;
+      }, remaining);
+    } else {
+      setShowPageSkeleton(false);
+      initialSkeletonCompletedRef.current = true;
+      initialSkeletonStartedAtRef.current = null;
+    }
+
+    return () => {
+      if (initialSkeletonTimerRef.current !== null) {
+        window.clearTimeout(initialSkeletonTimerRef.current);
+        initialSkeletonTimerRef.current = null;
+      }
+    };
+  }, [loading]);
+
+  useEffect(() => {
+    return () => {
+      if (transitionSkeletonTimerRef.current !== null) {
+        window.clearTimeout(transitionSkeletonTimerRef.current);
+        transitionSkeletonTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleVistaChange = useCallback(
+    (vista: VistaContabilidadTipo) => {
+      if (vista === vistaActual) return;
+
+      if (transitionSkeletonTimerRef.current !== null) {
+        window.clearTimeout(transitionSkeletonTimerRef.current);
+        transitionSkeletonTimerRef.current = null;
+      }
+
+      setVistaActual(vista);
+      setShowPageSkeleton(true);
+
+      transitionSkeletonTimerRef.current = window.setTimeout(() => {
+        setShowPageSkeleton(false);
+        transitionSkeletonTimerRef.current = null;
+      }, 800);
+    },
+    [vistaActual]
+  );
+
+  const renderContabilidadSkeleton = () => (
+    <ProtectedRoute allowedRoles={['admin', 'fl-admin']}>
+      <div className="page-container space-y-6">
+        <style jsx global>{`
+          @keyframes contabilidad-loading-shimmer {
+            0% {
+              transform: translateX(-120%);
+            }
+            100% {
+              transform: translateX(220%);
+            }
+          }
+
+          .contabilidad-loading-shimmer {
+            background: linear-gradient(
+              90deg,
+              transparent 0%,
+              rgba(255, 255, 255, 0.12) 45%,
+              rgba(255, 255, 255, 0.24) 50%,
+              rgba(255, 255, 255, 0.12) 55%,
+              transparent 100%
+            );
+            animation: contabilidad-loading-shimmer 1.2s ease-in-out infinite;
+          }
+        `}</style>
+
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-3xl">
+            <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">
+              Contabilidad
+            </h1>
+            <p className="mt-1 text-sm text-on-surface-variant">
+              Libro contable configurable con vistas separadas para movimientos,
+              cuentas, EFE, Bizum y configuración.
+            </p>
+          </div>
+
+          <div className="pointer-events-none flex w-full flex-col gap-3 opacity-70 xl:w-auto xl:items-end">
+            <SwitchVistaContabilidad
+              vistaActual={vistaActual}
+              onVistaChange={() => undefined}
+            />
+            <div className="w-full sm:w-auto">
+              <ContabilidadAccionesMenu
+                key={vistaActual}
+                disabled
+                onNuevaAportacion={() => undefined}
+                onNuevoGasto={() => undefined}
+                onNuevoTraspaso={() => undefined}
+              />
+            </div>
+          </div>
+        </div>
+
+        {vistaActual === 'movimientos' ? (
+          <div className="space-y-6">
+            <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <article key={index} className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-card-ambient">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-2">
+                      <LoadingSkeletonBlock className="h-3 w-32" />
+                      <LoadingSkeletonBlock className="h-4 w-44" />
+                    </div>
+                    <LoadingSkeletonPill className="h-11 w-11 rounded-2xl" />
+                  </div>
+                  <LoadingSkeletonBlock className="mt-5 h-8 w-40" />
+                  <LoadingSkeletonBlock className="mt-4 h-12 w-full rounded-2xl" />
+                </article>
+              ))}
+            </section>
+            <section className={cardClassName}>
+              <div className="border-b border-outline-variant/20 px-6 py-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-2">
+                    <LoadingSkeletonBlock className="h-6 w-56" />
+                    <LoadingSkeletonBlock className="h-4 w-full max-w-[30rem]" />
+                  </div>
+                  <LoadingSkeletonPill className="h-11 w-40" />
+                </div>
+              </div>
+              <div className="space-y-5 p-4 sm:p-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <div key={index} className="space-y-2">
+                      <LoadingSkeletonBlock className="h-3 w-16" />
+                      <LoadingSkeletonBlock className="h-11 w-full rounded-xl" />
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-3">
+                  <LoadingSkeletonBlock className="h-12 w-full rounded-xl" />
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <LoadingSkeletonBlock key={index} className="h-14 w-full rounded-xl" />
+                  ))}
+                </div>
+              </div>
+            </section>
+          </div>
+        ) : vistaActual === 'cuentas' ? (
+          <div className="space-y-6">
+            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <article key={index} className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-card-ambient">
+                  <LoadingSkeletonBlock className="h-3 w-28" />
+                  <LoadingSkeletonBlock className="mt-3 h-6 w-40" />
+                  <LoadingSkeletonBlock className="mt-5 h-8 w-28" />
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <LoadingSkeletonBlock className="h-16 rounded-2xl" />
+                    <LoadingSkeletonBlock className="h-16 rounded-2xl" />
+                  </div>
+                </article>
+              ))}
+            </section>
+            <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <article key={index} className={cardClassName}>
+                  <div className="border-b border-outline-variant/20 px-6 py-4">
+                    <LoadingSkeletonBlock className="h-6 w-32" />
+                  </div>
+                  <div className="space-y-3 p-6">
+                    <LoadingSkeletonBlock className="h-11 w-full rounded-xl" />
+                    <LoadingSkeletonBlock className="h-11 w-full rounded-xl" />
+                    <LoadingSkeletonBlock className="h-11 w-full rounded-xl" />
+                    <LoadingSkeletonBlock className="h-11 w-28 rounded-full" />
+                  </div>
+                </article>
+              ))}
+            </section>
+          </div>
+        ) : vistaActual === 'efe' ? (
+          <section className={cardClassName}>
+            <header className="border-b border-outline-variant/20 px-6 py-4">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                <div className="space-y-2">
+                  <LoadingSkeletonBlock className="h-6 w-56" />
+                  <LoadingSkeletonBlock className="h-4 w-full max-w-[32rem]" />
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <LoadingSkeletonBlock className="h-11 w-40 rounded-xl" />
+                  <LoadingSkeletonPill className="h-11 w-56" />
+                </div>
+              </div>
+            </header>
+            <div className="space-y-4 p-4 sm:p-6">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <article key={index} className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-card-ambient">
+                    <LoadingSkeletonBlock className="h-3 w-28" />
+                    <LoadingSkeletonBlock className="mt-4 h-8 w-36" />
+                    <LoadingSkeletonBlock className="mt-4 h-12 w-full rounded-2xl" />
+                  </article>
+                ))}
+              </div>
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-2">
+                        <LoadingSkeletonBlock className="h-5 w-48" />
+                        <div className="flex flex-wrap gap-2">
+                          <LoadingSkeletonPill className="h-5 w-24" />
+                          <LoadingSkeletonPill className="h-5 w-20" />
+                          <LoadingSkeletonPill className="h-5 w-24" />
+                        </div>
+                      </div>
+                      <LoadingSkeletonBlock className="h-11 w-40 rounded-xl" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : vistaActual === 'bizum' ? (
+          <section className={cardClassName}>
+            <header className="border-b border-outline-variant/20 px-6 py-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-2">
+                  <LoadingSkeletonBlock className="h-6 w-52" />
+                  <LoadingSkeletonBlock className="h-4 w-full max-w-[26rem]" />
+                </div>
+                <LoadingSkeletonPill className="h-8 w-32" />
+              </div>
+            </header>
+            <div className="space-y-3 p-4 sm:p-6">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-2">
+                      <LoadingSkeletonBlock className="h-5 w-44" />
+                      <LoadingSkeletonBlock className="h-4 w-28" />
+                    </div>
+                    <LoadingSkeletonBlock className="h-6 w-20" />
+                  </div>
+                  <LoadingSkeletonBlock className="mt-4 h-4 w-52" />
+                  <div className="mt-4 flex justify-end gap-2">
+                    <LoadingSkeletonPill className="h-10 w-24" />
+                    <LoadingSkeletonPill className="h-10 w-24" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <article key={index} className={cardClassName}>
+                <div className="border-b border-outline-variant/20 px-6 py-4">
+                  <LoadingSkeletonBlock className="h-6 w-32" />
+                </div>
+                <div className="space-y-3 p-6">
+                  <LoadingSkeletonBlock className="h-11 w-full rounded-xl" />
+                  <LoadingSkeletonBlock className="h-11 w-full rounded-xl" />
+                  <LoadingSkeletonBlock className="h-11 w-full rounded-xl" />
+                  <LoadingSkeletonBlock className="h-11 w-28 rounded-full" />
+                  <LoadingSkeletonBlock className="h-28 w-full rounded-2xl" />
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
+      </div>
+    </ProtectedRoute>
+  );
+
+  if (showPageSkeleton) {
+    return renderContabilidadSkeleton();
+  }
+
   if (error) {
     return (
       <ProtectedRoute allowedRoles={['admin', 'fl-admin']}>
@@ -1621,7 +2046,7 @@ export default function ContabilidadPage() {
           <div className="flex w-full flex-col gap-3 xl:w-auto xl:items-end">
             <SwitchVistaContabilidad
               vistaActual={vistaActual}
-              onVistaChange={(vista) => setVistaActual(vista)}
+              onVistaChange={handleVistaChange}
             />
             <div className="w-full sm:w-auto">
               <ContabilidadAccionesMenu
@@ -1678,6 +2103,7 @@ export default function ContabilidadPage() {
               onEditAportacion={cargarIngresoEnFormulario}
               onEditTraspaso={cargarTraspasoEnFormulario}
               onPrepararDevolucion={prepararDevolucion}
+              onAbrirPagoSincronizado={abrirPagoSincronizado}
               onAnular={setMovimientoAAnular}
               headerAction={
                 <Button
@@ -1723,6 +2149,7 @@ export default function ContabilidadPage() {
               onEditAportacion={cargarIngresoEnFormulario}
               onEditTraspaso={cargarTraspasoEnFormulario}
               onPrepararDevolucion={prepararDevolucion}
+              onAbrirPagoSincronizado={abrirPagoSincronizado}
               onAnular={setMovimientoAAnular}
               lockedCuenta={selectedCuenta}
               onClearLockedCuenta={selectedCuenta ? () => setSelectedCuentaId('') : undefined}

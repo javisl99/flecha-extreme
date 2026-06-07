@@ -26,7 +26,9 @@ interface UseClientesReturn {
   eliminarCliente: (id: string) => Promise<{ error: unknown }>;
   refreshClientes: () => Promise<void>;
   getCliente: (id: string) => Promise<{ nombre: string; apellidos: string } | null>;
+  obtenerClientePorId: (id: string) => Promise<Cliente | null>;
   buscarClienteDuplicado: (candidate: ClienteCandidate, ignoreId?: string) => Promise<ClienteDuplicadoResult>;
+  buscarClientes: (termino: string, limite?: number) => Promise<Cliente[]>;
 }
 
 function normalizeWhitespace(value: string) {
@@ -41,12 +43,17 @@ function normalizeDni(value?: string) {
   return value?.trim().toUpperCase() ?? '';
 }
 
+function normalizeMovil(value?: string) {
+  const normalized = normalizeWhitespace(value ?? '').replace(/\D/g, '');
+  return normalized.length > 0 ? normalized : null;
+}
+
 function transformClienteRow(cliente: {
   id: string;
   nombre: string;
   apellidos: string;
   email: string;
-  movil: string;
+  movil: string | number | null;
   dni?: string | null;
   created_at: string;
   notas?: string | null;
@@ -56,7 +63,7 @@ function transformClienteRow(cliente: {
     nombre: cliente.nombre,
     apellidos: cliente.apellidos,
     email: cliente.email,
-    movil: cliente.movil,
+    movil: String(cliente.movil ?? ''),
     dni: cliente.dni ?? undefined,
     fechaRegistro: cliente.created_at,
     notas: cliente.notas || undefined
@@ -69,11 +76,12 @@ function getDuplicateErrorMessage(motivo: MotivoClienteDuplicado) {
     : 'Ya existe un cliente con el mismo nombre y apellidos.';
 }
 
-export function useClientes(): UseClientesReturn {
+export function useClientes(options: { eagerLoad?: boolean } = {}): UseClientesReturn {
+  const eagerLoad = options.eagerLoad !== false;
   const { user } = useUserContext();
   const { usuario } = useUserData();
   const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(eagerLoad);
   const [error, setError] = useState<string | null>(null);
 
   const findLocalDuplicate = useCallback((candidate: ClienteCandidate, ignoreId?: string): ClienteDuplicadoResult => {
@@ -105,6 +113,52 @@ export function useClientes(): UseClientesReturn {
     return { cliente: null, motivo: null };
   }, [clientes]);
 
+  const buscarClientes = useCallback(async (termino: string, limite = 10): Promise<Cliente[]> => {
+    if (!user || !usuario) return [];
+
+    const normalizedTerm = normalizeWhitespace(termino);
+    if (!normalizedTerm) return [];
+
+    const likePattern = `%${normalizedTerm.replace(/[%_]/g, '\\$&')}%`;
+    const columns = 'id,nombre,apellidos,email,movil,dni,created_at';
+
+    const [nombreResult, apellidosResult, dniResult] = await Promise.all([
+      supabaseClient
+        .from('cliente')
+        .select(columns)
+        .ilike('nombre', likePattern)
+        .limit(limite),
+      supabaseClient
+        .from('cliente')
+        .select(columns)
+        .ilike('apellidos', likePattern)
+        .limit(limite),
+      supabaseClient
+        .from('cliente')
+        .select(columns)
+        .ilike('dni', likePattern)
+        .limit(limite)
+    ]);
+
+    if (nombreResult.error) throw nombreResult.error;
+    if (apellidosResult.error) throw apellidosResult.error;
+    if (dniResult.error) throw dniResult.error;
+
+    const merged = [...(nombreResult.data ?? []), ...(apellidosResult.data ?? []), ...(dniResult.data ?? [])];
+    const unique = new Map<string, Cliente>();
+
+    merged.forEach((cliente) => {
+      const transformed = transformClienteRow(cliente);
+      unique.set(transformed.id, transformed);
+    });
+
+    return [...unique.values()].sort((left, right) => {
+      const leftName = `${left.nombre} ${left.apellidos}`.toLowerCase();
+      const rightName = `${right.nombre} ${right.apellidos}`.toLowerCase();
+      return leftName.localeCompare(rightName, 'es');
+    });
+  }, [user, usuario]);
+
   // Función para refrescar los clientes
   const refreshClientes = useCallback(async () => {
     if (!user || !usuario) return;
@@ -132,6 +186,11 @@ export function useClientes(): UseClientesReturn {
 
   // Cargar clientes inicialmente
   useEffect(() => {
+    if (!eagerLoad) {
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
     let timeoutId: NodeJS.Timeout;
 
@@ -185,7 +244,7 @@ export function useClientes(): UseClientesReturn {
         clearTimeout(timeoutId);
       }
     };
-  }, [user, usuario]);
+  }, [eagerLoad, user, usuario]);
 
   const buscarClienteDuplicado = useCallback(async (candidate: ClienteCandidate, ignoreId?: string): Promise<ClienteDuplicadoResult> => {
     const localDuplicate = findLocalDuplicate(candidate, ignoreId);
@@ -266,7 +325,7 @@ export function useClientes(): UseClientesReturn {
           nombre: normalizeWhitespace(nuevoCliente.nombre),
           apellidos: normalizeWhitespace(nuevoCliente.apellidos),
           email: nuevoCliente.email.trim(),
-          movil: nuevoCliente.movil.trim(),
+          movil: normalizeMovil(nuevoCliente.movil),
           dni: normalizeDni(nuevoCliente.dni) || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -279,7 +338,9 @@ export function useClientes(): UseClientesReturn {
 
       const clienteTransformado = transformClienteRow(data);
       setClientes((prevClientes) => [...prevClientes, clienteTransformado]);
-      await refreshClientes();
+      if (eagerLoad) {
+        await refreshClientes();
+      }
 
       return { data: clienteTransformado, error: null };
     } catch (err) {
@@ -306,7 +367,7 @@ export function useClientes(): UseClientesReturn {
           ...(datosActualizados.nombre && { nombre: datosActualizados.nombre }),
           ...(datosActualizados.apellidos && { apellidos: datosActualizados.apellidos }),
           ...(datosActualizados.email && { email: datosActualizados.email }),
-          ...(datosActualizados.movil && { movil: datosActualizados.movil }),
+          ...(datosActualizados.movil && { movil: normalizeMovil(datosActualizados.movil) }),
           ...(datosActualizados.dni && { dni: datosActualizados.dni }),
           updated_at: new Date().toISOString()
         })
@@ -379,6 +440,26 @@ export function useClientes(): UseClientesReturn {
     }
   }, []);
 
+  const obtenerClientePorId = useCallback(async (id: string): Promise<Cliente | null> => {
+    if (!user || !usuario) return null;
+
+    try {
+      const { data, error } = await supabaseClient
+        .from('cliente')
+        .select('id,nombre,apellidos,email,movil,dni,created_at')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return null;
+
+      return transformClienteRow(data);
+    } catch (err) {
+      console.error('Error al obtener el cliente por ID:', err);
+      return null;
+    }
+  }, [user, usuario]);
+
   return {
     clientes,
     loading,
@@ -388,6 +469,8 @@ export function useClientes(): UseClientesReturn {
     eliminarCliente,
     refreshClientes,
     getCliente,
-    buscarClienteDuplicado
+    obtenerClientePorId,
+    buscarClienteDuplicado,
+    buscarClientes
   };
 }

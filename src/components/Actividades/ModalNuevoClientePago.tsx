@@ -21,7 +21,7 @@ export default function ModalNuevoClientePago({
   onClose,
   onSuccess
 }: ModalNuevoClientePagoProps) {
-  const { crearCliente, buscarClienteDuplicado } = useClientes();
+  const { crearCliente, buscarClienteDuplicado } = useClientes({ eagerLoad: false });
   const [formData, setFormData] = useState({
     nombre: '',
     apellidos: '',

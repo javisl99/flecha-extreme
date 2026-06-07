@@ -33,6 +33,10 @@ interface ReservaParkingInfo {
   fecha_inicio: string;
   fecha_fin: string;
   estado?: EstadoReservaParking;
+  cliente?: {
+    nombre: string;
+    apellidos: string;
+  } | null;
 }
 
 interface PlazaInfoModalProps {
@@ -49,6 +53,7 @@ interface PlazaInfoModalProps {
   reservasFuturas?: ReservaParkingInfo[];
   pagoInfo?: PagoParking;
   clienteInfo?: { nombre: string; apellidos: string } | null;
+  isLoading?: boolean;
   tarifas: TarifaParking[];
   onEliminarReserva?: () => void;
 }
@@ -96,6 +101,7 @@ export default function PlazaInfoModal({
   reservasFuturas = [],
   pagoInfo,
   clienteInfo,
+  isLoading = false,
   tarifas,
   onEliminarReserva
 }: PlazaInfoModalProps) {
@@ -160,10 +166,48 @@ export default function PlazaInfoModal({
 
   const dataLabelClassName = 'text-[11px] font-black uppercase tracking-[0.12em] text-outline';
   const dataValueClassName = 'mt-1 text-sm font-semibold text-on-surface';
+  const SkeletonBlock = ({ className = '' }: { className?: string }) => (
+    <div className={`relative overflow-hidden rounded-lg bg-surface-container-high ${className}`}>
+      <div className="skeleton-shimmer absolute inset-y-0 left-0 w-1/2" />
+    </div>
+  );
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <style jsx global>{`
+          @keyframes parking-skeleton-shimmer {
+            0% {
+              transform: translateX(-120%);
+            }
+            100% {
+              transform: translateX(220%);
+            }
+          }
+
+          .skeleton-shimmer {
+            background: linear-gradient(
+              90deg,
+              transparent 0%,
+              rgba(255, 255, 255, 0.18) 45%,
+              rgba(255, 255, 255, 0.38) 50%,
+              rgba(255, 255, 255, 0.18) 55%,
+              transparent 100%
+            );
+            animation: parking-skeleton-shimmer 1.3s ease-in-out infinite;
+          }
+
+          .dark .skeleton-shimmer {
+            background: linear-gradient(
+              90deg,
+              transparent 0%,
+              rgba(255, 255, 255, 0.08) 45%,
+              rgba(255, 255, 255, 0.16) 50%,
+              rgba(255, 255, 255, 0.08) 55%,
+              transparent 100%
+            );
+          }
+        `}</style>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-200"
@@ -214,7 +258,71 @@ export default function PlazaInfoModal({
                   </div>
                 </div>
 
-                <div className="space-y-5 p-6">
+                {isLoading ? (
+                  <div className="space-y-5 p-6">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                        <SkeletonBlock className="h-3 w-12" />
+                        <SkeletonBlock className="mt-3 h-5 w-24" />
+                      </div>
+                      <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                        <SkeletonBlock className="h-3 w-20" />
+                        <SkeletonBlock className="mt-3 h-5 w-28" />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                      <SkeletonBlock className="h-5 w-40" />
+                      <div className="mt-4 space-y-4">
+                        <div className="space-y-2">
+                          <SkeletonBlock className="h-3 w-14" />
+                          <SkeletonBlock className="h-10 w-full" />
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <SkeletonBlock className="h-3 w-28" />
+                            <SkeletonBlock className="h-5 w-32" />
+                          </div>
+                          <div className="space-y-2">
+                            <SkeletonBlock className="h-3 w-24" />
+                            <SkeletonBlock className="h-5 w-32" />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <SkeletonBlock className="h-3 w-24" />
+                          <SkeletonBlock className="h-6 w-24 rounded-full" />
+                        </div>
+                        <div className="space-y-2">
+                          <SkeletonBlock className="h-3 w-16" />
+                          <SkeletonBlock className="h-5 w-40" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                      <SkeletonBlock className="h-5 w-36" />
+                      <div className="mt-4 space-y-3">
+                        <SkeletonBlock className="h-16 w-full rounded-xl" />
+                        <SkeletonBlock className="h-16 w-full rounded-xl" />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                      <SkeletonBlock className="h-5 w-44" />
+                      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <SkeletonBlock className="h-3 w-16" />
+                          <SkeletonBlock className="h-5 w-24" />
+                        </div>
+                        <div className="space-y-2">
+                          <SkeletonBlock className="h-3 w-28" />
+                          <SkeletonBlock className="h-5 w-28" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-5 p-6">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
                       <p className={dataLabelClassName}>Tipo</p>
@@ -307,6 +415,11 @@ export default function PlazaInfoModal({
                                   <p className="mt-1 text-xs text-on-surface-variant">
                                     {tarifa ? `${getPeriodoLabel(tarifa.periodo)} · ${formatearPrecio(tarifa.precio)}` : 'Tarifa no disponible'}
                                   </p>
+                                  {reservaFutura.cliente ? (
+                                    <p className="mt-1 text-xs font-medium text-on-surface-variant">
+                                      Cliente: {reservaFutura.cliente.nombre} {reservaFutura.cliente.apellidos}
+                                    </p>
+                                  ) : null}
                                 </div>
                                 <span className={`${ESTADO_RESERVA_CHIP[estado]} inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em]`}>
                                   {ESTADO_RESERVA_LABEL[estado]}
@@ -353,6 +466,7 @@ export default function PlazaInfoModal({
                     </div>
                   ) : null}
                 </div>
+                )}
 
                 <div className="flex flex-wrap justify-end gap-3 border-t border-outline-variant/25 px-6 py-4">
                   <button

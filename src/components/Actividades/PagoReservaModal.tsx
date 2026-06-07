@@ -9,7 +9,6 @@ import SurfSpinner from '@/components/shared/SurfSpinner';
 import TicketCompra from '@/components/Tienda/TicketCompra';
 import { SelectorCliente } from '@/components/Actividades/SelectorCliente';
 import ModalNuevoClientePago from '@/components/Actividades/ModalNuevoClientePago';
-import { useClientes } from '@/hooks/useClientes';
 import { useTickets } from '@/hooks/useTickets';
 import { toast } from 'react-hot-toast';
 import { ACTIVE_PAYMENT_METHOD_OPTIONS } from '@/lib/contabilidadCatalogos';
@@ -43,6 +42,8 @@ interface ActividadReserva {
   resumenFechas?: string;
   campamentoProgramaId?: string;
   tarifaId?: string;
+  duracionTotalMin?: number;
+  asignarTramosDespues?: boolean;
   rangos?: Array<{
     id: string;
     fechaInicio: string;
@@ -137,8 +138,7 @@ export default function PagoReservaModal({
   initialClienteId = null,
   requireCliente = false
 }: PagoReservaModalProps) {
-  const { crearReserva, crearInscripcionCampamento, crearPago, obtenerIdEmpresa, obtenerIdCliente } = useActividades();
-  const { clientes } = useClientes();
+  const { crearReserva, crearInscripcionCampamento, crearPago, obtenerIdEmpresa } = useActividades();
   const { saveTicket } = useTickets();
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
@@ -229,16 +229,8 @@ export default function PagoReservaModal({
       let reservaId: string | undefined;
       
       if (!readOnly) {
-        const clienteSeleccionado = selectedClienteId
-          ? clientes.find(c => c.id === selectedClienteId)
-          : null;
-
         if (requireCliente && !selectedClienteId) {
           throw new Error('Debes seleccionar un cliente pagador para continuar');
-        }
-
-        if (selectedClienteId && !clienteSeleccionado) {
-          throw new Error('Cliente seleccionado no encontrado');
         }
 
         // Obtener el ID de la empresa
@@ -246,33 +238,35 @@ export default function PagoReservaModal({
         if (!resultadoEmpresa.success) {
           throw new Error(resultadoEmpresa.message);
         }
-        
-        const resultadoCliente = clienteSeleccionado
-          ? await obtenerIdCliente(clienteSeleccionado.nombre, clienteSeleccionado.apellidos)
-          : null;
 
-        if (clienteSeleccionado && (!resultadoCliente?.success || !resultadoCliente.clienteId)) {
-          throw new Error(resultadoCliente?.message || 'No se pudo obtener el cliente seleccionado');
-        }
+        const clienteId = selectedClienteId ?? null;
         
         // Crear la reserva en la base de datos
         // Crear fechas sin conversión de zona horaria
-        const fechaInicioBase = actividad.reservaFechaInicio ?? actividad.fechaInicio;
-        const fechaFinBase = actividad.reservaFechaFin ?? actividad.fechaFin;
+        const fallbackDate = new Date().toISOString().split('T')[0];
+        const fechaInicioBase = actividad.reservaFechaInicio ?? actividad.fechaInicio ?? fallbackDate;
+        const fechaFinBase = actividad.reservaFechaFin ?? actividad.fechaFin ?? fechaInicioBase;
+        const horaInicioValue = /^\d{2}:\d{2}$/.test(actividad.horaInicio) ? actividad.horaInicio : '00:00';
+        const horaFinValue = /^\d{2}:\d{2}$/.test(actividad.horaFin) ? actividad.horaFin : horaInicioValue;
         const [añoInicio, mesInicio, diaInicio] = fechaInicioBase.split('-');
-        const [horaInicio, minutoInicio] = actividad.horaInicio.split(':');
+        const [horaInicio, minutoInicio] = horaInicioValue.split(':');
         const [añoFin, mesFin, diaFin] = fechaFinBase.split('-');
-        const [horaFin, minutoFin] = actividad.horaFin.split(':');
+        const [horaFin, minutoFin] = horaFinValue.split(':');
         
         const fechaInicio = new Date(parseInt(añoInicio), parseInt(mesInicio) - 1, parseInt(diaInicio), parseInt(horaInicio), parseInt(minutoInicio), 0);
         const fechaFin = new Date(parseInt(añoFin), parseInt(mesFin) - 1, parseInt(diaFin), parseInt(horaFin), parseInt(minutoFin), 0);
         const reservaItems = buildReservaItemsFromRanges(actividad, actividad.cantidad);
+        const estadoAsignacionTramos = actividad.asignarTramosDespues
+          ? 'pendiente'
+          : actividad.duracionTotalMin && actividad.rangos && actividad.rangos.length > 0
+            ? 'completa'
+            : 'no_aplica';
         
         const estadoReserva = esReserva ? 'pendiente' : (estado === 'completado' ? 'confirmada' : 'pendiente');
         const resultadoReserva = actividad.campamentoProgramaId && actividad.tarifaId
           ? await crearInscripcionCampamento({
               campamentoProgramaId: actividad.campamentoProgramaId,
-              idCliente: resultadoCliente?.clienteId ?? null,
+              idCliente: clienteId,
               idActividad: actividad.id,
               idEmpresa: resultadoEmpresa.empresaId!,
               tarifaId: actividad.tarifaId,
@@ -290,7 +284,7 @@ export default function PagoReservaModal({
               participantes: actividad.participantes ?? []
             })
           : await crearReserva({
-              id_cliente: resultadoCliente?.clienteId ?? null,
+              id_cliente: clienteId,
               id_actividad: actividad.id,
               id_empresa: resultadoEmpresa.empresaId!,
               cantidad_reservada: actividad.cantidad,
@@ -300,8 +294,10 @@ export default function PagoReservaModal({
               fecha_inicio: fechaInicio.toISOString(),
               fecha_fin: fechaFin.toISOString(),
               estado: estadoReserva,
+              estado_asignacion_tramos: estadoAsignacionTramos,
+              duracion_total_min: actividad.duracionTotalMin ?? null,
               nota: actividad.nota || undefined,
-              items: reservaItems ?? undefined,
+              items: actividad.asignarTramosDespues ? [] : (reservaItems ?? undefined),
               metadata: actividad.campamentoMetadata
                 ? { campamento: actividad.campamentoMetadata }
                 : undefined
@@ -317,7 +313,7 @@ export default function PagoReservaModal({
         if (esReserva && precioRestante > 0) {
           // Crear pago inmediato (reserva)
           const resultadoPagoReserva = await crearPago({
-            id_cliente: resultadoCliente?.clienteId ?? null,
+            id_cliente: clienteId,
             origen_tipo: 'reserva',
             origen_id: reservaId!,
             concepto: `Reserva - ${concepto}`,
@@ -332,7 +328,7 @@ export default function PagoReservaModal({
           
           // Crear pago pendiente (resto)
           const resultadoPagoPendiente = await crearPago({
-            id_cliente: resultadoCliente?.clienteId ?? null,
+            id_cliente: clienteId,
             origen_tipo: 'reserva',
             origen_id: reservaId!,
             concepto: `Pago pendiente - ${concepto}`,
@@ -347,7 +343,7 @@ export default function PagoReservaModal({
         } else {
           // Crear pago normal (sin reserva)
           const resultadoPago = await crearPago({
-            id_cliente: resultadoCliente?.clienteId ?? null,
+            id_cliente: clienteId,
             origen_tipo: 'reserva',
             origen_id: reservaId!,
             concepto: concepto,

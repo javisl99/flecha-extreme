@@ -172,6 +172,9 @@ export function useParking() {
   }, []);
 
   const fetchPlazasParking = useCallback(async () => {
+    const MIN_LOADING_MS = 900;
+    const startedAt = Date.now();
+
     try {
       setLoading(true);
       setError(null);
@@ -211,7 +214,16 @@ export function useParking() {
       console.error('Error al obtener las plazas de parking:', err);
       setError('Error al cargar las plazas de parking');
     } finally {
-      setLoading(false);
+      const elapsed = Date.now() - startedAt;
+      const remaining = Math.max(MIN_LOADING_MS - elapsed, 0);
+
+      if (remaining > 0) {
+        window.setTimeout(() => {
+          setLoading(false);
+        }, remaining);
+      } else {
+        setLoading(false);
+      }
     }
   }, [fetchReservasParking]);
 
@@ -630,7 +642,7 @@ export function useParking() {
     }
   };
 
-  const getPagoReserva = async (reservaId: string): Promise<PagoParking | null> => {
+  const getPagoReserva = useCallback(async (reservaId: string): Promise<PagoParking | null> => {
     try {
       const { data: aplicacionData, error: aplicacionError } = await supabaseClient
         .from('pago_aplicacion')
@@ -679,7 +691,7 @@ export function useParking() {
       console.error('Error al obtener el pago de la reserva:', err);
       return null;
     }
-  };
+  }, []);
 
   return {
     plazas,

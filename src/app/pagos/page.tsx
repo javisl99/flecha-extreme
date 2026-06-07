@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { usePagos, type Pago } from '@/hooks/usePagos';
 import { usePedidos, type Pedido } from '@/hooks/usePedidos';
 import { useActividades, type Reserva as ReservaActividad } from '@/hooks/useActividades';
@@ -14,6 +15,21 @@ import ModalDetalleReserva from '@/components/Actividades/ModalDetalleReserva';
 import { FiltrosPagos, type FiltrosPagoState } from '@/components/Pagos/FiltrosPagos';
 
 export default function PagosPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="page-container px-6 py-10 text-sm text-outline">
+          Cargando pagos...
+        </div>
+      }
+    >
+      <PagosPageContent />
+    </Suspense>
+  );
+}
+
+function PagosPageContent() {
+  const searchParams = useSearchParams();
   const [filtros, setFiltros] = useState<FiltrosPagoState>({
     cliente: '',
     origen_tipo: '',
@@ -30,6 +46,7 @@ export default function PagosPage() {
   const [isDetallePagoCampamentoModalOpen, setIsDetallePagoCampamentoModalOpen] = useState(false);
   const [programaCampamentoSeleccionado, setProgramaCampamentoSeleccionado] = useState<CampamentoPrograma | null>(null);
   const [inscripcionCampamentoSeleccionada, setInscripcionCampamentoSeleccionada] = useState<CampamentoInscripcion | null>(null);
+  const pagoAutoseleccionadoRef = useRef(false);
   const { pagos, loading, error, refreshPagos, actualizarPago } = usePagos();
   const { obtenerPedidoPorId } = usePedidos();
   const { obtenerReservas, obtenerReservaPorId, actualizarReserva, obtenerDetalleProgramaCampamento } = useActividades();
@@ -168,6 +185,19 @@ export default function PagosPage() {
   const handleFilaClick = (pago: Pago) => {
     handleVerPago(pago);
   };
+
+  useEffect(() => {
+    if (loading) return;
+
+    const pagoId = searchParams.get('pagoId');
+    if (!pagoId || pagoAutoseleccionadoRef.current) return;
+
+    const pago = pagos.find((item) => item.id === pagoId);
+    if (!pago) return;
+
+    pagoAutoseleccionadoRef.current = true;
+    void handleVerPago(pago);
+  }, [loading, pagos, searchParams]);
 
   const refreshReservaSeleccionada = async (reservaId: string) => {
     const resultado = await obtenerReservaPorId(reservaId);

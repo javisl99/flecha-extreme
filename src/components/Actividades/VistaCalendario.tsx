@@ -163,6 +163,14 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
     () =>
       reservas
         .flatMap((reserva): EventoCalendario[] => {
+          if (
+            reserva.kind !== 'campamento_programa' &&
+            (reserva.estado_asignacion_tramos ?? 'no_aplica') !== 'no_aplica' &&
+            (!reserva.items || reserva.items.length === 0)
+          ) {
+            return [];
+          }
+
           const start = new Date(reserva.fecha_inicio);
           const end = new Date(reserva.fecha_fin);
           const actividad = reserva.actividad?.nombre || 'Actividad no encontrada';
