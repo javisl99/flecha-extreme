@@ -28,13 +28,18 @@ const transformRole = (role: DatabaseRole): DisplayRole => {
 };
 
 export function useUserData() {
-  const { user } = useUserContext();
+  const { user, loading: authLoading } = useUserContext();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchUsuario() {
+      if (authLoading) {
+        setLoading(true);
+        return;
+      }
+
       if (!user?.email) {
         setLoading(false);
         return;
@@ -68,7 +73,7 @@ export function useUserData() {
     }
 
     fetchUsuario();
-  }, [user?.email]);
+  }, [authLoading, user?.email]);
 
   const updatePassword = async (newPassword: string) => {
     try {

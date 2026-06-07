@@ -50,11 +50,14 @@ interface ModalNuevaReservaProps {
     campamentoMetadata?: CampamentoMetadata;
     reservaFechaInicio?: string;
     reservaFechaFin?: string;
+    asignarTramosDespues?: boolean;
+    duracionTotalMin?: number;
   }) => void;
   onToast: (toast: { visible: boolean; message: string; type: 'success' | 'error' }) => void;
 }
 
 type WizardStep = 1 | 2;
+type CourseAssignmentMode = 'now' | 'later';
 type AvailabilityStatus = 'idle' | 'checking' | 'available' | 'unavailable' | 'error';
 
 interface RentalSuggestion {
@@ -408,6 +411,7 @@ export default function ModalNuevaReserva({
   const [courseRangeErrors, setCourseRangeErrors] = useState<Record<string, string>>({});
   const [isValidatingCourseRanges, setIsValidatingCourseRanges] = useState(false);
   const [courseRangesValidationMessage, setCourseRangesValidationMessage] = useState('');
+  const [courseAssignmentMode, setCourseAssignmentMode] = useState<CourseAssignmentMode>('now');
 
   const isRental = formData.tipoActividad === 'alquiler';
   const isCourse = formData.tipoActividad === 'curso';
@@ -448,6 +452,7 @@ export default function ModalNuevaReserva({
     () => tarifaPermiteMultiTramo(courseSelectedTariff),
     [courseSelectedTariff]
   );
+  const isCoursePendingAssignmentMode = isCourseMultiRangeTariff && courseAssignmentMode === 'later';
   const rentalDurationSelectedMin = useMemo(
     () => (isRental ? getDurationMinutes(formData.duracion) : null),
     [formData.duracion, isRental]
@@ -737,6 +742,7 @@ export default function ModalNuevaReserva({
     setCourseRangeErrors({});
     setIsValidatingCourseRanges(false);
     setCourseRangesValidationMessage('');
+    setCourseAssignmentMode('now');
     setErrors({});
   };
 
@@ -752,6 +758,9 @@ export default function ModalNuevaReserva({
 
   useEffect(() => {
     if (!isCourseMultiRangeTariff) {
+      if (courseAssignmentMode !== 'now') {
+        setCourseAssignmentMode('now');
+      }
       if (courseRanges.length > 0) {
         setCourseRanges([]);
       }
@@ -761,6 +770,10 @@ export default function ModalNuevaReserva({
       if (courseRangesValidationMessage) {
         setCourseRangesValidationMessage('');
       }
+      return;
+    }
+
+    if (isCoursePendingAssignmentMode) {
       return;
     }
 
@@ -787,7 +800,7 @@ export default function ModalNuevaReserva({
         horaFin: nextHoraFin
       };
     });
-  }, [courseRangeAggregate, courseRangeEditor.length, courseRanges, courseRangesValidationMessage, isCourseMultiRangeTariff]);
+  }, [courseAssignmentMode, courseRangeAggregate, courseRangeEditor.length, courseRanges, courseRangesValidationMessage, isCourseMultiRangeTariff, isCoursePendingAssignmentMode]);
 
   const consultarStock = async (
     actividadId: string,
@@ -838,15 +851,19 @@ export default function ModalNuevaReserva({
     campamentoMetadata: campamentoMetadata ?? undefined,
     tarifaId: tarifaSeleccionada?.id,
     rangos: isCourseMultiRangeTariff
-      ? sortedCourseRanges.map((range) => ({
-          id: range.id,
-          fechaInicio: range.fechaInicio,
-          fechaFin: range.fechaFin,
-          horaInicio: range.horaInicio,
-          horaFin: range.horaFin,
-          duracionMin: calculateCourseRangeDuration(range)
-        }))
+      ? isCoursePendingAssignmentMode
+        ? undefined
+        : sortedCourseRanges.map((range) => ({
+            id: range.id,
+            fechaInicio: range.fechaInicio,
+            fechaFin: range.fechaFin,
+            horaInicio: range.horaInicio,
+            horaFin: range.horaFin,
+            duracionMin: calculateCourseRangeDuration(range)
+          }))
       : undefined,
+    asignarTramosDespues: isCoursePendingAssignmentMode,
+    duracionTotalMin: isCourse ? courseDurationSelectedMin ?? undefined : undefined,
     reservaFechaInicio: campFirstOccurrence?.date ?? formData.fechaInicio,
     reservaFechaFin: campLastOccurrence?.date ?? formData.fechaFin,
     resumenHorario: isCamp ? campHorarioResumen : undefined,
@@ -1597,8 +1614,8 @@ export default function ModalNuevaReserva({
     }
 
     const assignedMinutes = sortedRanges.reduce((total, range) => total + calculateCourseRangeDuration(range), 0);
-    if (assignedMinutes !== courseDurationSelectedMin) {
-      nextErrors.__summary = `La suma de tramos debe completar exactamente ${formatMinutesSummary(courseDurationSelectedMin)}.`;
+    if (assignedMinutes > courseDurationSelectedMin) {
+      nextErrors.__summary = `La suma de tramos no puede superar ${formatMinutesSummary(courseDurationSelectedMin)}.`;
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -1632,9 +1649,14 @@ export default function ModalNuevaReserva({
         return;
       }
 
+      const hasPartialAssignment = assignedMinutes < courseDurationSelectedMin;
       setCourseRanges(sortedRanges.map((range) => ({ ...range })));
       setCourseRangeErrors({});
-      setCourseRangesValidationMessage('Tramos guardados y validados correctamente.');
+      setCourseRangesValidationMessage(
+        hasPartialAssignment
+          ? `Tramos guardados y validados correctamente. Quedan ${formatMinutesSummary(courseDurationSelectedMin - assignedMinutes)} pendientes por asignar.`
+          : 'Tramos guardados y validados correctamente.'
+      );
       setErrors((prev) => ({ ...prev, rangosCurso: '' }));
       setShowCourseRangesModal(false);
     } finally {
@@ -1809,16 +1831,16 @@ export default function ModalNuevaReserva({
     }
 
     if (isCourseMultiRangeTariff) {
-      if (courseRanges.length === 0) {
-        newErrors.rangosCurso = 'Debes configurar al menos un tramo para repartir las horas del curso.';
-      }
+      if (!isCoursePendingAssignmentMode) {
+        if (courseRanges.length === 0) {
+          newErrors.rangosCurso = 'Debes configurar al menos un tramo para repartir las horas del curso.';
+        }
 
-      if (!courseDurationSelectedMin || courseAssignedMinutes !== courseDurationSelectedMin) {
-        newErrors.rangosCurso = `La suma de tramos debe completar exactamente ${formatDurationLabel(formData.duracion)}.`;
-      }
-
-      if (courseRemainingMinutes !== 0) {
-        newErrors.rangosCurso = `Ajusta los tramos para cuadrar las ${formatDurationLabel(formData.duracion)} del curso.`;
+        if (!courseDurationSelectedMin) {
+          newErrors.rangosCurso = `No se ha podido calcular la duración del curso.`;
+        } else if (courseAssignedMinutes > courseDurationSelectedMin) {
+          newErrors.rangosCurso = `La suma de tramos no puede superar ${formatDurationLabel(formData.duracion)}.`;
+        }
       }
     } else {
       if (!formData.fechaInicio) {
@@ -2208,18 +2230,22 @@ export default function ModalNuevaReserva({
         horaFin: formData.horaFin,
         nota: formData.nota || undefined,
         rangos: isCourseMultiRangeTariff
-          ? sortedCourseRanges.map((range) => ({
-              id: range.id,
-              fechaInicio: range.fechaInicio,
-              fechaFin: range.fechaFin,
-              horaInicio: range.horaInicio,
-              horaFin: range.horaFin,
-              duracionMin: calculateCourseRangeDuration(range)
-            }))
+          ? isCoursePendingAssignmentMode
+            ? undefined
+            : sortedCourseRanges.map((range) => ({
+                id: range.id,
+                fechaInicio: range.fechaInicio,
+                fechaFin: range.fechaFin,
+                horaInicio: range.horaInicio,
+                horaFin: range.horaFin,
+                duracionMin: calculateCourseRangeDuration(range)
+              }))
           : undefined,
         campamentoMetadata: campamentoMetadata ?? undefined,
         reservaFechaInicio: campFirstOccurrence?.date ?? undefined,
-        reservaFechaFin: campLastOccurrence?.date ?? undefined
+        reservaFechaFin: campLastOccurrence?.date ?? undefined,
+        asignarTramosDespues: isCoursePendingAssignmentMode,
+        duracionTotalMin: isCourse ? courseDurationSelectedMin ?? undefined : undefined
       });
 
       setPaymentCompleted(true);
@@ -2372,44 +2398,79 @@ export default function ModalNuevaReserva({
       const objetivoLabel = formData.duracion ? formatDurationLabel(formData.duracion) : 'la duración seleccionada';
       return (
         <div className="rounded-2xl border border-outline-variant/35 bg-surface-container-low px-4 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-on-surface">Distribución horaria del curso</p>
-              <p className="mt-1 text-sm text-on-surface-variant">
-                Reparte las {objetivoLabel} del curso en tantos tramos como necesites. Validaremos cada tramo antes de continuar.
-              </p>
+          <div className="flex flex-col gap-4">
+            <div className="inline-flex w-fit max-w-full flex-wrap items-center gap-2 self-start rounded-2xl border border-outline-variant/25 bg-surface-container-lowest p-1.5">
+              <button
+                type="button"
+                onClick={() => setCourseAssignmentMode('now')}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  !isCoursePendingAssignmentMode
+                    ? 'primary-gradient text-white shadow-md shadow-primary/20'
+                    : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'
+                } cursor-pointer`}
+              >
+                Asignar ahora
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCourseAssignmentMode('later');
+                  setErrors((prev) => ({ ...prev, rangosCurso: '' }));
+                  setCourseRangesValidationMessage('');
+                }}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  isCoursePendingAssignmentMode
+                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+                    : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'
+                } cursor-pointer`}
+              >
+                Asignar después
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setCourseRangeEditor(courseRanges.length > 0 ? courseRanges.map((range) => ({ ...range })) : [createCursoRangeDraft()]);
-                setCourseRangeErrors({});
-                setShowCourseRangesModal(true);
-              }}
-              className="inline-flex shrink-0 items-center rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/15 cursor-pointer"
-            >
-              Configurar rangos
-            </button>
+
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-on-surface">Distribución horaria del curso</p>
+                <p className="mt-1 text-sm text-on-surface-variant">
+                  {isCoursePendingAssignmentMode
+                    ? `Guardaremos la venta del curso y sus ${objetivoLabel} quedarán pendientes de asignar más adelante.`
+                    : `Reparte las ${objetivoLabel} del curso en tantos tramos como necesites. Validaremos cada tramo antes de continuar.`}
+                </p>
+              </div>
+              {!isCoursePendingAssignmentMode ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCourseRangeEditor(courseRanges.length > 0 ? courseRanges.map((range) => ({ ...range })) : [createCursoRangeDraft()]);
+                    setCourseRangeErrors({});
+                    setShowCourseRangesModal(true);
+                  }}
+                  className="inline-flex shrink-0 items-center rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/15 cursor-pointer"
+                >
+                  Configurar rangos
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
             <div className="rounded-xl bg-white/70 px-3 py-2 text-on-surface-variant">
-              <div className="font-bold text-on-surface">{sortedCourseRanges.length}</div>
-              <div>Tramos</div>
+              <div className="font-bold text-on-surface">{isCoursePendingAssignmentMode ? 0 : sortedCourseRanges.length}</div>
+              <div>{isCoursePendingAssignmentMode ? 'Pendientes' : 'Tramos'}</div>
             </div>
             <div className="rounded-xl bg-white/70 px-3 py-2 text-on-surface-variant">
-              <div className="font-bold text-on-surface">{formatMinutesSummary(courseAssignedMinutes)}</div>
+              <div className="font-bold text-on-surface">{formatMinutesSummary(isCoursePendingAssignmentMode ? 0 : courseAssignedMinutes)}</div>
               <div>Asignadas</div>
             </div>
             <div className="rounded-xl bg-white/70 px-3 py-2 text-on-surface-variant">
-              <div className={`font-bold ${courseRemainingMinutes === 0 ? 'text-green-700' : 'text-amber-700'}`}>
-                {formatMinutesSummary(Math.abs(courseRemainingMinutes))}
+              <div className={`font-bold ${isCoursePendingAssignmentMode || courseRemainingMinutes > 0 ? 'text-amber-700' : 'text-green-700'}`}>
+                {formatMinutesSummary(isCoursePendingAssignmentMode ? (courseDurationSelectedMin ?? 0) : Math.abs(courseRemainingMinutes))}
               </div>
-              <div>{courseRemainingMinutes === 0 ? 'Completado' : courseRemainingMinutes > 0 ? 'Restantes' : 'Exceso'}</div>
+              <div>{isCoursePendingAssignmentMode ? 'Pendientes' : courseRemainingMinutes === 0 ? 'Completado' : courseRemainingMinutes > 0 ? 'Restantes' : 'Exceso'}</div>
             </div>
           </div>
 
-          {sortedCourseRanges.length > 0 ? (
+          {!isCoursePendingAssignmentMode && sortedCourseRanges.length > 0 ? (
             <div className="mt-4 space-y-2">
               {sortedCourseRanges.map((range, index) => (
                 <div key={range.id} className="rounded-xl border border-outline-variant/20 bg-surface-container-lowest px-3 py-2 text-sm text-on-surface">
@@ -2422,7 +2483,9 @@ export default function ModalNuevaReserva({
             </div>
           ) : (
             <div className="mt-4 rounded-xl border border-dashed border-outline-variant/50 px-3 py-3 text-sm text-on-surface-variant">
-              Aún no has configurado los rangos del curso.
+              {isCoursePendingAssignmentMode
+                ? 'La reserva se creará sin tramos. Podrás asignarlos más adelante desde el botón Pendientes.'
+                : 'Aún no has configurado los rangos del curso.'}
             </div>
           )}
 
@@ -3634,20 +3697,26 @@ export default function ModalNuevaReserva({
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Curso multi-tramo</p>
                   <p className="mt-1 text-sm text-on-surface-variant">
-                    Esta tarifa permite repartir sus horas en varios rangos. Configura los tramos desde el bloque de disponibilidad.
+                    {isCoursePendingAssignmentMode
+                      ? 'Esta tarifa quedará vendida sin horarios asignados. Las horas se repartirán después desde la bandeja de pendientes.'
+                      : 'Esta tarifa permite repartir sus horas en varios rangos. Configura los tramos desde el bloque de disponibilidad.'}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm md:min-w-[260px]">
                   <div className="rounded-2xl bg-surface-container px-4 py-3">
-                    <div className="text-xs uppercase tracking-[0.14em] text-on-surface-variant">Primer tramo</div>
+                    <div className="text-xs uppercase tracking-[0.14em] text-on-surface-variant">{isCoursePendingAssignmentMode ? 'Estado' : 'Primer tramo'}</div>
                     <div className="mt-1 font-semibold text-on-surface">
-                      {courseRangeAggregate ? `${formatDisplayDate(courseRangeAggregate.fechaInicio)} · ${courseRangeAggregate.horaInicio}` : '--'}
+                      {isCoursePendingAssignmentMode
+                        ? 'Pendiente de asignar'
+                        : courseRangeAggregate ? `${formatDisplayDate(courseRangeAggregate.fechaInicio)} · ${courseRangeAggregate.horaInicio}` : '--'}
                     </div>
                   </div>
                   <div className="rounded-2xl bg-surface-container px-4 py-3">
-                    <div className="text-xs uppercase tracking-[0.14em] text-on-surface-variant">Último tramo</div>
+                    <div className="text-xs uppercase tracking-[0.14em] text-on-surface-variant">{isCoursePendingAssignmentMode ? 'Horas pendientes' : 'Último tramo'}</div>
                     <div className="mt-1 font-semibold text-on-surface">
-                      {courseRangeAggregate ? `${formatDisplayDate(courseRangeAggregate.fechaFin)} · ${courseRangeAggregate.horaFin}` : '--'}
+                      {isCoursePendingAssignmentMode
+                        ? formatMinutesSummary(courseDurationSelectedMin ?? 0)
+                        : courseRangeAggregate ? `${formatDisplayDate(courseRangeAggregate.fechaFin)} · ${courseRangeAggregate.horaFin}` : '--'}
                     </div>
                   </div>
                 </div>

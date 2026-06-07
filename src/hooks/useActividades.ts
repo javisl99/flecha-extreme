@@ -171,10 +171,14 @@ export interface ReservaServicioItemInput {
   metadata?: ReservaServicioItemMetadata;
 }
 
+export type EstadoAsignacionTramosReserva = 'no_aplica' | 'pendiente' | 'parcial' | 'completa';
+
 export interface Reserva {
   id: string;
   kind?: 'reserva' | 'campamento_programa';
   id_cliente?: string;
+  servicio_id?: string | null;
+  tarifa_id?: string | null;
   cliente?: {
     id?: string;
     nombre: string;
@@ -195,6 +199,10 @@ export interface Reserva {
   metadata?: ReservaServicioItemMetadata;
   items?: ReservaItem[];
   numero_tramos?: number;
+  duracion_total_min?: number | null;
+  duracion_asignada_min?: number;
+  duracion_restante_min?: number;
+  estado_asignacion_tramos?: EstadoAsignacionTramosReserva;
   nota?: string;
   ticket_url?: string;
   ticket_url_reserva?: string;
@@ -279,9 +287,38 @@ const CATEGORIA_TO_TIPO: Record<CategoriaServicio, ActividadDB['tipo']> = {
 type MetodoPago = 'efectivo' | 'tpv' | 'tpv_online' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles' | 'transferencia';
 
 const ESTADOS_RESERVA = ['confirmada', 'pendiente', 'completada', 'cancelada'] as const;
+const ESTADOS_ASIGNACION_TRAMOS = ['no_aplica', 'pendiente', 'parcial', 'completa'] as const;
 
 function compareIsoDateStrings(left: string, right: string) {
   return new Date(left).getTime() - new Date(right).getTime();
+}
+
+const MADRID_DATE_KEY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Madrid',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+
+function getMadridDateKey(value: string | Date) {
+  return MADRID_DATE_KEY_FORMATTER.format(new Date(value));
+}
+
+function isFutureMadridDay(value: string) {
+  return getMadridDateKey(value) > getMadridDateKey(new Date());
+}
+
+function calculateReservaItemDurationMinutes(inicio: string, fin: string) {
+  const diffMs = new Date(fin).getTime() - new Date(inicio).getTime();
+  if (!Number.isFinite(diffMs) || diffMs <= 0) {
+    return 0;
+  }
+
+  return Math.round(diffMs / 60000);
+}
+
+function isEstadoAsignacionTramosReserva(value: unknown): value is EstadoAsignacionTramosReserva {
+  return typeof value === 'string' && ESTADOS_ASIGNACION_TRAMOS.includes(value as EstadoAsignacionTramosReserva);
 }
 
 function normalizeReservaItems(
@@ -326,6 +363,12 @@ function buildReservaFromRow(row: {
   id: string;
   cliente_id?: string | null;
   campamento_programa_id?: string | null;
+  servicio_id?: string | null;
+  tarifa_id?: string | null;
+  cantidad_reservada?: number | string | null;
+  numero_personas_reserva?: number | string | null;
+  duracion_total_min?: number | string | null;
+  estado_asignacion_tramos?: EstadoAsignacionTramosReserva | null;
   estado: string;
   observaciones?: string | null;
   total_neto?: number | string | null;
@@ -334,6 +377,7 @@ function buildReservaFromRow(row: {
   created_at: string;
   cliente?: { id?: string; nombre: string; apellidos: string } | Array<{ id?: string; nombre: string; apellidos: string }> | null;
   empresa?: { id?: string; nombre: string } | Array<{ id?: string; nombre: string }> | null;
+  servicio_cabecera?: { id?: string | null; nombre?: string | null; categoria?: string | null } | Array<{ id?: string | null; nombre?: string | null; categoria?: string | null }> | null;
   items?: Array<{
     id?: string | null;
     inicio?: string | null;
@@ -352,17 +396,32 @@ function buildReservaFromRow(row: {
   const firstItem = items[0];
   const clienteItem = Array.isArray(row.cliente) ? row.cliente[0] : row.cliente;
   const empresaItem = Array.isArray(row.empresa) ? row.empresa[0] : row.empresa;
+  const servicioCabecera = Array.isArray(row.servicio_cabecera) ? row.servicio_cabecera[0] : row.servicio_cabecera;
   const firstRawItem = (row.items ?? [])[0];
   const servicioItem = Array.isArray(firstRawItem?.servicio) ? firstRawItem.servicio[0] : firstRawItem?.servicio;
-  const actividadNombre = servicioItem?.nombre ?? 'Actividad no encontrada';
+  const actividadNombre = servicioItem?.nombre ?? servicioCabecera?.nombre ?? 'Actividad no encontrada';
   const itemMetadata = firstItem?.metadata;
   const fechaInicio = firstItem?.inicio ?? row.created_at;
   const fechaFin = items.length > 0 ? items[items.length - 1].fin : row.created_at;
+  const duracionTotalMin = row.duracion_total_min !== undefined && row.duracion_total_min !== null
+    ? Number(row.duracion_total_min)
+    : null;
+  const duracionAsignadaMin = items
+    .filter((item) => item.estado !== 'cancelada')
+    .reduce((total, item) => total + calculateReservaItemDurationMinutes(item.inicio, item.fin), 0);
+  const estadoAsignacionTramos = isEstadoAsignacionTramosReserva(row.estado_asignacion_tramos)
+    ? row.estado_asignacion_tramos
+    : 'no_aplica';
+  const duracionRestanteMin = duracionTotalMin && duracionTotalMin > 0
+    ? Math.max(duracionTotalMin - duracionAsignadaMin, 0)
+    : 0;
 
   return {
     id: row.id,
     kind: 'reserva',
     id_cliente: row.cliente_id ?? undefined,
+    servicio_id: row.servicio_id ?? servicioCabecera?.id ?? undefined,
+    tarifa_id: row.tarifa_id ?? firstItem?.tarifa_id ?? undefined,
     cliente: clienteItem
       ? {
           id: clienteItem.id,
@@ -376,11 +435,15 @@ function buildReservaFromRow(row: {
     fecha_fin: fechaFin,
     precio: Number(row.total_neto ?? items.reduce((total, item) => total + item.subtotal, 0)),
     estado: row.estado,
-    cantidad_reservada: Number(firstItem?.cantidad ?? 1),
-    numero_personas_reserva: Number(itemMetadata?.numero_personas ?? firstItem?.cantidad ?? 1),
+    cantidad_reservada: Number(row.cantidad_reservada ?? firstItem?.cantidad ?? 1),
+    numero_personas_reserva: Number(row.numero_personas_reserva ?? itemMetadata?.numero_personas ?? firstItem?.cantidad ?? row.cantidad_reservada ?? 1),
     metadata: itemMetadata,
     items,
     numero_tramos: items.length,
+    duracion_total_min: duracionTotalMin,
+    duracion_asignada_min: duracionAsignadaMin,
+    duracion_restante_min: duracionRestanteMin,
+    estado_asignacion_tramos: estadoAsignacionTramos,
     nota: row.observaciones ?? undefined,
     ticket_url: row.ticket_url ?? undefined,
     ticket_url_reserva: row.ticket_url_reserva ?? undefined,
@@ -1625,6 +1688,8 @@ export function useActividades() {
     fecha_inicio: string;
     fecha_fin: string;
     estado: 'confirmada' | 'pendiente' | 'completada' | 'cancelada';
+    estado_asignacion_tramos?: EstadoAsignacionTramosReserva;
+    duracion_total_min?: number | null;
     nota?: string;
     metadata?: ReservaServicioItemMetadata;
     items?: ReservaServicioItemInput[];
@@ -1634,16 +1699,22 @@ export function useActividades() {
       setError(null);
 
       const fallbackCantidad = Math.max(1, Number(datosReserva.cantidad_reservada ?? 1));
+      const estadoAsignacionTramos = isEstadoAsignacionTramosReserva(datosReserva.estado_asignacion_tramos)
+        ? datosReserva.estado_asignacion_tramos
+        : 'no_aplica';
+      const permiteCabeceraSinItems = estadoAsignacionTramos !== 'no_aplica';
       const rawItems = datosReserva.items && datosReserva.items.length > 0
         ? datosReserva.items
-        : [{
-            inicio: datosReserva.fecha_inicio,
-            fin: datosReserva.fecha_fin,
-            cantidad: fallbackCantidad,
-            subtotal: Number(datosReserva.precio ?? 0),
-            tarifa_id: datosReserva.tarifa_id ?? null,
-            metadata: datosReserva.metadata
-          }];
+        : permiteCabeceraSinItems
+          ? []
+          : [{
+              inicio: datosReserva.fecha_inicio,
+              fin: datosReserva.fecha_fin,
+              cantidad: fallbackCantidad,
+              subtotal: Number(datosReserva.precio ?? 0),
+              tarifa_id: datosReserva.tarifa_id ?? null,
+              metadata: datosReserva.metadata
+            }];
       const itemsPayload = rawItems.map((item) => {
         const cantidad = Math.max(1, Number(item.cantidad ?? fallbackCantidad));
         const subtotal = Number(item.subtotal ?? 0);
@@ -1673,7 +1744,10 @@ export function useActividades() {
         };
       });
       const precioTotal = Number(
-        itemsPayload.reduce((total, item) => total + Number(item.subtotal ?? 0), 0).toFixed(2)
+        (itemsPayload.length > 0
+          ? itemsPayload.reduce((total, item) => total + Number(item.subtotal ?? 0), 0)
+          : Number(datosReserva.precio ?? 0)
+        ).toFixed(2)
       );
 
       const { data: reservaData, error: reservaError } = await supabase
@@ -1682,6 +1756,12 @@ export function useActividades() {
           {
             empresa_id: datosReserva.id_empresa,
             cliente_id: datosReserva.id_cliente,
+            servicio_id: datosReserva.id_actividad,
+            tarifa_id: datosReserva.tarifa_id ?? null,
+            cantidad_reservada: fallbackCantidad,
+            numero_personas_reserva: datosReserva.numero_personas ?? null,
+            duracion_total_min: datosReserva.duracion_total_min ?? null,
+            estado_asignacion_tramos: estadoAsignacionTramos,
             canal: 'backoffice',
             estado: datosReserva.estado,
             observaciones: datosReserva.nota ?? null,
@@ -1699,16 +1779,18 @@ export function useActividades() {
         throw reservaError ?? new Error('No se pudo crear la reserva');
       }
 
-      const { error: itemError } = await supabase.from('reserva_servicio_item').insert(
-        itemsPayload.map((item) => ({
-          reserva_id: reservaData.id,
-          ...item
-        }))
-      );
+      if (itemsPayload.length > 0) {
+        const { error: itemError } = await supabase.from('reserva_servicio_item').insert(
+          itemsPayload.map((item) => ({
+            reserva_id: reservaData.id,
+            ...item
+          }))
+        );
 
-      if (itemError) {
-        await supabase.from('reserva_servicio').delete().eq('id', reservaData.id);
-        throw itemError;
+        if (itemError) {
+          await supabase.from('reserva_servicio').delete().eq('id', reservaData.id);
+          throw itemError;
+        }
       }
 
       return { success: true, message: 'Reserva creada correctamente', reservaId: reservaData.id };
@@ -1846,6 +1928,12 @@ export function useActividades() {
           id,
           cliente_id,
           campamento_programa_id,
+          servicio_id,
+          tarifa_id,
+          cantidad_reservada,
+          numero_personas_reserva,
+          duracion_total_min,
+          estado_asignacion_tramos,
           estado,
           observaciones,
           total_neto,
@@ -1874,7 +1962,35 @@ export function useActividades() {
         throw fetchError;
       }
 
-      const reservasBase: Reserva[] = (data ?? []).map((row) => buildReservaFromRow(row));
+      const servicioIds = Array.from(new Set((data ?? []).map((row) => row.servicio_id).filter((id): id is string => Boolean(id))));
+      const { data: serviciosData, error: serviciosError } = servicioIds.length > 0
+        ? await supabase
+            .from('servicio')
+            .select('id, nombre, categoria')
+            .in('id', servicioIds)
+        : { data: [], error: null };
+
+      if (serviciosError) {
+        throw serviciosError;
+      }
+
+      const servicioLookup = new Map(
+        (serviciosData ?? []).map((servicio) => [
+          servicio.id,
+          {
+            id: servicio.id,
+            nombre: servicio.nombre,
+            categoria: servicio.categoria
+          }
+        ])
+      );
+
+      const reservasBase: Reserva[] = (data ?? []).map((row) =>
+        buildReservaFromRow({
+          ...row,
+          servicio_cabecera: row.servicio_id ? servicioLookup.get(row.servicio_id) ?? null : null
+        })
+      );
 
       const reservas = reservasBase.filter((reserva) => {
         if (!reserva.campamento_programa_id) {
@@ -1936,6 +2052,12 @@ export function useActividades() {
           id,
           cliente_id,
           campamento_programa_id,
+          servicio_id,
+          tarifa_id,
+          cantidad_reservada,
+          numero_personas_reserva,
+          duracion_total_min,
+          estado_asignacion_tramos,
           estado,
           observaciones,
           total_neto,
@@ -1969,7 +2091,31 @@ export function useActividades() {
         return { success: false, message: 'Reserva no encontrada' };
       }
 
-      const reserva: Reserva = buildReservaFromRow(data);
+      const servicioLookup = new Map<string, { id: string; nombre: string; categoria: string }>();
+      if (data.servicio_id) {
+        const { data: servicioData, error: servicioError } = await supabase
+          .from('servicio')
+          .select('id, nombre, categoria')
+          .eq('id', data.servicio_id)
+          .maybeSingle();
+
+        if (servicioError) {
+          throw servicioError;
+        }
+
+        if (servicioData) {
+          servicioLookup.set(servicioData.id, {
+            id: servicioData.id,
+            nombre: servicioData.nombre,
+            categoria: servicioData.categoria
+          });
+        }
+      }
+
+      const reserva: Reserva = buildReservaFromRow({
+        ...data,
+        servicio_cabecera: data.servicio_id ? servicioLookup.get(data.servicio_id) ?? null : null
+      });
 
       return {
         success: true,
@@ -2012,6 +2158,217 @@ export function useActividades() {
     } catch (err: unknown) {
       console.error('Error al actualizar reserva:', err);
       const errorMessage = err instanceof Error ? err.message : 'Error al actualizar reserva';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const asignarTramosReservaCurso = async (
+    reservaId: string,
+    items: ReservaServicioItemInput[]
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!items.length) {
+        throw new Error('Debes indicar al menos un tramo para asignar.');
+      }
+
+      const reservaResult = await obtenerReservaPorId(reservaId);
+      if (!reservaResult.success || !reservaResult.reserva) {
+        throw new Error(reservaResult.message || 'No se pudo cargar la reserva.');
+      }
+
+      const reserva = reservaResult.reserva;
+      if (reserva.kind === 'campamento_programa') {
+        throw new Error('No se pueden asignar tramos a un programa de campamento.');
+      }
+
+      if ((reserva.estado_asignacion_tramos ?? 'no_aplica') === 'no_aplica') {
+        throw new Error('Esta reserva no admite asignación diferida de tramos.');
+      }
+
+      if (!reserva.servicio_id) {
+        throw new Error('La reserva no tiene servicio asociado.');
+      }
+
+      if (!reserva.duracion_total_min || reserva.duracion_total_min <= 0) {
+        throw new Error('La reserva no tiene duración total configurada.');
+      }
+
+      const remainingMinutes = Math.max(
+        reserva.duracion_restante_min ?? (reserva.duracion_total_min - (reserva.duracion_asignada_min ?? 0)),
+        0
+      );
+      if (remainingMinutes <= 0) {
+        throw new Error('La reserva ya tiene todas sus horas asignadas.');
+      }
+
+      const existingActiveItems = (reserva.items ?? [])
+        .filter((item) => item.estado !== 'cancelada')
+        .sort((left, right) => compareIsoDateStrings(left.inicio, right.inicio));
+
+      const normalizedItems = items
+        .map((item) => ({
+          ...item,
+          cantidad: Math.max(1, Number(item.cantidad ?? reserva.cantidad_reservada ?? 1)),
+          subtotal: Number(item.subtotal ?? 0),
+          tarifa_id: item.tarifa_id ?? reserva.tarifa_id ?? null
+        }))
+        .sort((left, right) => compareIsoDateStrings(left.inicio, right.inicio));
+
+      let assignedMinutes = 0;
+      for (let index = 0; index < normalizedItems.length; index += 1) {
+        const item = normalizedItems[index];
+        const itemMinutes = calculateReservaItemDurationMinutes(item.inicio, item.fin);
+
+        if (itemMinutes <= 0) {
+          throw new Error('Todos los tramos deben tener una duración válida.');
+        }
+
+        assignedMinutes += itemMinutes;
+
+        const currentStart = new Date(item.inicio).getTime();
+        const currentEnd = new Date(item.fin).getTime();
+
+        if (index > 0) {
+          const previousEnd = new Date(normalizedItems[index - 1].fin).getTime();
+          if (previousEnd > currentStart) {
+            throw new Error('Los nuevos tramos no pueden solaparse entre sí.');
+          }
+        }
+
+        const overlapsExisting = existingActiveItems.some((existing) => {
+          const existingStart = new Date(existing.inicio).getTime();
+          const existingEnd = new Date(existing.fin).getTime();
+          return currentStart < existingEnd && currentEnd > existingStart;
+        });
+
+        if (overlapsExisting) {
+          throw new Error('Alguno de los nuevos tramos se solapa con un tramo ya asignado a la reserva.');
+        }
+      }
+
+      if (assignedMinutes > remainingMinutes) {
+        throw new Error('Los tramos seleccionados superan las horas pendientes de la reserva.');
+      }
+
+      for (const item of normalizedItems) {
+        const { data, error: availabilityError } = await supabase.rpc('rpc_consultar_disponibilidad_servicio', {
+          p_servicio_id: reserva.servicio_id,
+          p_inicio: item.inicio,
+          p_fin: item.fin,
+          p_cantidad: item.cantidad
+        });
+
+        if (availabilityError) {
+          throw availabilityError;
+        }
+
+        const availabilityRow = Array.isArray(data) ? data[0] : null;
+        if (!availabilityRow?.disponible) {
+          throw new Error(`No hay disponibilidad suficiente para el tramo ${new Date(item.inicio).toLocaleString('es-ES')}.`);
+        }
+      }
+
+      const itemPayload = normalizedItems.map((item) => {
+        const itemMinutes = calculateReservaItemDurationMinutes(item.inicio, item.fin);
+        const proportionalSubtotal = reserva.duracion_total_min && reserva.duracion_total_min > 0
+          ? Number(((reserva.precio * itemMinutes) / reserva.duracion_total_min).toFixed(2))
+          : 0;
+        const subtotal = Number((item.subtotal > 0 ? item.subtotal : proportionalSubtotal).toFixed(2));
+        const metadata: ReservaServicioItemMetadata = {
+          ...(item.metadata ?? {})
+        };
+
+        if (reserva.numero_personas_reserva && reserva.numero_personas_reserva > 0) {
+          metadata.numero_personas = reserva.numero_personas_reserva;
+        }
+
+        return {
+          reserva_id: reserva.id,
+          servicio_id: reserva.servicio_id,
+          tarifa_id: reserva.tarifa_id ?? item.tarifa_id ?? null,
+          inicio: item.inicio,
+          fin: item.fin,
+          cantidad: item.cantidad,
+          precio_unitario: item.cantidad > 0 ? Number((subtotal / item.cantidad).toFixed(2)) : subtotal,
+          descuento_unitario: 0,
+          subtotal,
+          deposito_requerido: 0,
+          deposito_cobrado: 0,
+          estado: reserva.estado,
+          notas: reserva.nota ?? null,
+          metadata
+        };
+      });
+
+      const { error: insertError } = await supabase.from('reserva_servicio_item').insert(itemPayload);
+      if (insertError) {
+        throw insertError;
+      }
+
+      return {
+        success: true,
+        message: 'Tramos asignados correctamente'
+      };
+    } catch (err: unknown) {
+      console.error('Error al asignar tramos de la reserva:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al asignar tramos de la reserva';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eliminarTramoReservaCurso = async (
+    reservaId: string,
+    itemId: string
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data: itemData, error: fetchError } = await supabase
+        .from('reserva_servicio_item')
+        .select('id,reserva_id,inicio')
+        .eq('id', itemId)
+        .eq('reserva_id', reservaId)
+        .maybeSingle();
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      if (!itemData?.id) {
+        throw new Error('El tramo no existe o no pertenece a la reserva.');
+      }
+
+      if (!isFutureMadridDay(itemData.inicio)) {
+        throw new Error('Solo se pueden eliminar tramos de días posteriores al actual.');
+      }
+
+      const { error: deleteError } = await supabase
+        .from('reserva_servicio_item')
+        .delete()
+        .eq('id', itemId)
+        .eq('reserva_id', reservaId);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      return {
+        success: true,
+        message: 'Tramo eliminado correctamente'
+      };
+    } catch (err: unknown) {
+      console.error('Error al eliminar tramo de la reserva:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al eliminar el tramo de la reserva';
       setError(errorMessage);
       return { success: false, message: errorMessage };
     } finally {
@@ -2478,6 +2835,8 @@ export function useActividades() {
     obtenerReservas,
     obtenerReservaPorId,
     actualizarReserva,
+    asignarTramosReservaCurso,
+    eliminarTramoReservaCurso,
     eliminarReserva,
     consultarStockDisponible,
     buscarSiguienteDisponibilidadServicio,

@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useParking } from '@/hooks/useParking';
 import { useClientes } from '@/hooks/useClientes';
 import PlazaInfoModal from '@/components/Parking/PlazaInfoModal';
@@ -151,8 +151,18 @@ export default function ParkingPage() {
 
   const [plazaSeleccionada, setPlazaSeleccionada] = useState<PlazaParking | null>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [isPlazaInfoLoading, setIsPlazaInfoLoading] = useState(false);
   const [pagoInfo, setPagoInfo] = useState<PagoParking | undefined>(undefined);
   const [clienteInfo, setClienteInfo] = useState<{ nombre: string; apellidos: string } | null>(null);
+  const [reservasFuturasInfo, setReservasFuturasInfo] = useState<Array<{
+    id: string;
+    id_cliente: string;
+    id_tarifa: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+    estado?: EstadoReservaParking;
+    cliente?: { nombre: string; apellidos: string } | null;
+  }>>([]);
   const [tarjetasExpandidas, setTarjetasExpandidas] = useState<Record<string, boolean>>({
     embarcacion: false,
     tabla: false,
@@ -162,6 +172,74 @@ export default function ParkingPage() {
   const [tipoReservaActiva, setTipoReservaActiva] = useState<TipoParking | null>(null);
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [reservaDraft, setReservaDraft] = useState<ReservaDraft | null>(null);
+  const plazaInfoLoadingTimerRef = useRef<number | null>(null);
+  const loadingScreenTimerRef = useRef<number | null>(null);
+  const loadingScreenStartedAtRef = useRef<number | null>(null);
+  const previousLoadingRef = useRef(false);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
+
+  const LoadingSkeletonBlock = ({ className = '' }: { className?: string }) => (
+    <div className={`relative overflow-hidden rounded-xl bg-surface-container-high ${className}`}>
+      <div className="parking-loading-shimmer absolute inset-y-0 left-0 w-1/2" />
+    </div>
+  );
+
+  const renderLoadingSkeleton = () => (
+    <div className="page-container space-y-6">
+      <style jsx global>{`
+        @keyframes parking-loading-shimmer {
+          0% {
+            transform: translateX(-120%);
+          }
+          100% {
+            transform: translateX(220%);
+          }
+        }
+
+        .parking-loading-shimmer {
+          background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.12) 45%,
+            rgba(255, 255, 255, 0.24) 50%,
+            rgba(255, 255, 255, 0.12) 55%,
+            transparent 100%
+          );
+          animation: parking-loading-shimmer 1.2s ease-in-out infinite;
+        }
+      `}</style>
+
+      <div className="flex items-center justify-between">
+        <LoadingSkeletonBlock className="h-9 w-56" />
+      </div>
+
+      <LoadingSkeletonBlock className="h-10 w-full rounded-full" />
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <section key={index} className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
+            <div className="flex items-center justify-between border-b border-outline-variant/20 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <LoadingSkeletonBlock className="h-12 w-12 rounded-xl" />
+                <div className="space-y-2">
+                  <LoadingSkeletonBlock className="h-5 w-24" />
+                  <LoadingSkeletonBlock className="h-3 w-32" />
+                </div>
+              </div>
+              <LoadingSkeletonBlock className="h-8 w-20 rounded-full" />
+            </div>
+            <div className="p-4 sm:p-5">
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                {Array.from({ length: 12 }).map((__, tileIndex) => (
+                  <LoadingSkeletonBlock key={tileIndex} className="aspect-square rounded-xl" />
+                ))}
+              </div>
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
 
   const toggleTarjeta = (tipo: string) => {
     setTarjetasExpandidas((prev) => ({
@@ -175,25 +253,132 @@ export default function ParkingPage() {
   }, [fetchPlazasParking]);
 
   useEffect(() => {
+    const MIN_LOADING_MS = 900;
+
+    if (loadingScreenTimerRef.current !== null) {
+      window.clearTimeout(loadingScreenTimerRef.current);
+      loadingScreenTimerRef.current = null;
+    }
+
+    if (loading) {
+      if (!previousLoadingRef.current) {
+        loadingScreenStartedAtRef.current = Date.now();
+      }
+
+      previousLoadingRef.current = true;
+      setShowLoadingScreen(true);
+      return;
+    }
+
+    previousLoadingRef.current = false;
+
+    if (!showLoadingScreen) {
+      loadingScreenStartedAtRef.current = null;
+      return;
+    }
+
+    const startedAt = loadingScreenStartedAtRef.current ?? Date.now();
+    const elapsed = Date.now() - startedAt;
+    const remaining = Math.max(MIN_LOADING_MS - elapsed, 0);
+
+    if (remaining > 0) {
+      loadingScreenTimerRef.current = window.setTimeout(() => {
+        setShowLoadingScreen(false);
+        loadingScreenStartedAtRef.current = null;
+        loadingScreenTimerRef.current = null;
+      }, remaining);
+    } else {
+      setShowLoadingScreen(false);
+      loadingScreenStartedAtRef.current = null;
+    }
+
+    return () => {
+      if (loadingScreenTimerRef.current !== null) {
+        window.clearTimeout(loadingScreenTimerRef.current);
+        loadingScreenTimerRef.current = null;
+      }
+    };
+  }, [loading, showLoadingScreen]);
+
+  useEffect(() => {
+    let isActive = true;
+    const MIN_SKELETON_MS = 900;
+
+    if (plazaInfoLoadingTimerRef.current !== null) {
+      window.clearTimeout(plazaInfoLoadingTimerRef.current);
+      plazaInfoLoadingTimerRef.current = null;
+    }
+
     const fetchPagoInfo = async () => {
-      if (!plazaSeleccionada) return;
+      if (!plazaSeleccionada) {
+        if (isActive) {
+          setIsPlazaInfoLoading(false);
+          setPagoInfo(undefined);
+          setClienteInfo(null);
+          setReservasFuturasInfo([]);
+        }
+        return;
+      }
+
+      if (isActive) {
+        setIsPlazaInfoLoading(true);
+        setPagoInfo(undefined);
+        setClienteInfo(null);
+        setReservasFuturasInfo([]);
+      }
+
+      const startedAt = Date.now();
 
       const reservaActual = getReservaActual(plazaSeleccionada.id);
+      const reservasFuturas = getReservasFuturas(plazaSeleccionada.id);
+
       if (reservaActual?.id) {
         const [pago, cliente] = await Promise.all([
           getPagoReserva(reservaActual.id),
           reservaActual.id_cliente ? getCliente(reservaActual.id_cliente) : null
         ]);
-        setPagoInfo(pago || undefined);
-        setClienteInfo(cliente || null);
-      } else {
-        setPagoInfo(undefined);
-        setClienteInfo(null);
+        if (isActive) {
+          setPagoInfo(pago || undefined);
+          setClienteInfo(cliente || null);
+        }
+      }
+
+      const reservasFuturasConCliente = await Promise.all(
+        reservasFuturas.map(async (reserva) => ({
+          ...reserva,
+          cliente: reserva.id_cliente ? await getCliente(reserva.id_cliente) : null
+        }))
+      );
+
+      if (isActive) {
+        setReservasFuturasInfo(reservasFuturasConCliente);
+
+        const elapsed = Date.now() - startedAt;
+        const remaining = Math.max(MIN_SKELETON_MS - elapsed, 0);
+
+        if (remaining > 0) {
+          plazaInfoLoadingTimerRef.current = window.setTimeout(() => {
+            if (isActive) {
+              setIsPlazaInfoLoading(false);
+            }
+            plazaInfoLoadingTimerRef.current = null;
+          }, remaining);
+        } else {
+          setIsPlazaInfoLoading(false);
+        }
       }
     };
 
-    fetchPagoInfo();
-  }, [plazaSeleccionada, getReservaActual, getPagoReserva, getCliente]);
+    void fetchPagoInfo();
+
+    return () => {
+      isActive = false;
+      if (plazaInfoLoadingTimerRef.current !== null) {
+        window.clearTimeout(plazaInfoLoadingTimerRef.current);
+        plazaInfoLoadingTimerRef.current = null;
+      }
+    };
+  }, [plazaSeleccionada, getReservaActual, getReservasFuturas, getPagoReserva, getCliente]);
 
   const getPlazasPorTipo = (tipo: TipoParking) => {
     return plazas.filter((plaza) => plaza.tipo === tipo);
@@ -251,12 +436,8 @@ export default function ParkingPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+  if (showLoadingScreen) {
+    return renderLoadingSkeleton();
   }
 
   if (error) {
@@ -381,12 +562,14 @@ export default function ParkingPage() {
             setPlazaSeleccionada(null);
             setPagoInfo(undefined);
             setClienteInfo(null);
+            setReservasFuturasInfo([]);
           }}
           plaza={plazaSeleccionada}
           reservaInfo={getReservaActual(plazaSeleccionada.id)}
-          reservasFuturas={getReservasFuturas(plazaSeleccionada.id)}
+          reservasFuturas={reservasFuturasInfo}
           pagoInfo={pagoInfo}
           clienteInfo={clienteInfo}
+          isLoading={isPlazaInfoLoading}
           onEliminarReserva={handleEliminarReserva}
           tarifas={tarifas}
         />

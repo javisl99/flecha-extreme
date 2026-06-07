@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useClientes } from '@/hooks/useClientes';
+import type { Cliente } from '@/shared/types';
 
 interface SelectorClienteProps {
   selectedClienteId: string | null;
@@ -23,47 +24,87 @@ export function SelectorCliente({
   className = '',
   disabled = false
 }: SelectorClienteProps) {
-  const { clientes, loading } = useClientes();
-
+  const { buscarClientes, obtenerClientePorId } = useClientes({ eagerLoad: false });
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
+  const [searchResults, setSearchResults] = useState<Cliente[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const selectedCliente = useMemo(
-    () => clientes.find((cliente) => cliente.id === selectedClienteId) ?? null,
-    [clientes, selectedClienteId]
-  );
-
-  const filteredClientes = useMemo(() => {
-    const normalizedSearch = normalizeSearchValue(searchTerm);
-
-    if (!normalizedSearch) {
-      return clientes;
-    }
-
-    return clientes.filter((cliente) => {
-      const nombre = normalizeSearchValue(cliente.nombre);
-      const apellidos = normalizeSearchValue(cliente.apellidos);
-      const nombreCompleto = `${nombre} ${apellidos}`.trim();
-      const dni = normalizeSearchValue(cliente.dni ?? '');
-
-      return (
-        nombre.includes(normalizedSearch) ||
-        apellidos.includes(normalizedSearch) ||
-        nombreCompleto.includes(normalizedSearch) ||
-        dni.includes(normalizedSearch)
-      );
-    });
-  }, [clientes, searchTerm]);
+  const selectedLabel = selectedCliente
+    ? `${selectedCliente.nombre} ${selectedCliente.apellidos}`
+    : '';
 
   useEffect(() => {
-    if (isOpen) {
+    if (!selectedClienteId) {
+      setSelectedCliente(null);
+      if (!isOpen) {
+        setSearchTerm('');
+      }
       return;
     }
 
-    setSearchTerm(selectedCliente ? `${selectedCliente.nombre} ${selectedCliente.apellidos}` : '');
-  }, [isOpen, selectedCliente]);
+    let isActive = true;
+
+    const loadSelectedCliente = async () => {
+      const cliente = await obtenerClientePorId(selectedClienteId);
+      if (isActive) {
+        setSelectedCliente(cliente);
+        if (!isOpen) {
+          setSearchTerm(cliente ? `${cliente.nombre} ${cliente.apellidos}` : '');
+        }
+      }
+    };
+
+    loadSelectedCliente();
+
+    return () => {
+      isActive = false;
+    };
+  }, [isOpen, obtenerClientePorId, selectedClienteId]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const normalizedSearch = normalizeSearchValue(searchTerm);
+
+    if (!normalizedSearch) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        const results = await buscarClientes(normalizedSearch, 10);
+        if (isActive) {
+          setSearchResults(results);
+        }
+      } catch (error) {
+        console.error('Error al buscar clientes:', error);
+        if (isActive) {
+          setSearchResults([]);
+        }
+      } finally {
+        if (isActive) {
+          setIsSearching(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [buscarClientes, isOpen, searchTerm]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -82,18 +123,35 @@ export function SelectorCliente({
   }, [isOpen]);
 
   const handleClienteSelect = (clienteId: string | null) => {
-    const cliente = clienteId ? clientes.find((item) => item.id === clienteId) ?? null : null;
     onClienteChange(clienteId);
-    setSearchTerm(cliente ? `${cliente.nombre} ${cliente.apellidos}` : '');
+    if (!clienteId) {
+      setSelectedCliente(null);
+      setSearchTerm('');
+      setSearchResults([]);
+      setIsOpen(false);
+      inputRef.current?.focus();
+      return;
+    }
+
+    const cliente = searchResults.find((item) => item.id === clienteId) ?? selectedCliente;
+    if (cliente) {
+      setSelectedCliente(cliente);
+      setSearchTerm(`${cliente.nombre} ${cliente.apellidos}`);
+    }
+    setSearchResults([]);
     setIsOpen(false);
   };
 
   const handleClear = () => {
+    setSelectedCliente(null);
     setSearchTerm('');
+    setSearchResults([]);
     onClienteChange(null);
     setIsOpen(false);
     inputRef.current?.focus();
   };
+
+  const normalizedSearch = normalizeSearchValue(searchTerm);
 
   return (
     <div ref={dropdownRef} className={`relative ${className}`}>
@@ -108,6 +166,9 @@ export function SelectorCliente({
           onFocus={() => {
             if (disabled) return;
             setIsOpen(true);
+            if (!searchTerm && selectedLabel) {
+              setSearchTerm(selectedLabel);
+            }
           }}
           onChange={(e) => {
             setSearchTerm(e.target.value);
@@ -146,16 +207,20 @@ export function SelectorCliente({
               Sin cliente
             </button>
 
-            {loading ? (
+            {isSearching ? (
               <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                Cargando clientes...
+                Buscando clientes...
               </div>
-            ) : filteredClientes.length === 0 ? (
+            ) : !normalizedSearch ? (
+              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                Escribe para buscar clientes
+              </div>
+            ) : searchResults.length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
                 No se encontraron clientes
               </div>
             ) : (
-              filteredClientes.map((cliente) => (
+              searchResults.map((cliente) => (
                 <button
                   key={cliente.id}
                   type="button"

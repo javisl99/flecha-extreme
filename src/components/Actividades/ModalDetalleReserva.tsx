@@ -6,6 +6,7 @@ import { useActividades, type PagoReservaConReembolsos, type Reserva as Activida
 import { useTickets } from '@/hooks/useTickets';
 import { useEmailAPI } from '@/hooks/useEmailAPI';
 import { useSupabase } from '@/hooks/useSupabase';
+import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 import TicketCompra from '@/components/Tienda/TicketCompra';
 import { toast } from 'react-hot-toast';
 import {
@@ -129,6 +130,75 @@ function formatearHora(fecha: string) {
   });
 }
 
+function formatearDuracionMinutos(totalMinutes: number) {
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) {
+    return '0 minutos';
+  }
+
+  const horas = Math.floor(totalMinutes / 60);
+  const minutos = totalMinutes % 60;
+
+  if (horas === 0) {
+    return `${minutos} min`;
+  }
+
+  if (minutos === 0) {
+    return `${horas} h`;
+  }
+
+  return `${horas} h ${minutos} min`;
+}
+
+function calculateReservaItemDurationMinutes(inicio: string, fin: string) {
+  const diffMs = new Date(fin).getTime() - new Date(inicio).getTime();
+  if (!Number.isFinite(diffMs) || diffMs <= 0) {
+    return 0;
+  }
+
+  return Math.round(diffMs / 60000);
+}
+
+const MADRID_DATE_KEY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Madrid',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+
+function getMadridDateKey(value: string | Date) {
+  return MADRID_DATE_KEY_FORMATTER.format(new Date(value));
+}
+
+function isFutureTramoDay(value: string) {
+  return getMadridDateKey(value) > getMadridDateKey(new Date());
+}
+
+function getEstadoAsignacionTramosLabel(estado?: Reserva['estado_asignacion_tramos']) {
+  switch (estado) {
+    case 'pendiente':
+      return 'Pendiente de asignar';
+    case 'parcial':
+      return 'Asignación parcial';
+    case 'completa':
+      return 'Horas completas';
+    default:
+      return '';
+  }
+}
+
+function getEstadoAsignacionTramosColor(estado?: Reserva['estado_asignacion_tramos']) {
+  switch (estado) {
+    case 'pendiente':
+      return 'bg-amber-100 text-amber-700';
+    case 'parcial':
+      return 'bg-sky-100 text-sky-700';
+    case 'completa':
+      return 'bg-emerald-100 text-emerald-700';
+    default:
+      return 'bg-surface-container-high text-on-surface-variant';
+  }
+}
+
 function getCantidadDetalle(reserva: Reserva) {
   const personas = reserva.numero_personas_reserva;
 
@@ -186,12 +256,18 @@ export default function ModalDetalleReserva({
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
   const [refundInputs, setRefundInputs] = useState<Record<string, string>>({});
   const [cancelComment, setCancelComment] = useState('');
+  const [itemDeletingId, setItemDeletingId] = useState<string | null>(null);
+  const [showDeleteTramoModal, setShowDeleteTramoModal] = useState(false);
+  const [tramoAEliminar, setTramoAEliminar] = useState<{ id: string; inicio: string } | null>(null);
+  const [reservaDetalle, setReservaDetalle] = useState<Reserva | null>(reserva);
 
   const {
     obtenerPagosPendientesReserva,
     obtenerTodosLosPagosReserva,
     obtenerPagosReservaConReembolsos,
     cancelarReservaConReembolsos,
+    obtenerReservaPorId,
+    eliminarTramoReservaCurso,
     actualizarTicketUrlReserva,
     actualizarEstadoPago
   } = useActividades();
@@ -203,6 +279,8 @@ export default function ModalDetalleReserva({
     if (!isOpen || !reserva) {
       return;
     }
+
+    setReservaDetalle(reserva);
 
     let cancelled = false;
 
@@ -284,6 +362,47 @@ export default function ModalDetalleReserva({
   const hasRefundableBalance = resumenPagos.totalReembolsable > 0;
   const canRegisterRefundOnCancelled = reservaEstado === 'cancelada' && hasRefundableBalance;
   const hasValidationErrors = Object.keys(refundValidation.errores).length > 0;
+  const reservaVisible = reservaDetalle ?? reserva;
+  const reservaItems = reservaVisible?.items;
+  const sortedItems = useMemo(
+    () => [...(reservaItems ?? [])].sort((left, right) => new Date(left.inicio).getTime() - new Date(right.inicio).getTime()),
+    [reservaItems]
+  );
+
+  const handleEliminarTramo = async (itemId: string, inicio: string) => {
+    if (!reservaVisible || !isFutureTramoDay(inicio) || itemDeletingId) {
+      return;
+    }
+
+    setTramoAEliminar({ id: itemId, inicio });
+    setShowDeleteTramoModal(true);
+  };
+
+  const confirmarEliminacionTramo = async () => {
+    if (!reservaVisible || !tramoAEliminar) {
+      return;
+    }
+
+    try {
+      setItemDeletingId(tramoAEliminar.id);
+      const result = await eliminarTramoReservaCurso(reservaVisible.id, tramoAEliminar.id);
+      if (!result.success) {
+        toast.error(result.message);
+        return;
+      }
+
+      toast.success('Tramo eliminado correctamente');
+      const refreshed = await obtenerReservaPorId(reservaVisible.id);
+      if (refreshed.success && refreshed.reserva) {
+        setReservaDetalle(refreshed.reserva);
+      }
+      await Promise.resolve(onReservaActualizada());
+    } finally {
+      setItemDeletingId(null);
+      setTramoAEliminar(null);
+      setShowDeleteTramoModal(false);
+    }
+  };
 
   if (!isOpen || !reserva) return null;
 
@@ -313,33 +432,35 @@ export default function ModalDetalleReserva({
   };
 
   const mostrarCliente = () => {
-    if (!reserva.cliente) return 'Cliente no establecido';
-    return `${reserva.cliente.nombre} ${reserva.cliente.apellidos}`;
+    if (!reservaVisible?.cliente) return 'Cliente no establecido';
+    return `${reservaVisible.cliente.nombre} ${reservaVisible.cliente.apellidos}`;
   };
 
-  const mostrarActividad = () => reserva.actividad?.nombre || 'Actividad no encontrada';
-  const mostrarEmpresa = () => reserva.empresa?.nombre || 'Empresa no establecida';
-  const cantidadDetalle = getCantidadDetalle(reserva);
-  const sortedItems = useMemo(
-    () => [...(reserva.items ?? [])].sort((left, right) => new Date(left.inicio).getTime() - new Date(right.inicio).getTime()),
-    [reserva.items]
-  );
-  const campamentoMetadata = getCampamentoMetadata(reserva.metadata);
+  const mostrarActividad = () => reservaVisible?.actividad?.nombre || 'Actividad no encontrada';
+  const mostrarEmpresa = () => reservaVisible?.empresa?.nombre || 'Empresa no establecida';
+  const cantidadDetalle = getCantidadDetalle(reservaVisible ?? reserva);
+  const campamentoMetadata = getCampamentoMetadata(reservaVisible?.metadata);
+  const showAssignmentProgress = (reservaVisible?.estado_asignacion_tramos ?? 'no_aplica') !== 'no_aplica';
+  const assignmentStateLabel = getEstadoAsignacionTramosLabel(reservaVisible?.estado_asignacion_tramos);
   const multiTramoFechaLabel = sortedItems.length > 1
     ? (() => {
-        const inicio = formatearFecha(reserva.fecha_inicio);
-        const fin = formatearFecha(reserva.fecha_fin);
+        const inicio = formatearFecha(reservaVisible?.fecha_inicio ?? reserva.fecha_inicio);
+        const fin = formatearFecha(reservaVisible?.fecha_fin ?? reserva.fecha_fin);
         return inicio === fin ? inicio : `${inicio} - ${fin}`;
       })()
     : null;
   const fechaReservaLabel = campamentoMetadata
     ? buildCampamentoDateRangeLabel(campamentoMetadata)
-    : multiTramoFechaLabel ?? formatearFecha(reserva.fecha_inicio);
+    : showAssignmentProgress && sortedItems.length === 0
+      ? 'Pendiente de planificar'
+      : multiTramoFechaLabel ?? formatearFecha(reservaVisible?.fecha_inicio ?? reserva.fecha_inicio);
   const horarioReservaLabel = campamentoMetadata
     ? buildCampamentoHorarioSummary(campamentoMetadata)
-    : sortedItems.length > 1
+    : showAssignmentProgress && sortedItems.length === 0
+      ? 'Sin tramos'
+      : sortedItems.length > 1
       ? `${sortedItems.length} tramos`
-      : `${formatearHora(reserva.fecha_inicio)} - ${formatearHora(reserva.fecha_fin)}`;
+      : `${formatearHora(reservaVisible?.fecha_inicio ?? reserva.fecha_inicio)} - ${formatearHora(reservaVisible?.fecha_fin ?? reserva.fecha_fin)}`;
 
   const refreshResumenPagos = async () => {
     if (!reserva) return;
@@ -671,6 +792,37 @@ export default function ModalDetalleReserva({
               </div>
             </div>
 
+            {showAssignmentProgress ? (
+              <section className="space-y-4 rounded-2xl border border-outline-variant/25 bg-surface-container-low p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-headline text-lg font-bold text-on-surface">Asignación de horas</h3>
+                    <p className="text-sm text-on-surface-variant">Control operativo de las horas ya planificadas para este curso.</p>
+                  </div>
+                  {assignmentStateLabel ? (
+                    <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${getEstadoAsignacionTramosColor(reservaVisible?.estado_asignacion_tramos)}`}>
+                      {assignmentStateLabel}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div className="rounded-xl border border-outline-variant/25 bg-surface-container-lowest p-3">
+                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Total</p>
+                    <p className="mt-1 text-lg font-bold text-on-surface">{formatearDuracionMinutos(reservaVisible?.duracion_total_min ?? 0)}</p>
+                  </div>
+                  <div className="rounded-xl border border-outline-variant/25 bg-surface-container-lowest p-3">
+                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Asignadas</p>
+                    <p className="mt-1 text-lg font-bold text-on-surface">{formatearDuracionMinutos(reservaVisible?.duracion_asignada_min ?? 0)}</p>
+                  </div>
+                  <div className="rounded-xl border border-outline-variant/25 bg-surface-container-lowest p-3">
+                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-outline">Restantes</p>
+                    <p className="mt-1 text-lg font-bold text-on-surface">{formatearDuracionMinutos(reservaVisible?.duracion_restante_min ?? 0)}</p>
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
             {reserva.nota ? (
               <div>
                 <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Notas</label>
@@ -678,35 +830,55 @@ export default function ModalDetalleReserva({
               </div>
             ) : null}
 
-            {sortedItems.length > 1 ? (
+            {showAssignmentProgress || sortedItems.length > 1 ? (
               <section className="space-y-3 rounded-2xl border border-outline-variant/25 bg-surface-container-low p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-headline text-lg font-bold text-on-surface">Tramos de la reserva</h3>
-                    <p className="text-sm text-on-surface-variant">Esta reserva agrupa varios horarios independientes.</p>
+                    <h3 className="font-headline text-lg font-bold text-on-surface">{showAssignmentProgress ? 'Tramos asignados' : 'Tramos de la reserva'}</h3>
+                    <p className="text-sm text-on-surface-variant">
+                      {showAssignmentProgress
+                        ? 'Estos son los horarios ya asignados a la reserva.'
+                        : 'Esta reserva agrupa varios horarios independientes.'}
+                    </p>
                   </div>
                   <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-primary">
                     {sortedItems.length} tramos
                   </span>
                 </div>
 
-                <div className="space-y-2">
-                  {sortedItems.map((item, index) => (
-                    <div key={item.id} className="rounded-xl border border-outline-variant/20 bg-surface-container-lowest px-4 py-3">
-                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="font-semibold text-on-surface">Tramo {index + 1}</p>
-                          <p className="text-sm text-on-surface-variant">
-                            {formatearFecha(item.inicio)} · {formatearHora(item.inicio)} - {formatearHora(item.fin)}
-                          </p>
-                        </div>
-                        <div className="text-sm text-on-surface-variant">
-                          <span className="font-semibold text-on-surface">{formatearImporte(item.subtotal)}</span>
+                {sortedItems.length > 0 ? (
+                  <div className="space-y-2">
+                    {sortedItems.map((item, index) => (
+                      <div key={item.id} className="rounded-xl border border-outline-variant/20 bg-surface-container-lowest px-4 py-3">
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <p className="font-semibold text-on-surface">Tramo {index + 1}</p>
+                            <p className="text-sm text-on-surface-variant">
+                              {formatearFecha(item.inicio)} · {formatearHora(item.inicio)} - {formatearHora(item.fin)}
+                            </p>
+                            <p className="mt-1 text-xs font-medium text-on-surface-variant">
+                              Duración: {formatearDuracionMinutos(calculateReservaItemDurationMinutes(item.inicio, item.fin))}
+                            </p>
+                          </div>
+                          {showAssignmentProgress && isFutureTramoDay(item.inicio) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleEliminarTramo(item.id, item.inicio)}
+                              disabled={itemDeletingId === item.id}
+                              className="inline-flex items-center justify-center rounded-full border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                            >
+                              {itemDeletingId === item.id ? 'Eliminando...' : 'Eliminar tramo'}
+                            </button>
+                          ) : null}
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-lowest px-4 py-6 text-sm text-on-surface-variant">
+                    Esta reserva todavía no tiene ningún tramo asignado.
+                  </div>
+                )}
               </section>
             ) : null}
 
@@ -993,6 +1165,20 @@ export default function ModalDetalleReserva({
           </div>
         </div>
       ) : null}
+
+      <ModalConfirmacion
+        isOpen={showDeleteTramoModal}
+        onClose={() => {
+          setShowDeleteTramoModal(false);
+          setTramoAEliminar(null);
+        }}
+        onConfirm={confirmarEliminacionTramo}
+        titulo="Eliminar tramo"
+        mensaje={`Vas a eliminar un tramo futuro de la reserva${tramoAEliminar ? ` (${formatearFecha(tramoAEliminar.inicio)} · ${formatearHora(tramoAEliminar.inicio)})` : ''}. Esta acción no se puede deshacer.`}
+        textoConfirmar="Eliminar tramo"
+        textoCancelar="Cancelar"
+        variante="actividades-v2"
+      />
 
       {showTicketModal && pagoPendiente ? (
         <TicketCompra

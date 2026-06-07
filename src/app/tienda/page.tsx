@@ -11,11 +11,22 @@ import SwitchVista, { type VistaTipo } from '@/components/Tienda/SwitchVista';
 import VistaPedidos from '@/components/Tienda/VistaPedidos';
 import OverlayPanel from '@/components/shared/OverlayPanel';
 import Toast from '@/shared/components/Toast';
-import { SurfSpinner } from '@/shared/components';
 import { useProductos } from '@/hooks/useProductos';
 import { usePagos } from '@/hooks/usePagos';
 import { type Product, type CartItem } from '@/components/Tienda/data';
 import { formatPrice } from '@/lib/formatUtils';
+
+const LoadingSkeletonBlock = ({ className = '' }: { className?: string }) => (
+  <div className={`relative overflow-hidden rounded-2xl bg-surface-container-high ${className}`}>
+    <div className="tienda-loading-shimmer absolute inset-y-0 left-0 w-1/2" />
+  </div>
+);
+
+const LoadingSkeletonPill = ({ className = '' }: { className?: string }) => (
+  <div className={`relative overflow-hidden rounded-full bg-surface-container-high ${className}`}>
+    <div className="tienda-loading-shimmer absolute inset-y-0 left-0 w-1/2" />
+  </div>
+);
 
 export default function TiendaPage() {
   const [vistaActual, setVistaActual] = useState<VistaTipo>('tienda');
@@ -67,6 +78,104 @@ export default function TiendaPage() {
   const isLoading = loading || minLoadingTime;
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   const cartSubtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+
+  const renderLoadingSkeleton = () => (
+    <div className="flex flex-col gap-5">
+      <style jsx global>{`
+        @keyframes tienda-loading-shimmer {
+          0% {
+            transform: translateX(-120%);
+          }
+          100% {
+            transform: translateX(220%);
+          }
+        }
+
+        .tienda-loading-shimmer {
+          background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.12) 45%,
+            rgba(255, 255, 255, 0.24) 50%,
+            rgba(255, 255, 255, 0.12) 55%,
+            transparent 100%
+          );
+          animation: tienda-loading-shimmer 1.2s ease-in-out infinite;
+        }
+      `}</style>
+
+      <div className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest px-4 py-4 shadow-card-ambient sm:px-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <LoadingSkeletonBlock className="h-8 w-56" />
+            <LoadingSkeletonBlock className="h-4 w-40" />
+          </div>
+          <div className="flex items-center gap-3">
+            <LoadingSkeletonBlock className="h-11 w-40 rounded-full" />
+            <LoadingSkeletonPill className="h-11 w-28" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-1 gap-4 overflow-hidden">
+        <div className="flex-1 min-w-0 overflow-y-auto px-0 pb-4 pt-0">
+          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2 xl:gap-6">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <div key={index} className="overflow-hidden rounded-[1.75rem] border border-outline-variant/25 bg-surface-container-lowest shadow-card-ambient">
+                <LoadingSkeletonBlock className="h-56 w-full rounded-none rounded-t-[1.75rem]" />
+                <div className="space-y-3 p-4">
+                  <LoadingSkeletonBlock className="h-5 w-4/5 rounded-full" />
+                  <LoadingSkeletonBlock className="h-4 w-3/5 rounded-full" />
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <LoadingSkeletonPill className="h-8 w-24" />
+                    <LoadingSkeletonPill className="h-8 w-20" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <LoadingSkeletonBlock className="h-10 rounded-xl" />
+                    <LoadingSkeletonBlock className="h-10 rounded-xl" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="hidden w-96 shrink-0 xl:block">
+          <div className="rounded-[1.5rem] border border-outline-variant/25 bg-surface-container-lowest p-4 shadow-card-ambient">
+            <div className="space-y-3">
+              <LoadingSkeletonBlock className="h-6 w-36" />
+              <LoadingSkeletonBlock className="h-4 w-52" />
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="flex items-center gap-3 rounded-2xl border border-outline-variant/15 bg-surface-container-low p-3">
+                  <LoadingSkeletonBlock className="h-16 w-16 rounded-2xl" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <LoadingSkeletonBlock className="h-4 w-5/6 rounded-full" />
+                    <LoadingSkeletonBlock className="h-3 w-2/3 rounded-full" />
+                    <div className="flex items-center gap-2 pt-1">
+                      <LoadingSkeletonPill className="h-5 w-16" />
+                      <LoadingSkeletonPill className="h-5 w-14" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 space-y-3">
+              <LoadingSkeletonBlock className="h-10 w-full rounded-full" />
+              <LoadingSkeletonBlock className="h-10 w-full rounded-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="app-safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-outline-variant/25 bg-surface-container-lowest/95 px-4 py-3 backdrop-blur-xl xl:hidden">
+        <LoadingSkeletonBlock className="h-12 w-full rounded-full" />
+      </div>
+    </div>
+  );
 
   const handleAddToCart = (product: Product, quantity: number) => {
     setCartItems(prevItems => {
@@ -259,9 +368,7 @@ export default function TiendaPage() {
             {/* Área de productos */}
             <div className="flex-1 min-w-0 overflow-y-auto px-4 pb-24 pt-4 sm:px-6 xl:pb-6">
               {isLoading ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <SurfSpinner size="lg" showText={true} text="Cargando productos..." />
-                </div>
+                renderLoadingSkeleton()
               ) : error ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <div className="w-24 h-24 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-6">
