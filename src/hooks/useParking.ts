@@ -508,6 +508,9 @@ export function useParking() {
       fecha_fin: string;
       id_tarifa: string;
       id_cliente: string | null;
+      descuento?: number;
+      descuentoPorcentaje?: number;
+      discountLabel?: string;
       pago?: {
         concepto: string;
         metodo: MetodoPago;
@@ -548,12 +551,17 @@ export function useParking() {
       if (data.pago) {
         const tarifaSeleccionada = tarifas.find((tarifa) => tarifa.id === data.id_tarifa);
         const importePago = Number(tarifaSeleccionada?.precio ?? 0);
+        const descuentoAplicado = Number((data.descuento ?? 0).toFixed(2));
+        const importeFinal = Number(Math.max(importePago - descuentoAplicado, 0).toFixed(2));
 
         if (importePago <= 0) {
           throw new Error('No se encontró importe válido para la tarifa seleccionada');
         }
 
-        const concepto = data.pago.concepto?.trim() || `Reserva parking ${plazaId}`;
+        const conceptoBase = data.pago.concepto?.trim() || `Reserva parking ${plazaId}`;
+        const concepto = descuentoAplicado > 0
+          ? `${conceptoBase} (${data.discountLabel ?? 'Descuento'})`
+          : conceptoBase;
 
         const { data: pagoData, error: pagoError } = await supabaseClient
           .from('pago')
@@ -563,7 +571,7 @@ export function useParking() {
               origen_tipo: 'parking',
               origen_id: reservaId,
               concepto,
-              importe: importePago,
+              importe: importeFinal,
               metodo: data.pago.metodo,
               metodo_pago_id: await resolvePaymentMethodIdByCode(supabaseClient, data.pago.metodo),
               estado: data.pago.estado
@@ -581,7 +589,7 @@ export function useParking() {
             pago_id: pagoData.id,
             entidad_tipo: 'parking_reserva',
             entidad_id: reservaId,
-            importe_aplicado: importePago
+            importe_aplicado: importeFinal
           }
         ]);
 

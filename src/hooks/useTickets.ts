@@ -260,7 +260,7 @@ export function useTickets() {
     yPosition += lineHeight;
 
     if (data.descuento > 0) {
-      doc.text(data.discountPercentage > 0 ? `Descuento (${data.discountPercentage}%):` : 'Descuento:', margin, yPosition);
+      doc.text(data.discountLabel ?? (data.discountPercentage > 0 ? `Descuento (${data.discountPercentage}%):` : 'Descuento:'), margin, yPosition);
       rightAlignText(`-${formatSpanishNumber(data.descuento)}€`, yPosition, 8);
       yPosition += lineHeight;
     }

@@ -1,11 +1,12 @@
 'use client';
 
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { ReceiptPercentIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { SelectorClienteCompacto } from '@/components/Tienda/SelectorClienteCompacto';
 import { ACTIVE_PAYMENT_METHOD_OPTIONS } from '@/lib/contabilidadCatalogos';
 import { formatPrice } from '@/lib/formatUtils';
+import { calculateDiscountAmount, calculateDiscountPercentage, type DescuentoModo } from '@/lib/descuentos';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'transferencia' | 'bizum_alfonso';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
@@ -29,6 +30,9 @@ interface PagoReservaParkingModalProps {
   onBack: () => void;
   onSubmit: (data: {
     id_cliente: string | null;
+    descuento: number;
+    descuentoPorcentaje: number;
+    discountLabel?: string;
     pago: {
       concepto: string;
       metodo: MetodoPago;
@@ -53,6 +57,19 @@ export default function PagoReservaParkingModal({
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [estadoPago, setEstadoPago] = useState<EstadoPago>('pendiente');
   const [concepto, setConcepto] = useState('');
+  const [discountMode, setDiscountMode] = useState<DescuentoModo>('porcentaje');
+  const [discountValue, setDiscountValue] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setDiscountMode('porcentaje');
+      setDiscountValue(0);
+      return;
+    }
+
+    setDiscountMode('porcentaje');
+    setDiscountValue(0);
+  }, [isOpen]);
 
   const metodosPago: { value: MetodoPago; label: string }[] = useMemo(
     () => ACTIVE_PAYMENT_METHOD_OPTIONS as Array<{ value: MetodoPago; label: string }>,
@@ -71,11 +88,21 @@ export default function PagoReservaParkingModal({
     return labels[periodo];
   };
 
+  const subtotal = tarifa?.precio ?? 0;
+  const descuento = calculateDiscountAmount(subtotal, discountMode, discountValue);
+  const descuentoPorcentaje = calculateDiscountPercentage(subtotal, descuento);
+  const discountLabel = discountMode === 'porcentaje'
+    ? `Descuento (${discountValue}%)`
+    : 'Descuento (€)';
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     onSubmit({
       id_cliente: selectedClienteId,
+      descuento,
+      descuentoPorcentaje,
+      discountLabel,
       pago: {
         concepto: concepto.trim() || `Reserva parking ${plazaCodigo}`,
         metodo: metodoPago,
@@ -185,11 +212,11 @@ export default function PagoReservaParkingModal({
                                 </option>
                               ))}
                             </select>
-                          </div>
+                      </div>
 
-                          <div>
-                            <label htmlFor="estado" className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                              Estado del pago
+                      <div>
+                        <label htmlFor="estado" className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Estado del pago
                             </label>
                             <select
                               id="estado"
@@ -200,12 +227,56 @@ export default function PagoReservaParkingModal({
                             >
                               <option value="pendiente">Pendiente</option>
                               <option value="completado">Completado</option>
-                            </select>
-                          </div>
+                          </select>
                         </div>
                       </div>
 
-                      <div className="space-y-4">
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Descuento
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <select
+                            value={discountMode}
+                            onChange={(e) => setDiscountMode(e.target.value as DescuentoModo)}
+                            className="col-span-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                          >
+                            <option value="porcentaje">%</option>
+                            <option value="importe">€</option>
+                          </select>
+                          <input
+                            type="number"
+                            min="0"
+                            max={discountMode === 'porcentaje' ? 100 : undefined}
+                            step="0.01"
+                            value={discountValue === 0 ? '' : discountValue}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              if (raw === '') {
+                                setDiscountValue(0);
+                                return;
+                              }
+
+                              const parsed = Number(raw);
+                              if (Number.isNaN(parsed)) {
+                                return;
+                              }
+
+                              setDiscountValue(discountMode === 'porcentaje'
+                                ? Math.min(100, Math.max(0, parsed))
+                                : Math.max(0, parsed));
+                            }}
+                            className="col-span-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          El descuento se aplicará al importe de la tarifa antes de registrar el pago.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
                         <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">Resumen de la reserva</h4>
 
                         <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-900">
@@ -229,9 +300,17 @@ export default function PagoReservaParkingModal({
                               <span className="font-semibold text-gray-900 dark:text-gray-100">{reservaDraft.fecha_fin || '--'}</span>
                             </div>
                             <div className="border-t border-gray-300 pt-3 dark:border-gray-600">
+                              {descuento > 0 ? (
+                                <div className="mb-2 flex items-center justify-between text-sm">
+                                  <span className="text-gray-600 dark:text-gray-400">{discountLabel}</span>
+                                  <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                    -{formatPrice(descuento)}
+                                  </span>
+                                </div>
+                              ) : null}
                               <div className="flex items-center justify-between text-lg font-bold">
                                 <span className="text-gray-900 dark:text-gray-100">TOTAL</span>
-                                <span className="text-primary">{formatPrice(tarifa?.precio ?? 0)}</span>
+                                <span className="text-primary">{formatPrice(Math.max(subtotal - descuento, 0))}</span>
                               </div>
                             </div>
                           </div>
