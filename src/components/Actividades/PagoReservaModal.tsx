@@ -16,6 +16,7 @@ import ModalNuevoClientePago from '@/components/Actividades/ModalNuevoClientePag
 import { useTickets } from '@/hooks/useTickets';
 import { toast } from 'react-hot-toast';
 import { ACTIVE_PAYMENT_METHOD_OPTIONS } from '@/lib/contabilidadCatalogos';
+import { calculateDiscountAmount, calculateDiscountPercentage, type DescuentoModo } from '@/lib/descuentos';
 import {
   calculateCampamentoDiscountAmount,
   roundCampamentoCurrency,
@@ -370,6 +371,8 @@ export default function PagoReservaModal({
   const [showDiscountConfigurator, setShowDiscountConfigurator] = useState(false);
   const [isSavingTicket, setIsSavingTicket] = useState(false);
   const [isLoadingDiscounts, setIsLoadingDiscounts] = useState(false);
+  const [discountMode, setDiscountMode] = useState<DescuentoModo>('porcentaje');
+  const [discountValue, setDiscountValue] = useState<number>(0);
   const [descuentosDisponibles, setDescuentosDisponibles] = useState<DescuentoCatalogo[]>([]);
   const [participantesConDescuentos, setParticipantesConDescuentos] = useState<CampamentoParticipantePagoDraft[]>([]);
   const [processedPaymentData, setProcessedPaymentData] = useState<{
@@ -377,6 +380,7 @@ export default function PagoReservaModal({
     subtotal: number;
     descuento: number;
     discountPercentage: number;
+    discountLabel?: string;
     iva: number;
     total: number;
     metodoPago: string;
@@ -403,6 +407,8 @@ export default function PagoReservaModal({
 
   useEffect(() => {
     if (!isOpen) {
+      setDiscountMode('porcentaje');
+      setDiscountValue(0);
       setParticipantesConDescuentos([]);
       setDescuentosDisponibles([]);
       setShowDiscountConfigurator(false);
@@ -411,6 +417,8 @@ export default function PagoReservaModal({
     }
 
     setParticipantesConDescuentos(buildInitialCampamentoParticipantes(actividad.participantes));
+    setDiscountMode('porcentaje');
+    setDiscountValue(0);
 
     if (!actividad.campamentoProgramaId || !actividad.participantes?.length) {
       setDescuentosDisponibles([]);
@@ -470,10 +478,18 @@ export default function PagoReservaModal({
     [participantesConDescuentos, precioBaseParticipante]
   );
 
+  const descuentoManual = useMemo(() => {
+    if (isCampamento) {
+      return 0;
+    }
+
+    return calculateDiscountAmount(actividad.precio, discountMode, discountValue);
+  }, [actividad.precio, discountMode, discountValue, isCampamento]);
+
   // Cálculos de precios optimizados con useMemo
-  const { subtotal, descuento, iva, total, precioRestante } = useMemo(() => {
+  const { subtotal, descuento, discountPercentageValue, discountLabel, iva, total, precioRestante } = useMemo(() => {
     const subtotal = actividad.precio;
-    const descuento = isCampamento ? descuentoCampamentoTotal : 0;
+    const descuento = isCampamento ? descuentoCampamentoTotal : descuentoManual;
     const subtotalConDescuento = Math.max(subtotal - descuento, 0);
     const iva = subtotalConDescuento * 0.21; // 21% de IVA (informativo)
     
@@ -481,9 +497,15 @@ export default function PagoReservaModal({
     // y se genera un pago pendiente con el precio restante
     const total = esReserva ? Math.min(precioReserva, subtotalConDescuento) : subtotalConDescuento;
     const precioRestante = esReserva ? Math.max(subtotalConDescuento - total, 0) : 0;
+    const discountPercentageValue = calculateDiscountPercentage(subtotal, descuento);
+    const discountLabel = isCampamento
+      ? 'Descuento campamento'
+      : discountMode === 'porcentaje'
+        ? `Descuento (${discountValue}%)`
+        : 'Descuento (€)';
     
-    return { subtotal, descuento, iva, total, precioRestante };
-  }, [actividad.precio, descuentoCampamentoTotal, esReserva, isCampamento, precioReserva]);
+    return { subtotal, descuento, discountPercentageValue, discountLabel, iva, total, precioRestante };
+  }, [actividad.precio, descuentoCampamentoTotal, descuentoManual, discountMode, discountValue, esReserva, isCampamento, precioReserva]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -691,7 +713,8 @@ export default function PagoReservaModal({
         },
         subtotal: esReserva ? total : subtotal,
         descuento: esReserva ? 0 : descuento,
-        discountPercentage: 0,
+        discountPercentage: isCampamento ? 0 : discountPercentageValue,
+        discountLabel,
         iva: esReserva ? total * 0.21 : iva,
         total,
         metodoPago: (() => {
@@ -719,10 +742,10 @@ export default function PagoReservaModal({
               descuentos: participante.descuentos
             }))
           },
-          subtotal,
-          descuento,
-          descuentoPorcentaje: 0,
-          iva,
+        subtotal,
+        descuento,
+        descuentoPorcentaje: isCampamento ? 0 : discountPercentageValue,
+        iva,
           total,
           concepto, // Usar el concepto del campo del formulario
           pago: {
@@ -782,6 +805,7 @@ export default function PagoReservaModal({
         subtotal: processedPaymentData.subtotal,
         descuento: processedPaymentData.descuento,
         discountPercentage: processedPaymentData.discountPercentage,
+        discountLabel: processedPaymentData.discountLabel,
         iva: processedPaymentData.iva,
         total: processedPaymentData.total,
         metodoPago: processedPaymentData.metodoPago,
@@ -847,6 +871,8 @@ export default function PagoReservaModal({
     setSelectedClienteId(null);
     setMetodoPago('efectivo');
     setConcepto('');
+    setDiscountMode('porcentaje');
+    setDiscountValue(0);
     setEsReservaOverride(null);
     setPrecioReservaOverride(null);
     setShowDiscountConfigurator(false);
@@ -857,6 +883,8 @@ export default function PagoReservaModal({
   const handleCloseModal = () => {
     setEsReservaOverride(null);
     setPrecioReservaOverride(null);
+    setDiscountMode('porcentaje');
+    setDiscountValue(0);
     setShowNuevoClienteModal(false);
     setShowDiscountConfigurator(false);
     onClose();
@@ -1076,6 +1104,52 @@ export default function PagoReservaModal({
                               disabled={readOnly}
                             />
                           </div>
+
+                          {!readOnly && !isCampamento ? (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Descuento
+                              </label>
+                              <div className="grid grid-cols-3 gap-2">
+                                <select
+                                  value={discountMode}
+                                  onChange={(e) => setDiscountMode(e.target.value as DescuentoModo)}
+                                  className="col-span-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                >
+                                  <option value="porcentaje">%</option>
+                                  <option value="importe">€</option>
+                                </select>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={discountMode === 'porcentaje' ? 100 : undefined}
+                                  step="0.01"
+                                  value={discountValue === 0 ? '' : discountValue}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    if (raw === '') {
+                                      setDiscountValue(0);
+                                      return;
+                                    }
+
+                                    const parsed = Number(raw);
+                                    if (Number.isNaN(parsed)) {
+                                      return;
+                                    }
+
+                                    setDiscountValue(discountMode === 'porcentaje'
+                                      ? Math.min(100, Math.max(0, parsed))
+                                      : Math.max(0, parsed));
+                                  }}
+                                  className="col-span-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Puedes aplicar un descuento en porcentaje o en importe fijo.
+                              </p>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
 
@@ -1179,7 +1253,7 @@ export default function PagoReservaModal({
                             {descuento > 0 ? (
                               <div className="flex justify-between">
                                 <span className="text-emerald-700 dark:text-emerald-300">
-                                  Descuento campamento:
+                                  {discountLabel}:
                                 </span>
                                 <span className="font-semibold text-emerald-700 dark:text-emerald-300">
                                   -{formatPrice(descuento)}
@@ -1453,6 +1527,7 @@ export default function PagoReservaModal({
           subtotal={processedPaymentData.subtotal}
           descuento={processedPaymentData.descuento}
           discountPercentage={processedPaymentData.discountPercentage}
+          discountLabel={processedPaymentData.discountLabel}
           iva={processedPaymentData.iva}
           total={processedPaymentData.total}
           metodoPago={processedPaymentData.metodoPago}
