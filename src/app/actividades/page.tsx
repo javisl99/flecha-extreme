@@ -294,86 +294,105 @@ export default function ReservasPage() {
     </section>
   );
 
-  const renderListSkeleton = () => (
-    <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-      <div className="px-4 py-4 sm:px-6 sm:py-6">
-        <LoadingSkeletonBlock className="h-14 w-full rounded-2xl" />
-      </div>
-
-      <div className="border-t border-outline-variant/20" />
-
-      <div className="hidden overflow-x-auto md:block">
-        <div className="p-6">
-          <div className="space-y-3">
-            <LoadingSkeletonBlock className="h-12 w-full rounded-xl" />
-            {Array.from({ length: 7 }).map((_, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-[1.6fr_1.8fr_1.2fr_1fr_1.4fr_0.9fr_0.8fr_0.9fr] gap-3 rounded-2xl border border-outline-variant/15 bg-surface-container-low px-4 py-4"
-              >
-                <div className="flex items-center gap-3">
-                  <LoadingSkeletonPill className="h-10 w-10" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <LoadingSkeletonBlock className="h-4 w-4/5 rounded-full" />
-                    <LoadingSkeletonBlock className="h-3 w-3/5 rounded-full" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <LoadingSkeletonBlock className="h-4 w-5/6 rounded-full" />
-                  <LoadingSkeletonPill className="h-5 w-20" />
-                </div>
-                <div className="space-y-2">
-                  <LoadingSkeletonBlock className="h-4 w-3/4 rounded-full" />
-                  <LoadingSkeletonBlock className="h-3 w-1/2 rounded-full" />
-                </div>
-                <div className="flex items-center justify-center">
-                  <LoadingSkeletonPill className="h-6 w-20" />
-                </div>
-                <div className="flex items-center justify-center">
-                <LoadingSkeletonPill className="h-6 w-16" />
-                </div>
-                <div className="flex items-center justify-center">
-                  <LoadingSkeletonPill className="h-6 w-14" />
-                </div>
-                <div className="flex items-center justify-center">
-                  <LoadingSkeletonPill className="h-6 w-16" />
-                </div>
-                <div className="flex items-center justify-end gap-2">
-                  <LoadingSkeletonPill className="h-8 w-8" />
-                  <LoadingSkeletonPill className="h-8 w-8" />
-                  <LoadingSkeletonPill className="h-8 w-8" />
+  const renderListDesktopSkeleton = () => (
+    <div className="overflow-hidden rounded-[1.25rem] border border-outline-variant/20 bg-white shadow-sm">
+      <div className="overflow-x-auto p-4 sm:p-5">
+        <div className="space-y-3">
+          <LoadingSkeletonBlock className="h-12 w-full rounded-xl" />
+          {Array.from({ length: 7 }).map((_, index) => (
+            <div
+              key={index}
+              className="grid grid-cols-[1.6fr_1.8fr_1.2fr_1fr_1.4fr_0.9fr_0.8fr_0.9fr] gap-3 rounded-2xl border border-outline-variant/15 bg-surface-container-lowest px-4 py-4"
+            >
+              <div className="flex items-center gap-3">
+                <LoadingSkeletonPill className="h-10 w-10" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <LoadingSkeletonBlock className="h-4 w-4/5 rounded-full" />
+                  <LoadingSkeletonBlock className="h-3 w-3/5 rounded-full" />
                 </div>
               </div>
-            ))}
+              <div className="space-y-2">
+                <LoadingSkeletonBlock className="h-4 w-5/6 rounded-full" />
+                <LoadingSkeletonPill className="h-5 w-20" />
+              </div>
+              <div className="space-y-2">
+                <LoadingSkeletonBlock className="h-4 w-3/4 rounded-full" />
+                <LoadingSkeletonBlock className="h-3 w-1/2 rounded-full" />
+              </div>
+              <div className="flex items-center justify-center">
+                <LoadingSkeletonPill className="h-6 w-20" />
+              </div>
+              <div className="flex items-center justify-center">
+                <LoadingSkeletonPill className="h-6 w-16" />
+              </div>
+              <div className="flex items-center justify-center">
+                <LoadingSkeletonPill className="h-6 w-14" />
+              </div>
+              <div className="flex items-center justify-center">
+                <LoadingSkeletonPill className="h-6 w-16" />
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <LoadingSkeletonPill className="h-8 w-8" />
+                <LoadingSkeletonPill className="h-8 w-8" />
+                <LoadingSkeletonPill className="h-8 w-8" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderListMobileSkeleton = () => (
+    <div className="space-y-3">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="rounded-[1.25rem] border border-outline-variant/15 bg-white p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 space-y-2">
+              <LoadingSkeletonBlock className="h-4 w-4/5 rounded-full" />
+              <LoadingSkeletonBlock className="h-3 w-3/5 rounded-full" />
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <LoadingSkeletonPill className="h-5 w-20" />
+                <LoadingSkeletonPill className="h-5 w-24" />
+              </div>
+            </div>
+            <LoadingSkeletonPill className="h-6 w-16" />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <LoadingSkeletonBlock className="h-10 rounded-xl" />
+            <LoadingSkeletonBlock className="h-10 rounded-xl" />
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <LoadingSkeletonPill className="h-8 w-8" />
+            <LoadingSkeletonPill className="h-8 w-8" />
+            <LoadingSkeletonPill className="h-8 w-8" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderListSkeleton = () => (
+    <section className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
+      <div className="border-b border-outline-variant/20 px-4 py-5 sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <LoadingSkeletonBlock className="h-3 w-20 rounded-full" />
+            <LoadingSkeletonBlock className="h-8 w-56 rounded-full" />
+          </div>
+          <div className="flex gap-3">
+            <LoadingSkeletonPill className="h-11 w-24" />
+            <LoadingSkeletonPill className="h-11 w-32" />
           </div>
         </div>
       </div>
 
-      <div className="space-y-3 p-4 md:hidden">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <div key={index} className="rounded-[1.25rem] border border-outline-variant/15 bg-surface-container-low p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1 space-y-2">
-                <LoadingSkeletonBlock className="h-4 w-4/5 rounded-full" />
-                <LoadingSkeletonBlock className="h-3 w-3/5 rounded-full" />
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <LoadingSkeletonPill className="h-5 w-20" />
-                  <LoadingSkeletonPill className="h-5 w-24" />
-                </div>
-              </div>
-              <LoadingSkeletonPill className="h-6 w-16" />
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <LoadingSkeletonBlock className="h-10 rounded-xl" />
-              <LoadingSkeletonBlock className="h-10 rounded-xl" />
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <LoadingSkeletonPill className="h-8 w-8" />
-              <LoadingSkeletonPill className="h-8 w-8" />
-              <LoadingSkeletonPill className="h-8 w-8" />
-            </div>
-          </div>
-        ))}
+      <div className="hidden px-4 pb-4 pt-5 sm:px-6 sm:pb-6 md:block">
+        {renderListDesktopSkeleton()}
+      </div>
+
+      <div className="px-4 pb-4 pt-5 sm:px-6 sm:pb-6 md:hidden">
+        {renderListMobileSkeleton()}
       </div>
     </section>
   );
@@ -744,41 +763,52 @@ export default function ReservasPage() {
         )}
       </section>
 
-      <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
-        <div className="px-4 py-4 sm:px-6 sm:py-6">
-          <FiltrosReservas onFiltrosChange={setFiltros} />
+      <section className="rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
+        <div className="border-b border-outline-variant/20 bg-surface-container-low/45 px-4 py-5 sm:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-outline">Listado</p>
+              <h2 className="font-headline text-2xl font-extrabold tracking-tight text-primary-dark">Reservas registradas</h2>
+              <p className="text-sm text-on-surface-variant">Filtros compactos y una tabla más limpia para leer cada reserva con menos ruido visual.</p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex w-fit items-center rounded-full border border-primary/10 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-primary-dark shadow-sm">
+                {reservasFiltradas.length} reserva{reservasFiltradas.length === 1 ? '' : 's'}
+              </span>
+              <FiltrosReservas onFiltrosChange={setFiltros} />
+            </div>
+          </div>
         </div>
 
-        <div className="border-t border-outline-variant/20" />
-
-        <div className="hidden overflow-x-auto md:block">
+        <div className="hidden bg-surface-container-low/25 px-4 pb-4 pt-5 sm:px-6 sm:pb-6 md:block">
           {loading ? (
-            renderListSkeleton()
+            renderListDesktopSkeleton()
           ) : (
-            <table className="min-w-full border-collapse text-left">
-              <thead>
-                <tr className="bg-surface-container-low/70 backdrop-blur-md">
-                  <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">Cliente</th>
-                  <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">Actividad</th>
-                  <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">Empresa</th>
-                  <th className="px-6 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-outline">Fecha</th>
-                  <th className="px-6 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-outline">Horario</th>
-                  <th className="px-6 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-outline">Precio</th>
-                  <th className="px-6 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-outline">Estado</th>
-                  <th className="px-6 py-4 text-right text-[11px] font-black uppercase tracking-[0.14em] text-outline">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reservasFiltradas.map((reserva, index) => {
-                  const estadoVisual = getEstadoVisualReserva(reserva);
-                  return (
-                      <tr
-                        key={reserva.id}
-                        className={`cursor-pointer border-b border-outline-variant/10 transition hover:bg-surface-container-low ${
-                          index % 2 ? 'bg-surface-container-low/25' : ''
-                        }`}
-                        onClick={() => handleFilaClick(reserva)}
-                      >
+            <div className="overflow-hidden rounded-[1.25rem] border border-outline-variant/20 bg-white shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-left">
+                  <thead>
+                    <tr className="bg-[#edf1ff] backdrop-blur-md">
+                      <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">Cliente</th>
+                      <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">Actividad</th>
+                      <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">Empresa</th>
+                      <th className="px-6 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-outline">Fecha</th>
+                      <th className="px-6 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-outline">Horario</th>
+                      <th className="px-6 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-outline">Precio</th>
+                      <th className="px-6 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-outline">Estado</th>
+                      <th className="px-6 py-4 text-right text-[11px] font-black uppercase tracking-[0.14em] text-outline">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reservasFiltradas.map((reserva) => {
+                      const estadoVisual = getEstadoVisualReserva(reserva);
+                      return (
+                        <tr
+                          key={reserva.id}
+                          className="cursor-pointer border-b border-outline-variant/10 bg-white transition hover:bg-[#f7faff]"
+                          onClick={() => handleFilaClick(reserva)}
+                        >
                         <td className="px-6 py-4 text-sm font-semibold text-on-surface">{mostrarCliente(reserva)}</td>
                         <td className="px-6 py-4 text-sm font-semibold text-primary-dark">
                           <div className="flex flex-wrap items-center gap-2">
@@ -868,25 +898,27 @@ export default function ReservasPage() {
                             ) : null}
                           </div>
                         </td>
-                      </tr>
-                    );
-                })}
+                        </tr>
+                      );
+                    })}
 
-                {reservasFiltradas.length === 0 && !loading ? (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-sm font-medium text-outline">
-                      No se encontraron reservas con los filtros seleccionados.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
+                    {reservasFiltradas.length === 0 && !loading ? (
+                      <tr>
+                        <td colSpan={8} className="px-6 py-12 text-center text-sm font-medium text-outline">
+                          No se encontraron reservas con los filtros seleccionados.
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </div>
 
-        <div className="space-y-3 p-4 md:hidden">
+        <div className="space-y-3 bg-surface-container-low/25 px-4 pb-4 pt-5 sm:px-6 sm:pb-6 md:hidden">
           {loading ? (
-            renderListSkeleton()
+            renderListMobileSkeleton()
           ) : reservasFiltradas.length === 0 ? (
             <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
               No se encontraron reservas con los filtros seleccionados.
@@ -906,7 +938,7 @@ export default function ReservasPage() {
                         handleFilaClick(reserva);
                       }
                     }}
-                    className="w-full rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4 text-left transition hover:bg-surface-container-high"
+                    className="w-full rounded-[1.25rem] border border-primary/10 bg-white px-4 py-4 text-left shadow-sm transition hover:bg-[#f8faff]"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>

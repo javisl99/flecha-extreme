@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { Reserva } from '@/hooks/useActividades';
 import {
   buildCampamentoProgramaMetadata,
@@ -308,17 +309,19 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
           <button
             type="button"
             onClick={() => handleNavigate('prev')}
-            className="rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary cursor-pointer"
+            aria-label="Anterior"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant shadow-sm transition hover:border-primary/25 hover:text-primary cursor-pointer"
           >
-            Anterior
+            <ChevronLeftIcon className="h-5 w-5" />
           </button>
           <button
             type="button"
             onClick={() => handleNavigate('today')}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition cursor-pointer ${
+            disabled={isViewingToday}
+            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
               isViewingToday
-                ? 'border-primary/30 bg-primary text-white shadow-md shadow-primary/20'
-                : 'border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant hover:border-primary/25 hover:text-primary'
+                ? 'cursor-not-allowed border-outline-variant/30 bg-surface-container-lowest text-outline'
+                : 'cursor-pointer border-primary/20 bg-primary text-white shadow-md shadow-primary/20 hover:brightness-110'
             }`}
           >
             Hoy
@@ -326,9 +329,10 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
           <button
             type="button"
             onClick={() => handleNavigate('next')}
-            className="rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary cursor-pointer"
+            aria-label="Siguiente"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant shadow-sm transition hover:border-primary/25 hover:text-primary cursor-pointer"
           >
-            Siguiente
+            <ChevronRightIcon className="h-5 w-5" />
           </button>
         </div>
 
@@ -447,7 +451,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
       ) : null}
 
       {view === 'week' ? (
-        <div className="overflow-x-auto rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-lowest p-4 shadow-card-ambient">
+        <div className="overflow-x-auto rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-low p-4 shadow-card-ambient">
           <div className="grid min-w-[48rem] grid-cols-7 gap-3">
             {weekDays.map((day) => {
               const dailyEvents = eventosDelDia(day);
@@ -455,21 +459,21 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
               return (
                 <div
                   key={day.toISOString()}
-                  className="overflow-hidden rounded-xl border border-outline-variant/25 bg-surface-container-low"
+                  className="overflow-hidden rounded-xl border border-outline-variant/25 bg-surface-container-lowest shadow-sm"
                 >
                   <button
                     type="button"
                     onClick={() => handleDayFocus(day)}
                     className={`w-full border-b border-outline-variant/20 px-3 py-2 text-left text-sm font-bold transition ${
-                      isToday ? 'bg-primary text-white' : 'bg-surface-container-lowest text-on-surface'
+                      isToday ? 'bg-primary text-white' : 'bg-primary/14 text-primary-dark hover:bg-primary/18'
                     }`}
                   >
                     {DAY_LABEL_FORMATTER.format(day)}
                   </button>
 
-                  <div className="space-y-2 p-2">
+                  <div className="space-y-2 bg-surface-container-lowest p-2">
                     {dailyEvents.length === 0 ? (
-                      <p className="rounded-lg bg-surface-container-lowest px-2 py-2 text-xs text-outline">Sin reservas</p>
+                      <p className="rounded-lg border border-outline-variant/15 bg-white px-2 py-2 text-xs text-outline">Sin reservas</p>
                     ) : (
                       dailyEvents.map((evento) => {
                         const estadoVisual = getEstadoVisual(evento.estado, evento.end);
