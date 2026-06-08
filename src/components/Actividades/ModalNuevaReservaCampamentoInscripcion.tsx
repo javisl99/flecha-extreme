@@ -274,13 +274,9 @@ export default function ModalNuevaReservaCampamentoInscripcion({
   };
 
   const handleClosePago = () => {
-    if (paymentCompleted) {
-      setShowPagoModal(false);
-      onClose();
-      return;
-    }
-
     setShowPagoModal(false);
+    setPaymentCompleted(false);
+    onClose();
   };
 
   return (
@@ -572,7 +568,8 @@ export default function ModalNuevaReservaCampamentoInscripcion({
           participantes: participantes.map((participante) => ({
             participanteId: participante.participanteId ?? undefined,
             nombre: participante.nombre.trim(),
-            dni: participante.dni.trim() || undefined
+            dni: participante.dni.trim() || undefined,
+            descuentos: []
           }))
         }}
       />

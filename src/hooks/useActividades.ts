@@ -5,9 +5,18 @@ import { resolvePaymentMethodIdByCode } from '@/lib/contabilidadCatalogos';
 import type {
   CampamentoInscripcion,
   CampamentoParticipante,
+  CampamentoParticipanteDescuento,
+  CampamentoParticipanteDescuentoSeleccionado,
   CampamentoPrograma,
+  DescuentoCatalogo,
+  DescuentoTipoValor,
+  PagoDescuentoSnapshot,
   ReservaServicioItemMetadata,
   ServicioHorarioRegla
+} from '@/lib/campamento';
+import {
+  calculateCampamentoDiscountAmount,
+  roundCampamentoCurrency
 } from '@/lib/campamento';
 
 export interface NuevaActividadTarifaInput {
@@ -88,6 +97,7 @@ export interface CampamentoParticipanteInput {
   participanteId?: string | null;
   nombre: string;
   dni?: string;
+  descuentos?: CampamentoParticipanteDescuentoSeleccionado[];
 }
 
 export interface CampamentoProgramaInput {
@@ -123,6 +133,17 @@ export interface CampamentoInscripcionInput {
   estado: 'confirmada' | 'pendiente' | 'completada' | 'cancelada';
   nota?: string;
   participantes: CampamentoParticipanteInput[];
+}
+
+export interface PagoDescuentoSnapshotDraft {
+  reserva_id: string;
+  campamento_participante_id?: string | null;
+  descuento_id?: string | null;
+  participante_nombre: string;
+  descuento_nombre: string;
+  tipo_valor: DescuentoTipoValor;
+  valor_configurado: number;
+  importe_aplicado: number;
 }
 
 export interface DisponibilidadServicio {
@@ -192,6 +213,9 @@ export interface Reserva {
   };
   fecha_inicio: string;
   fecha_fin: string;
+  total_bruto?: number;
+  total_descuento?: number;
+  total_neto?: number;
   precio: number;
   estado: string;
   cantidad_reservada: number;
@@ -221,6 +245,7 @@ export interface Pago {
   origen_tipo: string;
   origen_id: string;
   metodo_pago_id?: string | null;
+  descuentos_snapshot?: PagoDescuentoSnapshot[];
   created_at?: string;
   updated_at?: string;
   cliente?: {
@@ -371,6 +396,8 @@ function buildReservaFromRow(row: {
   estado_asignacion_tramos?: EstadoAsignacionTramosReserva | null;
   estado: string;
   observaciones?: string | null;
+  total_bruto?: number | string | null;
+  total_descuento?: number | string | null;
   total_neto?: number | string | null;
   ticket_url?: string | null;
   ticket_url_reserva?: string | null;
@@ -433,6 +460,9 @@ function buildReservaFromRow(row: {
     empresa: empresaItem ? { nombre: empresaItem.nombre } : undefined,
     fecha_inicio: fechaInicio,
     fecha_fin: fechaFin,
+    total_bruto: Number(row.total_bruto ?? row.total_neto ?? items.reduce((total, item) => total + item.subtotal, 0)),
+    total_descuento: Number(row.total_descuento ?? 0),
+    total_neto: Number(row.total_neto ?? items.reduce((total, item) => total + item.subtotal, 0)),
     precio: Number(row.total_neto ?? items.reduce((total, item) => total + item.subtotal, 0)),
     estado: row.estado,
     cantidad_reservada: Number(row.cantidad_reservada ?? firstItem?.cantidad ?? 1),
@@ -548,6 +578,86 @@ function buildNormalizedCode(value: string) {
     .toUpperCase()
     .replace(/\s+/g, '_')
     .replace(/[^A-Z0-9_]/g, '');
+}
+
+function buildCampamentoParticipanteLookupKey(input: {
+  participanteId?: string | null;
+  nombre: string;
+  dni?: string | null;
+}) {
+  const participantId = input.participanteId?.trim() ?? '';
+  if (participantId) {
+    return `id:${participantId}`;
+  }
+
+  return `raw:${normalizeCampamentoParticipanteNombre(input.nombre).toLowerCase()}|${normalizeCampamentoParticipanteDni(input.dni)}`;
+}
+
+function mapCampamentoParticipanteDescuentoRow(
+  descuento: {
+    id?: string | null;
+    campamento_participante_id?: string | null;
+    descuento_id?: string | null;
+    importe_aplicado?: number | string | null;
+    created_at?: string | null;
+    descuento_catalogo?: {
+      codigo?: string | null;
+      nombre?: string | null;
+      tipo_valor?: DescuentoTipoValor | null;
+      valor?: number | string | null;
+    } | Array<{
+      codigo?: string | null;
+      nombre?: string | null;
+      tipo_valor?: DescuentoTipoValor | null;
+      valor?: number | string | null;
+    }> | null;
+  }
+): CampamentoParticipanteDescuento {
+  const descuentoCatalogo = Array.isArray(descuento.descuento_catalogo)
+    ? descuento.descuento_catalogo[0]
+    : descuento.descuento_catalogo;
+
+  return {
+    id: descuento.id ?? '',
+    campamento_participante_id: descuento.campamento_participante_id ?? null,
+    descuento_id: descuento.descuento_id ?? null,
+    codigo: descuentoCatalogo?.codigo ?? null,
+    nombre: descuentoCatalogo?.nombre ?? 'Descuento',
+    tipo_valor: descuentoCatalogo?.tipo_valor === 'porcentaje' ? 'porcentaje' : 'importe_fijo',
+    valor_configurado: Number(descuentoCatalogo?.valor ?? 0),
+    importe_aplicado: Number(descuento.importe_aplicado ?? 0),
+    created_at: descuento.created_at ?? undefined
+  };
+}
+
+function mapPagoDescuentoSnapshotRow(
+  snapshot: {
+    id?: string | null;
+    pago_id?: string | null;
+    reserva_id?: string | null;
+    campamento_participante_id?: string | null;
+    descuento_id?: string | null;
+    participante_nombre?: string | null;
+    descuento_nombre?: string | null;
+    tipo_valor?: DescuentoTipoValor | null;
+    valor_configurado?: number | string | null;
+    importe_aplicado?: number | string | null;
+    created_at?: string | null;
+  }
+): PagoDescuentoSnapshot {
+  return {
+    id: snapshot.id ?? '',
+    pago_id: snapshot.pago_id ?? '',
+    reserva_id: snapshot.reserva_id ?? '',
+    campamento_participante_id: snapshot.campamento_participante_id ?? null,
+    descuento_id: snapshot.descuento_id ?? null,
+    participante_nombre: snapshot.participante_nombre ?? '',
+    descuento_nombre: snapshot.descuento_nombre ?? 'Descuento',
+    tipo_valor: snapshot.tipo_valor === 'porcentaje' ? 'porcentaje' : 'importe_fijo',
+    valor_configurado: Number(snapshot.valor_configurado ?? 0),
+    importe_aplicado: Number(snapshot.importe_aplicado ?? 0),
+    created_at: snapshot.created_at ?? undefined
+  };
 }
 
 function buildTarifaNombreDefault(duracionMin: number | null) {
@@ -671,7 +781,7 @@ function normalizeCampamentoParticipanteNombreKey(value: string) {
   return normalizeCampamentoParticipanteNombre(value).toLowerCase();
 }
 
-function normalizeCampamentoParticipanteDni(value?: string) {
+function normalizeCampamentoParticipanteDni(value?: string | null) {
   return value?.trim().replace(/\s+/g, '').toUpperCase() ?? '';
 }
 
@@ -827,6 +937,82 @@ export function useActividades() {
     return resolved;
   }, [supabase]);
 
+  const obtenerDescuentosActivosCampamento = useCallback(async (): Promise<DescuentoCatalogo[]> => {
+    const { data, error: fetchError } = await supabase
+      .from('descuento_catalogo')
+      .select('id,codigo,nombre,tipo_valor,valor,scope,acumulable,activo,orden,created_at,updated_at')
+      .eq('scope', 'campamento_inscripcion')
+      .eq('activo', true)
+      .order('orden', { ascending: true })
+      .order('nombre', { ascending: true });
+
+    if (fetchError) {
+      throw fetchError;
+    }
+
+    return (data ?? []).map((descuento) => ({
+      id: descuento.id,
+      codigo: descuento.codigo,
+      nombre: descuento.nombre,
+      tipo_valor: descuento.tipo_valor === 'porcentaje' ? 'porcentaje' : 'importe_fijo',
+      valor: Number(descuento.valor ?? 0),
+      scope: 'campamento_inscripcion',
+      acumulable: descuento.acumulable ?? true,
+      activo: descuento.activo ?? true,
+      orden: Number(descuento.orden ?? 0),
+      created_at: descuento.created_at,
+      updated_at: descuento.updated_at
+    }));
+  }, [supabase]);
+
+  const resolverDescuentosCampamentoSeleccionados = useCallback(async (
+    participantes: CampamentoParticipanteInput[]
+  ) => {
+    const discountIds = Array.from(new Set(
+      participantes.flatMap((participante) =>
+        (participante.descuentos ?? []).map((descuento) => descuento.descuento_id)
+      ).filter((value): value is string => Boolean(value))
+    ));
+
+    if (discountIds.length === 0) {
+      return new Map<string, DescuentoCatalogo>();
+    }
+
+    const { data, error: fetchError } = await supabase
+      .from('descuento_catalogo')
+      .select('id,codigo,nombre,tipo_valor,valor,scope,acumulable,activo,orden,created_at,updated_at')
+      .in('id', discountIds)
+      .eq('scope', 'campamento_inscripcion')
+      .eq('activo', true);
+
+    if (fetchError) {
+      throw fetchError;
+    }
+
+    const descuentos = new Map<string, DescuentoCatalogo>();
+    (data ?? []).forEach((descuento) => {
+      descuentos.set(descuento.id, {
+        id: descuento.id,
+        codigo: descuento.codigo,
+        nombre: descuento.nombre,
+        tipo_valor: descuento.tipo_valor === 'porcentaje' ? 'porcentaje' : 'importe_fijo',
+        valor: Number(descuento.valor ?? 0),
+        scope: 'campamento_inscripcion',
+        acumulable: descuento.acumulable ?? true,
+        activo: descuento.activo ?? true,
+        orden: Number(descuento.orden ?? 0),
+        created_at: descuento.created_at,
+        updated_at: descuento.updated_at
+      });
+    });
+
+    if (descuentos.size !== discountIds.length) {
+      throw new Error('Alguno de los descuentos seleccionados ya no está disponible.');
+    }
+
+    return descuentos;
+  }, [supabase]);
+
   const obtenerParticipantesCampamentoBatch = useCallback(async (reservaIds: string[]) => {
     const participantesPorReserva = new Map<string, CampamentoParticipante[]>();
     if (reservaIds.length === 0) {
@@ -835,7 +1021,23 @@ export function useActividades() {
 
     const { data, error: fetchError } = await supabase
       .from('campamento_participante')
-      .select('id,reserva_id,participante_id,nombre,dni,created_at,updated_at')
+      .select(`
+        id,
+        reserva_id,
+        participante_id,
+        nombre,
+        dni,
+        created_at,
+        updated_at,
+        descuentos:campamento_participante_descuento(
+          id,
+          campamento_participante_id,
+          descuento_id,
+          importe_aplicado,
+          created_at,
+          descuento_catalogo:descuento_catalogo(codigo,nombre,tipo_valor,valor)
+        )
+      `)
       .in('reserva_id', reservaIds)
       .order('created_at', { ascending: true });
 
@@ -851,6 +1053,24 @@ export function useActividades() {
         participante_id: participante.participante_id ?? null,
         nombre: participante.nombre,
         dni: participante.dni ?? null,
+        descuentos_aplicados: ((participante.descuentos ?? []) as Array<{
+          id?: string | null;
+          campamento_participante_id?: string | null;
+          descuento_id?: string | null;
+          importe_aplicado?: number | string | null;
+          created_at?: string | null;
+          descuento_catalogo?: {
+            codigo?: string | null;
+            nombre?: string | null;
+            tipo_valor?: DescuentoTipoValor | null;
+            valor?: number | string | null;
+          } | Array<{
+            codigo?: string | null;
+            nombre?: string | null;
+            tipo_valor?: DescuentoTipoValor | null;
+            valor?: number | string | null;
+          }> | null;
+        }>).map(mapCampamentoParticipanteDescuentoRow),
         created_at: participante.created_at,
         updated_at: participante.updated_at
       });
@@ -1385,7 +1605,23 @@ export function useActividades() {
 
       const { data, error: fetchError } = await supabase
         .from('campamento_participante')
-        .select('id,reserva_id,participante_id,nombre,dni,created_at,updated_at')
+        .select(`
+          id,
+          reserva_id,
+          participante_id,
+          nombre,
+          dni,
+          created_at,
+          updated_at,
+          descuentos:campamento_participante_descuento(
+            id,
+            campamento_participante_id,
+            descuento_id,
+            importe_aplicado,
+            created_at,
+            descuento_catalogo:descuento_catalogo(codigo,nombre,tipo_valor,valor)
+          )
+        `)
         .eq('reserva_id', reservaId)
         .order('created_at', { ascending: true });
 
@@ -1401,6 +1637,24 @@ export function useActividades() {
           participante_id: participante.participante_id ?? null,
           nombre: participante.nombre,
           dni: participante.dni ?? null,
+          descuentos_aplicados: ((participante.descuentos ?? []) as Array<{
+            id?: string | null;
+            campamento_participante_id?: string | null;
+            descuento_id?: string | null;
+            importe_aplicado?: number | string | null;
+            created_at?: string | null;
+            descuento_catalogo?: {
+              codigo?: string | null;
+              nombre?: string | null;
+              tipo_valor?: DescuentoTipoValor | null;
+              valor?: number | string | null;
+            } | Array<{
+              codigo?: string | null;
+              nombre?: string | null;
+              tipo_valor?: DescuentoTipoValor | null;
+              valor?: number | string | null;
+            }> | null;
+          }>).map(mapCampamentoParticipanteDescuentoRow),
           created_at: participante.created_at,
           updated_at: participante.updated_at
         })),
@@ -1459,136 +1713,183 @@ export function useActividades() {
     }
   };
 
-  const obtenerDetalleProgramaCampamento = async (
-    programaId: string
-  ): Promise<{ success: boolean; programa?: CampamentoProgramaDetalle; message: string }> => {
-    try {
-      setLoading(true);
-      setError(null);
+  const obtenerDetalleProgramaCampamento = useCallback(
+    async (programaId: string): Promise<{ success: boolean; programa?: CampamentoProgramaDetalle; message: string }> => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      const { data: programaData, error: programaError } = await supabase
-        .from('campamento_programa')
-        .select(`
-          id,
-          servicio_id,
-          fecha_inicio,
-          fecha_fin,
-          dias_semana,
-          hora_inicio,
-          hora_fin,
-          turno_codigo,
-          turno_label,
-          estado,
-          notas,
-          created_at,
-          updated_at,
-          servicio:servicio(codigo,nombre)
-        `)
-        .eq('id', programaId)
-        .single();
+        const { data: programaData, error: programaError } = await supabase
+          .from('campamento_programa')
+          .select(`
+            id,
+            servicio_id,
+            fecha_inicio,
+            fecha_fin,
+            dias_semana,
+            hora_inicio,
+            hora_fin,
+            turno_codigo,
+            turno_label,
+            estado,
+            notas,
+            created_at,
+            updated_at,
+            servicio:servicio(codigo,nombre)
+          `)
+          .eq('id', programaId)
+          .single();
 
-      if (programaError || !programaData) {
-        throw programaError ?? new Error('Programa de campamento no encontrado');
-      }
+        if (programaError || !programaData) {
+          throw programaError ?? new Error('Programa de campamento no encontrado');
+        }
 
-      const programaBase = normalizeCampamentoProgramaRow(programaData);
+        const programaBase = normalizeCampamentoProgramaRow(programaData);
 
-      const { data: reservasData, error: reservasError } = await supabase
-        .from('reserva_servicio')
-        .select(`
-          id,
-          cliente_id,
-          campamento_programa_id,
-          estado,
-          observaciones,
-          total_neto,
-          created_at,
-          updated_at,
-          cliente:cliente(id,nombre,apellidos),
-          items:reserva_servicio_item(
-            inicio,
-            fin,
-            cantidad,
-            precio_unitario,
-            subtotal,
-            tarifa_id,
-            tarifa:servicio_tarifa(id,codigo,nombre_tarifa)
-          )
-        `)
-        .eq('campamento_programa_id', programaId)
-        .order('created_at', { ascending: true });
+        const { data: reservasData, error: reservasError } = await supabase
+          .from('reserva_servicio')
+          .select(`
+            id,
+            cliente_id,
+            campamento_programa_id,
+            estado,
+            observaciones,
+            total_bruto,
+            total_descuento,
+            total_neto,
+            created_at,
+            updated_at,
+            cliente:cliente(id,nombre,apellidos),
+            items:reserva_servicio_item(
+              inicio,
+              fin,
+              cantidad,
+              precio_unitario,
+              subtotal,
+              tarifa_id,
+              tarifa:servicio_tarifa(id,codigo,nombre_tarifa)
+            )
+          `)
+          .eq('campamento_programa_id', programaId)
+          .order('created_at', { ascending: true });
 
-      if (reservasError) {
-        throw reservasError;
-      }
+        if (reservasError) {
+          throw reservasError;
+        }
 
-      const reservaIds = (reservasData ?? []).map((reserva) => reserva.id);
-      const participantesResult = reservaIds.length > 0
-        ? await obtenerParticipantesCampamentoBatch(reservaIds)
-        : new Map<string, CampamentoParticipante[]>();
+        const reservaIds = (reservasData ?? []).map((reserva) => reserva.id);
+        const participantesResult = reservaIds.length > 0
+          ? await obtenerParticipantesCampamentoBatch(reservaIds)
+          : new Map<string, CampamentoParticipante[]>();
 
-      const inscripciones: CampamentoInscripcion[] = (reservasData ?? []).map((reserva) => {
-        const clienteRaw = Array.isArray(reserva.cliente) ? reserva.cliente[0] : reserva.cliente;
-        const item = Array.isArray(reserva.items) ? reserva.items[0] : reserva.items;
-        const tarifaRaw = Array.isArray(item?.tarifa) ? item?.tarifa[0] : item?.tarifa;
-        const participantes = participantesResult.get(reserva.id) ?? [];
+        const inscripciones: CampamentoInscripcion[] = (reservasData ?? []).map((reserva) => {
+          const clienteRaw = Array.isArray(reserva.cliente) ? reserva.cliente[0] : reserva.cliente;
+          const item = Array.isArray(reserva.items) ? reserva.items[0] : reserva.items;
+          const tarifaRaw = Array.isArray(item?.tarifa) ? item?.tarifa[0] : item?.tarifa;
+          const participantes = participantesResult.get(reserva.id) ?? [];
+
+          return {
+            id: reserva.id,
+            campamento_programa_id: programaId,
+            cliente_id: reserva.cliente_id ?? null,
+            cliente: clienteRaw
+              ? {
+                  id: clienteRaw.id,
+                  nombre: clienteRaw.nombre,
+                  apellidos: clienteRaw.apellidos
+                }
+              : undefined,
+            fecha_inicio: item?.inicio ?? reserva.created_at,
+            fecha_fin: item?.fin ?? reserva.created_at,
+            hora_inicio: item?.inicio ?? reserva.created_at,
+            hora_fin: item?.fin ?? reserva.created_at,
+            tarifa_id: item?.tarifa_id ?? null,
+            tarifa_codigo: tarifaRaw?.codigo ?? null,
+            tarifa_nombre: tarifaRaw?.nombre_tarifa ?? null,
+            cantidad_participantes: Number(item?.cantidad ?? participantes.length ?? 0),
+            precio_unitario: Number(item?.precio_unitario ?? 0),
+            precio_bruto: Number(reserva.total_bruto ?? item?.subtotal ?? reserva.total_neto ?? 0),
+            descuento_total: Number(reserva.total_descuento ?? 0),
+            precio_total: Number(reserva.total_neto ?? item?.subtotal ?? 0),
+            precio_total_neto: Number(reserva.total_neto ?? item?.subtotal ?? 0),
+            estado: reserva.estado,
+            nota: reserva.observaciones ?? null,
+            participantes,
+            created_at: reserva.created_at,
+            updated_at: reserva.updated_at
+          };
+        });
 
         return {
-          id: reserva.id,
-          campamento_programa_id: programaId,
-          cliente_id: reserva.cliente_id ?? null,
-          cliente: clienteRaw
-            ? {
-                id: clienteRaw.id,
-                nombre: clienteRaw.nombre,
-                apellidos: clienteRaw.apellidos
-              }
-            : undefined,
-          fecha_inicio: item?.inicio ?? reserva.created_at,
-          fecha_fin: item?.fin ?? reserva.created_at,
-          hora_inicio: item?.inicio ?? reserva.created_at,
-          hora_fin: item?.fin ?? reserva.created_at,
-          tarifa_id: item?.tarifa_id ?? null,
-          tarifa_codigo: tarifaRaw?.codigo ?? null,
-          tarifa_nombre: tarifaRaw?.nombre_tarifa ?? null,
-          cantidad_participantes: Number(item?.cantidad ?? participantes.length ?? 0),
-          precio_unitario: Number(item?.precio_unitario ?? 0),
-          precio_total: Number(item?.subtotal ?? reserva.total_neto ?? 0),
-          estado: reserva.estado,
-          nota: reserva.observaciones ?? null,
-          participantes,
-          created_at: reserva.created_at,
-          updated_at: reserva.updated_at
+          success: true,
+          programa: {
+            ...programaBase,
+            total_inscripciones: inscripciones.length,
+            total_participantes: inscripciones.reduce((total, inscripcion) => total + inscripcion.cantidad_participantes, 0),
+            total_facturado: Number(inscripciones.reduce((total, inscripcion) => total + inscripcion.precio_total, 0).toFixed(2)),
+            inscripciones
+          },
+          message: 'Detalle del programa obtenido correctamente'
         };
-      });
-
-      return {
-        success: true,
-        programa: {
-          ...programaBase,
-          total_inscripciones: inscripciones.length,
-          total_participantes: inscripciones.reduce((total, inscripcion) => total + inscripcion.cantidad_participantes, 0),
-          total_facturado: Number(inscripciones.reduce((total, inscripcion) => total + inscripcion.precio_total, 0).toFixed(2)),
-          inscripciones
-        },
-        message: 'Detalle del programa obtenido correctamente'
-      };
-    } catch (err: unknown) {
-      console.error('Error al obtener detalle del programa de campamento:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Error al obtener detalle del programa de campamento';
-      setError(errorMessage);
-      return { success: false, message: errorMessage };
-    } finally {
-      setLoading(false);
-    }
-  };
+      } catch (err: unknown) {
+        console.error('Error al obtener detalle del programa de campamento:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Error al obtener detalle del programa de campamento';
+        setError(errorMessage);
+        return { success: false, message: errorMessage };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [obtenerParticipantesCampamentoBatch, supabase]
+  );
 
   const crearInscripcionCampamento = async (
     input: CampamentoInscripcionInput
-  ): Promise<{ success: boolean; message: string; reservaId?: string }> => {
+  ): Promise<{ success: boolean; message: string; reservaId?: string; descuentosSnapshot?: PagoDescuentoSnapshotDraft[] }> => {
     try {
       setLoading(true);
       setError(null);
+
+      const totalBruto = roundCampamentoCurrency(input.precioTotal);
+      const descuentosCatalogo = await resolverDescuentosCampamentoSeleccionados(input.participantes);
+      const participantesCatalogo = input.participantes.length > 0
+        ? await resolverCatalogoParticipantes(input.participantes)
+        : [];
+
+      const participantesConDescuentos = participantesCatalogo.map((participante, index) => {
+        const participanteInput = input.participantes[index];
+        const descuentosSeleccionados = participanteInput?.descuentos ?? [];
+        const seen = new Set<string>();
+        const descuentosAplicados = descuentosSeleccionados.map((descuentoSeleccionado) => {
+          if (seen.has(descuentoSeleccionado.descuento_id)) {
+            throw new Error(`El participante ${participante.nombre} tiene el mismo descuento seleccionado más de una vez.`);
+          }
+
+          seen.add(descuentoSeleccionado.descuento_id);
+          const descuento = descuentosCatalogo.get(descuentoSeleccionado.descuento_id);
+          if (!descuento) {
+            throw new Error(`El descuento seleccionado para ${participante.nombre} ya no está disponible.`);
+          }
+
+          return {
+            descuento,
+            importe_aplicado: calculateCampamentoDiscountAmount(input.precioUnitario, descuento)
+          };
+        });
+
+        return {
+          ...participante,
+          descuentosAplicados
+        };
+      });
+
+      const totalDescuento = roundCampamentoCurrency(
+        participantesConDescuentos.reduce(
+          (total, participante) => total + participante.descuentosAplicados.reduce((subtotal, descuento) => subtotal + descuento.importe_aplicado, 0),
+          0
+        )
+      );
+      const totalNeto = roundCampamentoCurrency(Math.max(totalBruto - totalDescuento, 0));
 
       const { data: reservaData, error: reservaError } = await supabase
         .from('reserva_servicio')
@@ -1600,9 +1901,9 @@ export function useActividades() {
             canal: 'backoffice',
             estado: input.estado,
             observaciones: input.nota ?? null,
-            total_bruto: input.precioTotal,
-            total_descuento: 0,
-            total_neto: input.precioTotal,
+            total_bruto: totalBruto,
+            total_descuento: totalDescuento,
+            total_neto: totalNeto,
             deposito_total_requerido: 0,
             deposito_total_cobrado: 0
           }
@@ -1628,7 +1929,7 @@ export function useActividades() {
           cantidad: input.cantidadParticipantes,
           precio_unitario: input.precioUnitario,
           descuento_unitario: 0,
-          subtotal: input.precioTotal,
+          subtotal: totalBruto,
           deposito_requerido: 0,
           deposito_cobrado: 0,
           estado: input.estado,
@@ -1642,30 +1943,106 @@ export function useActividades() {
         throw itemError;
       }
 
-      if (input.participantes.length > 0) {
-        const participantesCatalogo = await resolverCatalogoParticipantes(input.participantes);
-        const participantesPayload = participantesCatalogo.map((participante) => ({
+      let descuentosSnapshot: PagoDescuentoSnapshotDraft[] = [];
+
+      if (participantesConDescuentos.length > 0) {
+        const participantesPayload = participantesConDescuentos.map((participante) => ({
           reserva_id: reservaData.id,
           participante_id: participante.participanteId,
           nombre: participante.nombre,
           dni: participante.dni
         }));
 
-        const { error: participantesError } = await supabase
+        const { data: participantesInsertados, error: participantesError } = await supabase
           .from('campamento_participante')
-          .insert(participantesPayload);
+          .insert(participantesPayload)
+          .select('id,reserva_id,participante_id,nombre,dni,created_at,updated_at');
 
         if (participantesError) {
           await supabase.from('reserva_servicio_item').delete().eq('reserva_id', reservaData.id);
           await supabase.from('reserva_servicio').delete().eq('id', reservaData.id);
           throw participantesError;
         }
+
+        const participantesInsertadosPorKey = new Map(
+          (participantesInsertados ?? []).map((participante) => [
+            buildCampamentoParticipanteLookupKey({
+              participanteId: participante.participante_id ?? null,
+              nombre: participante.nombre,
+              dni: participante.dni ?? null
+            }),
+            participante
+          ])
+        );
+
+        const descuentosPayload = participantesConDescuentos.flatMap((participante) => {
+          const participanteInsertado = participantesInsertadosPorKey.get(buildCampamentoParticipanteLookupKey({
+            participanteId: participante.participanteId,
+            nombre: participante.nombre,
+            dni: participante.dni
+          }));
+
+          if (!participanteInsertado) {
+            return [];
+          }
+
+          return participante.descuentosAplicados.map((descuentoAplicado) => ({
+            campamento_participante_id: participanteInsertado.id,
+            descuento_id: descuentoAplicado.descuento.id,
+            importe_aplicado: descuentoAplicado.importe_aplicado
+          }));
+        });
+
+        const totalDescuentosEsperados = participantesConDescuentos.reduce(
+          (total, participante) => total + participante.descuentosAplicados.length,
+          0
+        );
+
+        if (descuentosPayload.length !== totalDescuentosEsperados) {
+          await supabase.from('campamento_participante').delete().eq('reserva_id', reservaData.id);
+          await supabase.from('reserva_servicio_item').delete().eq('reserva_id', reservaData.id);
+          await supabase.from('reserva_servicio').delete().eq('id', reservaData.id);
+          throw new Error('No se pudieron relacionar todos los participantes con sus descuentos.');
+        }
+
+        if (descuentosPayload.length > 0) {
+          const { error: descuentosError } = await supabase
+            .from('campamento_participante_descuento')
+            .insert(descuentosPayload);
+
+          if (descuentosError) {
+            await supabase.from('campamento_participante').delete().eq('reserva_id', reservaData.id);
+            await supabase.from('reserva_servicio_item').delete().eq('reserva_id', reservaData.id);
+            await supabase.from('reserva_servicio').delete().eq('id', reservaData.id);
+            throw descuentosError;
+          }
+        }
+
+        descuentosSnapshot = participantesConDescuentos.flatMap((participante) => {
+          const participanteInsertado = participantesInsertadosPorKey.get(buildCampamentoParticipanteLookupKey({
+            participanteId: participante.participanteId,
+            nombre: participante.nombre,
+            dni: participante.dni
+          }));
+
+          return participante.descuentosAplicados.map((descuentoAplicado) => ({
+            reserva_id: reservaData.id,
+            campamento_participante_id: participanteInsertado?.id ?? null,
+            descuento_id: descuentoAplicado.descuento.id,
+            participante_nombre: participante.nombre,
+            descuento_nombre: descuentoAplicado.descuento.nombre,
+            tipo_valor: descuentoAplicado.descuento.tipo_valor,
+            valor_configurado: descuentoAplicado.descuento.valor,
+            importe_aplicado: descuentoAplicado.importe_aplicado
+          }));
+        });
       }
 
       return {
         success: true,
         message: 'Inscripción de campamento creada correctamente',
-        reservaId: reservaData.id
+        reservaId: reservaData.id,
+        descuentosSnapshot
       };
     } catch (err: unknown) {
       console.error('Error al crear inscripción de campamento:', err);
@@ -1812,6 +2189,7 @@ export function useActividades() {
     importe: number;
     metodo: MetodoPago;
     estado: 'completado' | 'pendiente' | 'cancelado';
+    descuentosSnapshot?: PagoDescuentoSnapshotDraft[];
   }): Promise<{ success: boolean; message: string; pagoId?: string }> => {
     try {
       setLoading(true);
@@ -1851,6 +2229,30 @@ export function useActividades() {
       if (aplicacionError) {
         await supabase.from('pago').delete().eq('id', data.id);
         throw aplicacionError;
+      }
+
+      if (datosPago.descuentosSnapshot && datosPago.descuentosSnapshot.length > 0) {
+        const { error: descuentosSnapshotError } = await supabase
+          .from('pago_descuento_snapshot')
+          .insert(
+            datosPago.descuentosSnapshot.map((snapshot) => ({
+              pago_id: data.id,
+              reserva_id: snapshot.reserva_id,
+              campamento_participante_id: snapshot.campamento_participante_id ?? null,
+              descuento_id: snapshot.descuento_id ?? null,
+              participante_nombre: snapshot.participante_nombre,
+              descuento_nombre: snapshot.descuento_nombre,
+              tipo_valor: snapshot.tipo_valor,
+              valor_configurado: roundCampamentoCurrency(snapshot.valor_configurado),
+              importe_aplicado: roundCampamentoCurrency(snapshot.importe_aplicado)
+            }))
+          );
+
+        if (descuentosSnapshotError) {
+          await supabase.from('pago_aplicacion').delete().eq('pago_id', data.id);
+          await supabase.from('pago').delete().eq('id', data.id);
+          throw descuentosSnapshotError;
+        }
       }
 
       return { success: true, message: 'Pago creado correctamente', pagoId: data.id };
@@ -1936,6 +2338,8 @@ export function useActividades() {
           estado_asignacion_tramos,
           estado,
           observaciones,
+          total_bruto,
+          total_descuento,
           total_neto,
           ticket_url,
           ticket_url_reserva,
@@ -2060,6 +2464,8 @@ export function useActividades() {
           estado_asignacion_tramos,
           estado,
           observaciones,
+          total_bruto,
+          total_descuento,
           total_neto,
           ticket_url,
           ticket_url_reserva,
@@ -2558,7 +2964,20 @@ export function useActividades() {
         .from('pago')
         .select(`
           *,
-          cliente:cliente(id, nombre, apellidos, email)
+          cliente:cliente(id, nombre, apellidos, email),
+          descuentos_snapshot:pago_descuento_snapshot(
+            id,
+            pago_id,
+            reserva_id,
+            campamento_participante_id,
+            descuento_id,
+            participante_nombre,
+            descuento_nombre,
+            tipo_valor,
+            valor_configurado,
+            importe_aplicado,
+            created_at
+          )
         `)
         .eq('origen_tipo', 'reserva')
         .eq('origen_id', reservaId)
@@ -2568,7 +2987,26 @@ export function useActividades() {
         throw fetchError;
       }
 
-      return { success: true, pagos: data ?? [], message: 'Pagos pendientes obtenidos correctamente' };
+      return {
+        success: true,
+        pagos: (data ?? []).map((pago) => ({
+          ...pago,
+          descuentos_snapshot: ((pago.descuentos_snapshot ?? []) as Array<{
+            id?: string | null;
+            pago_id?: string | null;
+            reserva_id?: string | null;
+            campamento_participante_id?: string | null;
+            descuento_id?: string | null;
+            participante_nombre?: string | null;
+            descuento_nombre?: string | null;
+            tipo_valor?: DescuentoTipoValor | null;
+            valor_configurado?: number | string | null;
+            importe_aplicado?: number | string | null;
+            created_at?: string | null;
+          }>).map(mapPagoDescuentoSnapshotRow)
+        })),
+        message: 'Pagos pendientes obtenidos correctamente'
+      };
     } catch (err: unknown) {
       console.error('Error al obtener pagos pendientes:', err);
       const errorMessage = err instanceof Error ? err.message : 'Error al obtener pagos pendientes';
@@ -2586,7 +3024,22 @@ export function useActividades() {
 
       const { data, error: fetchError } = await supabase
         .from('pago')
-        .select('*')
+        .select(`
+          *,
+          descuentos_snapshot:pago_descuento_snapshot(
+            id,
+            pago_id,
+            reserva_id,
+            campamento_participante_id,
+            descuento_id,
+            participante_nombre,
+            descuento_nombre,
+            tipo_valor,
+            valor_configurado,
+            importe_aplicado,
+            created_at
+          )
+        `)
         .eq('origen_tipo', 'reserva')
         .eq('origen_id', reservaId);
 
@@ -2594,7 +3047,26 @@ export function useActividades() {
         throw fetchError;
       }
 
-      return { success: true, pagos: data ?? [], message: 'Todos los pagos obtenidos correctamente' };
+      return {
+        success: true,
+        pagos: (data ?? []).map((pago) => ({
+          ...pago,
+          descuentos_snapshot: ((pago.descuentos_snapshot ?? []) as Array<{
+            id?: string | null;
+            pago_id?: string | null;
+            reserva_id?: string | null;
+            campamento_participante_id?: string | null;
+            descuento_id?: string | null;
+            participante_nombre?: string | null;
+            descuento_nombre?: string | null;
+            tipo_valor?: DescuentoTipoValor | null;
+            valor_configurado?: number | string | null;
+            importe_aplicado?: number | string | null;
+            created_at?: string | null;
+          }>).map(mapPagoDescuentoSnapshotRow)
+        })),
+        message: 'Todos los pagos obtenidos correctamente'
+      };
     } catch (err: unknown) {
       console.error('Error al obtener todos los pagos:', err);
       const errorMessage = err instanceof Error ? err.message : 'Error al obtener todos los pagos';
@@ -2626,6 +3098,19 @@ export function useActividades() {
             created_at,
             updated_at,
             cliente:cliente(id, nombre, apellidos),
+            descuentos_snapshot:pago_descuento_snapshot(
+              id,
+              pago_id,
+              reserva_id,
+              campamento_participante_id,
+              descuento_id,
+              participante_nombre,
+              descuento_nombre,
+              tipo_valor,
+              valor_configurado,
+              importe_aplicado,
+              created_at
+            ),
             reembolsos:pago_reembolso(
               id,
               pago_id,
@@ -2673,6 +3158,19 @@ export function useActividades() {
                   apellidos: clienteRaw.apellidos
                 }
               : undefined,
+            descuentos_snapshot: ((pago.descuentos_snapshot ?? []) as Array<{
+              id?: string | null;
+              pago_id?: string | null;
+              reserva_id?: string | null;
+              campamento_participante_id?: string | null;
+              descuento_id?: string | null;
+              participante_nombre?: string | null;
+              descuento_nombre?: string | null;
+              tipo_valor?: DescuentoTipoValor | null;
+              valor_configurado?: number | string | null;
+              importe_aplicado?: number | string | null;
+              created_at?: string | null;
+            }>).map(mapPagoDescuentoSnapshotRow),
             importe_reembolsado: Number(importeReembolsado.toFixed(2)),
             importe_reembolsable: Number(importeReembolsable.toFixed(2)),
             estado_reembolso: estadoReembolso,
@@ -2825,6 +3323,7 @@ export function useActividades() {
     crearProgramaCampamento,
     actualizarProgramaCampamento,
     obtenerDetalleProgramaCampamento,
+    obtenerDescuentosActivosCampamento,
     crearInscripcionCampamento,
     obtenerParticipantesCampamento,
     actualizarParticipantesCampamento,

@@ -224,9 +224,9 @@ export function generatePurchaseEmailHTML(cliente: Cliente, ticketData: TicketDa
                         <span>IVA incluido (21%):</span>
                         <span>${formatPrice(ticketData.iva)}</span>
                     </div>
-                    ${ticketData.discountPercentage > 0 ? `
+                    ${ticketData.descuento > 0 ? `
                     <div class="ticket-row">
-                        <span>Descuento (${ticketData.discountPercentage}%):</span>
+                        <span>${ticketData.discountPercentage > 0 ? `Descuento (${ticketData.discountPercentage}%)` : 'Descuento'}:</span>
                         <span>-${formatPrice(ticketData.descuento)}</span>
                     </div>
                     ` : ''}
@@ -295,7 +295,7 @@ ${ticketData.cartItems.map(item =>
 TOTALES:
 Subtotal: ${formatPrice(ticketData.subtotal)}
 IVA incluido (21%): ${formatPrice(ticketData.iva)}
-${ticketData.discountPercentage > 0 ? `Descuento (${ticketData.discountPercentage}%): -${formatPrice(ticketData.descuento)}` : ''}
+${ticketData.descuento > 0 ? `${ticketData.discountPercentage > 0 ? `Descuento (${ticketData.discountPercentage}%)` : 'Descuento'}: -${formatPrice(ticketData.descuento)}` : ''}
 TOTAL: ${formatPrice(ticketData.total)}
 
 Descargar ticket PDF: ${ticketUrl}
