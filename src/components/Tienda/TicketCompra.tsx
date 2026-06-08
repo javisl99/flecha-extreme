@@ -284,9 +284,9 @@ export default function TicketCompra({
                           <span>{formatPrice(iva)}</span>
                         </div>
                         
-                        {discountPercentage > 0 && (
+                        {descuento > 0 && (
                           <div className="flex justify-between text-xs mb-1">
-                            <span>Descuento ({formatNumber(discountPercentage, 0)}%):</span>
+                            <span>{discountPercentage > 0 ? `Descuento (${formatNumber(discountPercentage, 0)}%)` : 'Descuento'}:</span>
                             <span>-{formatPrice(descuento)}</span>
                           </div>
                         )}

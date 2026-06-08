@@ -35,7 +35,7 @@ export default function ModalNuevoParticipanteCampamento({
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     const processedValue = field === 'dni'
-      ? value.replace(/[^0-9A-Za-z]/g, '').slice(0, 12).toUpperCase()
+      ? value.replace(/[^0-9A-Za-z]/g, '').slice(0, 9).toUpperCase()
       : value;
 
     setFormData((prev) => ({ ...prev, [field]: processedValue }));
@@ -162,6 +162,7 @@ export default function ModalNuevoParticipanteCampamento({
                   <input
                     id="nuevo-participante-dni"
                     type="text"
+                    maxLength={9}
                     value={formData.dni}
                     onChange={(event) => handleInputChange('dni', event.target.value)}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
