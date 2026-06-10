@@ -1,7 +1,7 @@
 import resend from './resend';
 
 // Configuración del remitente
-const FROM_EMAIL = 'Flecha Extreme <noreply@flechaextreme.com>';
+const FROM_EMAIL = 'Flecha Extreme <contacto@flechaextreme.com>';
 
 function isEmailEnabled() {
   const value = process.env.EMAIL_ENABLED?.trim().toLowerCase();

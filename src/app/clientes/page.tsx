@@ -220,7 +220,11 @@ export default function ClientesPage() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient xl:col-span-2">
           <div className="px-4 py-4 sm:px-6 sm:py-6">
-            <FiltrosClientes onFiltrosChange={setFiltros} />
+            <FiltrosClientes
+              onFiltrosChange={setFiltros}
+              title="Listado de clientes"
+              subtitle="Consulta, filtra y localiza clientes desde esta tabla."
+            />
           </div>
 
           <div className="border-t border-outline-variant/20" />

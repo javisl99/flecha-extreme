@@ -1,13 +1,13 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { UserGroupIcon, UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/shared/components';
 import type { Empleado } from '@/hooks/useEmpleados';
 
 interface ModalAgregarEmpleadoSemanaProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (empleadoId: string) => Promise<void>;
+  onSubmit: (empleadoIds: string[]) => Promise<void>;
   empleadosDisponibles: Empleado[];
   loading?: boolean;
 }
@@ -23,17 +23,25 @@ export default function ModalAgregarEmpleadoSemana({
     () => [...empleadosDisponibles].sort((left, right) => `${left.nombre} ${left.apellidos}`.localeCompare(`${right.nombre} ${right.apellidos}`, 'es')),
     [empleadosDisponibles],
   );
-  const [empleadoId, setEmpleadoId] = useState('');
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!isOpen) return;
-    setEmpleadoId(sortedEmployees[0]?.id ?? '');
+    setSelectedEmployeeIds([]);
   }, [isOpen, sortedEmployees]);
+
+  const toggleEmployee = (employeeId: string) => {
+    setSelectedEmployeeIds((current) => (
+      current.includes(employeeId)
+        ? current.filter((id) => id !== employeeId)
+        : [...current, employeeId]
+    ));
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!empleadoId) return;
-    await onSubmit(empleadoId);
+    if (!selectedEmployeeIds.length) return;
+    await onSubmit(selectedEmployeeIds);
   };
 
   return (
@@ -83,25 +91,49 @@ export default function ModalAgregarEmpleadoSemana({
 
                 <form onSubmit={handleSubmit} className="space-y-6 p-6">
                   <div>
-                    <label htmlFor="empleado-semana-select" className="mb-2 block text-[11px] font-black uppercase tracking-[0.14em] text-outline">
-                      Empleado
-                    </label>
-                    <select
-                      id="empleado-semana-select"
-                      value={empleadoId}
-                      onChange={(event) => setEmpleadoId(event.target.value)}
-                      className="h-11 w-full rounded-xl border border-outline-variant/45 bg-surface-container-lowest px-4 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15"
-                      disabled={loading || sortedEmployees.length === 0}
-                    >
+                    <div className="mb-2 flex items-center gap-2">
+                      <UserGroupIcon className="h-4 w-4 text-primary" />
+                      <label className="block text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                        Empleados pendientes
+                      </label>
+                    </div>
+                    <div className="max-h-72 space-y-2 overflow-y-auto rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-low p-3">
                       {sortedEmployees.length === 0 ? (
-                        <option value="">No hay empleados disponibles</option>
-                      ) : null}
-                      {sortedEmployees.map((empleado) => (
-                        <option key={empleado.id} value={empleado.id}>
-                          {empleado.nombre} {empleado.apellidos}
-                        </option>
-                      ))}
-                    </select>
+                        <p className="px-2 py-4 text-sm text-on-surface-variant">
+                          No quedan empleados pendientes para esta semana.
+                        </p>
+                      ) : (
+                        sortedEmployees.map((empleado) => {
+                          const checked = selectedEmployeeIds.includes(empleado.id);
+                          return (
+                            <label
+                              key={empleado.id}
+                              className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
+                                checked
+                                  ? 'border-primary/30 bg-primary/10'
+                                  : 'border-outline-variant/20 bg-surface-container-lowest hover:border-primary/20 hover:bg-surface-container-high'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleEmployee(empleado.id)}
+                                className="mt-1 h-4 w-4 rounded border-outline-variant/45 text-primary focus:ring-primary/20"
+                                disabled={loading}
+                              />
+                              <span className="min-w-0">
+                                <span className="block text-sm font-semibold text-on-surface">
+                                  {empleado.nombre} {empleado.apellidos}
+                                </span>
+                                <span className="block text-xs text-on-surface-variant">
+                                  {empleado.email || 'Sin email'} · {empleado.movil || 'Sin móvil'}
+                                </span>
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -119,9 +151,9 @@ export default function ModalAgregarEmpleadoSemana({
                       variant="primary"
                       className="primary-gradient min-h-11 rounded-full border border-primary-light/10 px-5 text-white shadow-lg shadow-primary/20 hover:brightness-110"
                       loading={loading}
-                      disabled={!empleadoId}
+                      disabled={!selectedEmployeeIds.length}
                     >
-                      Añadir
+                      Añadir empleados
                     </Button>
                   </div>
                 </form>

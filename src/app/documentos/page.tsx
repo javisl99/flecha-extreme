@@ -147,7 +147,11 @@ export default function DocumentosPage() {
 
         <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
           <div className="px-4 py-4 sm:px-6 sm:py-6">
-            <FiltrosDocumentos onFiltrosChange={setFiltros} />
+            <FiltrosDocumentos
+              onFiltrosChange={setFiltros}
+              title="Listado de documentos"
+              subtitle="Encuentra documentos por nombre, usuario, descripción o fecha."
+            />
           </div>
 
           <div className="border-t border-outline-variant/20" />
