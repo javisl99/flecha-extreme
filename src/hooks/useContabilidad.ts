@@ -221,6 +221,8 @@ const normalizeCode = (value: string) =>
 export function useContabilidad() {
   const { usuario, loading: usuarioLoading } = useUserData();
   const { subirDocumento } = useDocumentos();
+  const role = usuario?.rol as 'admin' | 'fl-admin' | 'fl-empleado' | undefined;
+  const canReadAccountingDetails = role === 'admin' || role === 'fl-admin';
   const [movimientos, setMovimientos] = useState<MovimientoContable[]>([]);
   const [bancos, setBancos] = useState<BancoContable[]>([]);
   const [cuentas, setCuentas] = useState<CuentaContable[]>([]);
@@ -298,10 +300,12 @@ export function useContabilidad() {
       );
 
       const [gastoResult, documentoResult, empleadoResult] = await Promise.all([
-        supabaseClient
-          .from('movimiento_contable_gasto')
-          .select('*')
-          .in('id_movimiento_contable', movimientoIds),
+        canReadAccountingDetails
+          ? supabaseClient
+              .from('movimiento_contable_gasto')
+              .select('*')
+              .in('id_movimiento_contable', movimientoIds)
+          : Promise.resolve({ data: [], error: null }),
         supabaseClient.from('documento').select('*').in('id_movimiento_contable', movimientoIds),
         empleadoIds.length
           ? supabaseClient
@@ -367,7 +371,7 @@ export function useContabilidad() {
       setMovimientos(hidratados);
       return hidratados;
     },
-    []
+    [canReadAccountingDetails]
   );
 
   const resolveMethodDefaultAccountId = useCallback(
@@ -392,10 +396,12 @@ export function useContabilidad() {
             .from('contabilidad_metodo_pago')
             .select('*')
             .order('orden', { ascending: true }),
-          supabaseClient
-            .from('contabilidad_saldo_inicial_diario')
-            .select('*')
-            .order('fecha', { ascending: false }),
+          canReadAccountingDetails
+            ? supabaseClient
+                .from('contabilidad_saldo_inicial_diario')
+                .select('*')
+                .order('fecha', { ascending: false })
+            : Promise.resolve({ data: [], error: null }),
           supabaseClient
             .from('movimiento_contable')
             .select('*')
@@ -467,7 +473,7 @@ export function useContabilidad() {
     } finally {
       setLoading(false);
     }
-  }, [hydrateCatalogos, hydrateMovimientos]);
+  }, [canReadAccountingDetails, hydrateCatalogos, hydrateMovimientos]);
 
   useEffect(() => {
     if (usuarioLoading || !usuario) {

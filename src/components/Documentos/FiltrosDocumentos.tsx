@@ -80,7 +80,7 @@ export function FiltrosDocumentos({ onFiltrosChange, title, subtitle }: FiltrosD
 
   const labelClassName = 'mb-2 block text-[11px] font-black uppercase tracking-[0.14em] text-outline';
   const inputClassName =
-    'h-11 w-full rounded-full border border-outline-variant/45 bg-surface-container-lowest px-4 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15';
+    'h-11 w-full rounded-full border border-outline-variant/45 bg-surface-container-lowest px-4 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15 cursor-pointer';
   const inputWithIconClassName = `${inputClassName} pl-10`;
   const iconClassName = 'pointer-events-none absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-outline';
   const activeFiltersCount = Object.values(filtros).filter(Boolean).length;
@@ -109,7 +109,7 @@ export function FiltrosDocumentos({ onFiltrosChange, title, subtitle }: FiltrosD
               isOpen
                 ? 'border-primary/25 bg-primary text-white shadow-md shadow-primary/15'
                 : 'border-outline-variant/35 bg-white text-on-surface-variant hover:border-primary/25 hover:text-primary'
-            }`}
+            } cursor-pointer`}
           >
             <FunnelIcon className="h-4 w-4" />
             <span>Filtros</span>
@@ -133,7 +133,7 @@ export function FiltrosDocumentos({ onFiltrosChange, title, subtitle }: FiltrosD
             isOpen
               ? 'border-primary/25 bg-primary text-white shadow-md shadow-primary/15'
               : 'border-outline-variant/35 bg-white text-on-surface-variant hover:border-primary/25 hover:text-primary'
-          }`}
+          } cursor-pointer`}
         >
           <FunnelIcon className="h-4 w-4" />
           <span>Filtros</span>
@@ -240,7 +240,7 @@ export function FiltrosDocumentos({ onFiltrosChange, title, subtitle }: FiltrosD
             <button
               type="button"
               onClick={limpiarFiltros}
-              className="min-h-11 w-full rounded-full border border-outline-variant/45 bg-surface-container-lowest px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/15 sm:w-auto"
+              className="min-h-11 w-full rounded-full border border-outline-variant/45 bg-surface-container-lowest px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/15 sm:w-auto cursor-pointer"
             >
               Limpiar filtros
             </button>
