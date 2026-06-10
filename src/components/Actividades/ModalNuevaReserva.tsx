@@ -59,6 +59,7 @@ interface ModalNuevaReservaProps {
 type WizardStep = 1 | 2;
 type CourseAssignmentMode = 'now' | 'later';
 type AvailabilityStatus = 'idle' | 'checking' | 'available' | 'unavailable' | 'error';
+type RentalDurationMode = 'preset' | 'custom';
 
 interface RentalSuggestion {
   fechaInicio: string;
@@ -88,6 +89,8 @@ interface CursoRangeDraft {
 const EMPTY_RENTAL_AVAILABILITY: RentalAvailabilityState = {
   status: 'idle'
 };
+
+const CUSTOM_RENTAL_DURATION_OPTION = '__custom__';
 
 function getTodayInputValue() {
   const now = new Date();
@@ -346,6 +349,83 @@ function formatMinutesSummary(totalMinutes: number) {
   return formatDurationLabel(buildDurationValue(totalMinutes, 'minuto'));
 }
 
+function splitDurationMinutes(totalMinutes: number | null) {
+  if (!totalMinutes || totalMinutes <= 0) {
+    return { hours: '', minutes: '' };
+  }
+
+  return {
+    hours: String(Math.floor(totalMinutes / 60)),
+    minutes: String(totalMinutes % 60)
+  };
+}
+
+function buildCustomRentalDurationValue(hoursValue: string, minutesValue: string) {
+  const parsedHours = hoursValue === '' ? 0 : Number(hoursValue);
+  const parsedMinutes = minutesValue === '' ? 0 : Number(minutesValue);
+
+  if (
+    !Number.isFinite(parsedHours) ||
+    !Number.isFinite(parsedMinutes) ||
+    parsedHours < 0 ||
+    parsedMinutes < 0
+  ) {
+    return '';
+  }
+
+  const totalMinutes = Math.trunc(parsedHours) * 60 + Math.trunc(parsedMinutes);
+  return totalMinutes > 0 ? buildDurationValue(totalMinutes, 'minuto') : '';
+}
+
+function sanitizePriceInput(value: string) {
+  let result = '';
+  let hasSeparator = false;
+
+  for (const char of value) {
+    if (/\d/.test(char)) {
+      result += char;
+      continue;
+    }
+
+    if ((char === ',' || char === '.') && !hasSeparator) {
+      result += char;
+      hasSeparator = true;
+    }
+  }
+
+  return result;
+}
+
+function parsePriceInput(value: string) {
+  const sanitized = sanitizePriceInput(value);
+  if (!sanitized || sanitized === ',' || sanitized === '.') {
+    return 0;
+  }
+
+  const parsed = Number(sanitized.replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatPriceInputValue(value: number, options?: { editing?: boolean; allowEmptyZero?: boolean }) {
+  const safeValue = Number.isFinite(value) ? value : 0;
+
+  if (options?.editing) {
+    if (options.allowEmptyZero && safeValue === 0) {
+      return '';
+    }
+
+    return Number.isInteger(safeValue)
+      ? String(safeValue)
+      : String(safeValue).replace('.', ',');
+  }
+
+  if (options?.allowEmptyZero && safeValue === 0) {
+    return '';
+  }
+
+  return formatSpanishNumber(safeValue, { fixedDecimals: true });
+}
+
 function requiresManualPrice(tarifa: TarifaActividad | null) {
   if (!tarifa) {
     return true;
@@ -412,6 +492,11 @@ export default function ModalNuevaReserva({
   const [isValidatingCourseRanges, setIsValidatingCourseRanges] = useState(false);
   const [courseRangesValidationMessage, setCourseRangesValidationMessage] = useState('');
   const [courseAssignmentMode, setCourseAssignmentMode] = useState<CourseAssignmentMode>('now');
+  const [rentalDurationMode, setRentalDurationMode] = useState<RentalDurationMode>('preset');
+  const [customRentalHours, setCustomRentalHours] = useState('');
+  const [customRentalMinutes, setCustomRentalMinutes] = useState('');
+  const [priceInputValue, setPriceInputValue] = useState(() => formatPriceInputValue(0, { allowEmptyZero: true }));
+  const [isEditingPriceInput, setIsEditingPriceInput] = useState(false);
 
   const isRental = formData.tipoActividad === 'alquiler';
   const isCourse = formData.tipoActividad === 'curso';
@@ -439,6 +524,10 @@ export default function ModalNuevaReserva({
   const rentalSelectedTariff = useMemo(
     () => (isRental ? tarifaSeleccionada : null),
     [isRental, tarifaSeleccionada]
+  );
+  const isCustomRentalDuration = useMemo(
+    () => isRental && rentalDurationMode === 'custom',
+    [isRental, rentalDurationMode]
   );
   const courseSelectedTariff = useMemo(
     () => (isCourse ? tarifaSeleccionada : null),
@@ -500,6 +589,22 @@ export default function ModalNuevaReserva({
 
     return effectiveReservedQuantity;
   }, [actividadSeleccionada, effectiveReservedQuantity, formData.cantidadReservada, formData.numeroPersonas, isBanana, usesPerPersonPricing]);
+  useEffect(() => {
+    if (!isRoute || !formData.fechaInicio || formData.fechaFin) {
+      return;
+    }
+
+    setFormData((prev) => {
+      if (prev.tipoActividad !== 'ruta' || !prev.fechaInicio || prev.fechaFin) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        fechaFin: prev.fechaInicio
+      };
+    });
+  }, [formData.fechaFin, formData.fechaInicio, isRoute]);
   const bananaPoolTotal = useMemo(
     () => (actividadSeleccionada?.pool_inventario_total && actividadSeleccionada.pool_inventario_total > 0 ? actividadSeleccionada.pool_inventario_total : 1),
     [actividadSeleccionada]
@@ -531,6 +636,7 @@ export default function ModalNuevaReserva({
   const precioManualPendiente = useMemo(() => {
     if (isRental) {
       if (tarifasActividad.length === 0) return true;
+      if (isCustomRentalDuration) return true;
       if (!rentalSelectedTariff) return false;
       return requiresManualPrice(rentalSelectedTariff);
     }
@@ -550,7 +656,7 @@ export default function ModalNuevaReserva({
     if (!tarifaSeleccionada) return false;
 
     return tarifaSeleccionada.precio === 0 && tarifaSeleccionada.metadata?.precio_manual === true;
-  }, [bananaBaseTariff, campBaseTariff, isBanana, isCamp, isRental, rentalSelectedTariff, tarifaSeleccionada, tarifasActividad.length]);
+  }, [bananaBaseTariff, campBaseTariff, isBanana, isCamp, isCustomRentalDuration, isRental, rentalSelectedTariff, tarifaSeleccionada, tarifasActividad.length]);
 
   const campTurnoOptions = useMemo<CampamentoTurnoOption[]>(
     () => buildCampamentoTurnoOptions(campHorarioReglas),
@@ -649,8 +755,16 @@ export default function ModalNuevaReserva({
       });
   }, [formData.horaInicio, isRental, tarifasActividad]);
 
+  const rentalDurationSelectValue = useMemo(() => {
+    if (!isRental) {
+      return formData.duracion;
+    }
+
+    return isCustomRentalDuration ? CUSTOM_RENTAL_DURATION_OPTION : formData.duracion;
+  }, [formData.duracion, isCustomRentalDuration, isRental]);
+
   useEffect(() => {
-    if (!isRental || !formData.duracion) {
+    if (!isRental || !formData.duracion || isCustomRentalDuration) {
       return;
     }
 
@@ -669,7 +783,7 @@ export default function ModalNuevaReserva({
       horaFin: '',
       precio: 0
     }));
-  }, [formData.duracion, isRental, rentalDurationOptions]);
+  }, [formData.duracion, isCustomRentalDuration, isRental, rentalDurationOptions]);
 
   useEffect(() => {
     if (!isCamp) {
@@ -722,6 +836,18 @@ export default function ModalNuevaReserva({
     setFormData((prev) => (prev.precio === nextPrice ? prev : { ...prev, precio: nextPrice }));
   }, [bananaBaseTariff, formData.numeroPersonas, isBanana, precioManualPendiente]);
 
+  useEffect(() => {
+    if (isEditingPriceInput && precioManualPendiente) {
+      return;
+    }
+
+    setPriceInputValue(
+      formatPriceInputValue(Number(formData.precio ?? 0), {
+        allowEmptyZero: precioManualPendiente
+      })
+    );
+  }, [formData.precio, isEditingPriceInput, precioManualPendiente]);
+
   const resetModalState = () => {
     setFormData(createDefaultReservaFormData());
     setActividadesExistentes([]);
@@ -743,6 +869,11 @@ export default function ModalNuevaReserva({
     setIsValidatingCourseRanges(false);
     setCourseRangesValidationMessage('');
     setCourseAssignmentMode('now');
+    setRentalDurationMode('preset');
+    setCustomRentalHours('');
+    setCustomRentalMinutes('');
+    setPriceInputValue(formatPriceInputValue(0, { allowEmptyZero: true }));
+    setIsEditingPriceInput(false);
     setErrors({});
   };
 
@@ -840,7 +971,7 @@ export default function ModalNuevaReserva({
     nombre: formData.actividad,
     precio: formData.precio,
     cantidad: effectiveInventoryQuantity,
-    duracion: isCamp ? `${campOccurrences.length} sesiones` : formData.duracion,
+    duracion: isCamp ? `${campOccurrences.length} sesiones` : formatDurationLabel(formData.duracion),
     empresa: formData.empresa,
     numeroPersonas: formData.numeroPersonas,
     fechaInicio: formData.fechaInicio,
@@ -1175,12 +1306,18 @@ export default function ModalNuevaReserva({
         const selectedRentalTarifa = tarifasActividad.find(
           (tarifa) => buildTarifaDurationValue(tarifa) === newData.duracion
         ) ?? null;
+        const hasCustomRentalDuration = !!newData.duracion && !selectedRentalTarifa;
+        const shouldUseCustomRentalPricing = rentalDurationMode === 'custom' || hasCustomRentalDuration;
 
-        if ((field === 'duracion' || field === 'cantidadReservada' || field === 'actividad') && requiresManualPrice(selectedRentalTarifa)) {
+        if (
+          (field === 'duracion' || field === 'cantidadReservada' || field === 'actividad') &&
+          !shouldUseCustomRentalPricing &&
+          requiresManualPrice(selectedRentalTarifa)
+        ) {
           newData.precio = 0;
         }
 
-        if (selectedRentalTarifa && !requiresManualPrice(selectedRentalTarifa)) {
+        if (selectedRentalTarifa && !shouldUseCustomRentalPricing && !requiresManualPrice(selectedRentalTarifa)) {
           newData.precio = Number((selectedRentalTarifa.precio * newData.cantidadReservada).toFixed(2));
         } else if (field === 'duracion' && !newData.duracion) {
           newData.precio = 0;
@@ -1210,6 +1347,9 @@ export default function ModalNuevaReserva({
       setCampHorarioReglas([]);
       setCampTurnoSeleccionado('');
       setCurrentStep(1);
+      setRentalDurationMode('preset');
+      setCustomRentalHours('');
+      setCustomRentalMinutes('');
       return;
     }
 
@@ -1299,7 +1439,7 @@ export default function ModalNuevaReserva({
       }
 
       if (!nextIsRental) {
-        if (tarifas.length === 1) {
+        if (nextIsRoute && tarifas.length === 1) {
           const duracion = buildTarifaDurationValue(tarifas[0]);
           const requiresManualPrice = tarifas[0].precio === 0 && tarifas[0].metadata?.precio_manual === true;
           const precioCalculado = requiresManualPrice
@@ -1324,6 +1464,10 @@ export default function ModalNuevaReserva({
         } else {
           setFormData((prev) => ({
             ...prev,
+            duracion: '',
+            fechaFin: nextIsRoute ? prev.fechaFin : '',
+            horaFin: '',
+            precio: 0,
             numeroPersonas: Math.min(prev.numeroPersonas, actividadMaxPersonas),
             cantidadReservada: actividad.modo_precio === 'por_persona' ? Math.min(prev.numeroPersonas, actividadMaxPersonas) : prev.cantidadReservada
           }));
@@ -1363,31 +1507,18 @@ export default function ModalNuevaReserva({
           });
 
         setFormData((prev) => {
-          const duration = availableRentalTariffs.length === 1
-            ? buildTarifaDurationValue(availableRentalTariffs[0])
-            : availableRentalTariffs.some((tarifa) => buildTarifaDurationValue(tarifa) === prev.duracion)
-              ? prev.duracion
-              : '';
-          const selectedRentalTariff = availableRentalTariffs.find(
-            (tarifa) => buildTarifaDurationValue(tarifa) === duration
-          ) ?? null;
-          const durationMin = duration ? getDurationMinutes(duration) : null;
-          const range = prev.fechaInicio && prev.horaInicio && durationMin
-            ? calculateRentalRange(prev.fechaInicio, prev.horaInicio, durationMin)
-            : null;
-          const shouldUseManualPrice = duration ? requiresManualPrice(selectedRentalTariff) : false;
-
           return {
             ...prev,
             numeroPersonas: Math.min(prev.numeroPersonas, actividadMaxPersonas),
-            duracion: duration,
-            fechaFin: range?.fechaFin ?? prev.fechaFin,
-            horaFin: range && !range.crossesDay ? range.horaFin : '',
-            precio: shouldUseManualPrice || !selectedRentalTariff
-              ? 0
-              : Number((selectedRentalTariff.precio * prev.cantidadReservada).toFixed(2))
+            duracion: '',
+            fechaFin: '',
+            horaFin: '',
+            precio: 0
           };
         });
+        setRentalDurationMode('preset');
+        setCustomRentalHours('');
+        setCustomRentalMinutes('');
         setCurrentStep(1);
         setRentalAvailability(EMPTY_RENTAL_AVAILABILITY);
       }
@@ -1403,6 +1534,9 @@ export default function ModalNuevaReserva({
       setCampHorarioReglas([]);
       setCampTurnoSeleccionado('');
       setCurrentStep(1);
+      setRentalDurationMode('preset');
+      setCustomRentalHours('');
+      setCustomRentalMinutes('');
       setFormData((prev) => ({
         ...prev,
         duracion: '',
@@ -1520,6 +1654,69 @@ export default function ModalNuevaReserva({
         }
       }
     }
+  };
+
+  const handleRentalDurationSelection = async (value: string) => {
+    if (value === CUSTOM_RENTAL_DURATION_OPTION) {
+      const currentDurationMin = getDurationMinutes(formData.duracion);
+      const nextParts = splitDurationMinutes(currentDurationMin);
+      const nextDuration = currentDurationMin ? buildDurationValue(currentDurationMin, 'minuto') : '';
+
+      setRentalDurationMode('custom');
+      setCustomRentalHours(nextParts.hours);
+      setCustomRentalMinutes(nextParts.minutes);
+      await handleInputChange('duracion', nextDuration);
+      return;
+    }
+
+    setRentalDurationMode('preset');
+    await handleInputChange('duracion', value);
+  };
+
+  const handleCustomRentalDurationChange = async (part: 'hours' | 'minutes', rawValue: string) => {
+    const numericValue = rawValue.replace(/\D/g, '');
+    const normalizedValue = part === 'minutes' && numericValue !== ''
+      ? String(Math.min(Number(numericValue), 59))
+      : numericValue;
+    const nextHours = part === 'hours' ? normalizedValue : customRentalHours;
+    const nextMinutes = part === 'minutes' ? normalizedValue : customRentalMinutes;
+
+    if (part === 'hours') {
+      setCustomRentalHours(normalizedValue);
+    } else {
+      setCustomRentalMinutes(normalizedValue);
+    }
+
+    await handleInputChange('duracion', buildCustomRentalDurationValue(nextHours, nextMinutes));
+  };
+
+  const handlePriceInputFocus = () => {
+    if (!precioManualPendiente) {
+      return;
+    }
+
+    setIsEditingPriceInput(true);
+    setPriceInputValue(
+      formatPriceInputValue(Number(formData.precio ?? 0), {
+        editing: true,
+        allowEmptyZero: true
+      })
+    );
+  };
+
+  const handlePriceInputChange = (rawValue: string) => {
+    const sanitizedValue = sanitizePriceInput(rawValue);
+    setPriceInputValue(sanitizedValue);
+    void handleInputChange('precio', parsePriceInput(sanitizedValue));
+  };
+
+  const handlePriceInputBlur = () => {
+    setIsEditingPriceInput(false);
+    setPriceInputValue(
+      formatPriceInputValue(Number(formData.precio ?? 0), {
+        allowEmptyZero: precioManualPendiente
+      })
+    );
   };
 
   const updateCourseRangeEditorField = (rangeId: string, field: keyof CursoRangeDraft, value: string) => {
@@ -1783,10 +1980,8 @@ export default function ModalNuevaReserva({
       newErrors.actividad = 'La actividad es obligatoria';
     }
 
-    if (tarifasActividad.length > 1 && !formData.duracion) {
+    if (tarifasActividad.length >= 1 && !formData.duracion) {
       newErrors.duracion = 'La duración es obligatoria';
-    } else if (tarifasActividad.length === 1 && !formData.duracion) {
-      newErrors.duracion = 'Error al cargar la duración de la actividad';
     }
 
     if (!effectiveReservedQuantity || effectiveReservedQuantity < 1) {
@@ -1898,7 +2093,7 @@ export default function ModalNuevaReserva({
       newErrors.duracion = 'La duracion es obligatoria';
     }
 
-    if (rentalDurationOptions.length === 0) {
+    if (!isCustomRentalDuration && rentalDurationOptions.length === 0) {
       newErrors.horaInicio = 'No hay margen horario suficiente para una reserva dentro del mismo dia.';
     }
 
@@ -2848,7 +3043,7 @@ export default function ModalNuevaReserva({
                 value={formData.fechaInicio}
                 onChange={(e) => handleInputChange('fechaInicio', e.target.value)}
                 min={today}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                className={`activities-date-input w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                   errors.fechaInicio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                 } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
               />
@@ -2884,7 +3079,7 @@ export default function ModalNuevaReserva({
                 disabled={!formData.fechaInicio}
                 min={formData.fechaInicio === today ? getCurrentTimeInputValue() : undefined}
                 step={timeInputStepSeconds}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                className={`activities-date-input w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                   !formData.fechaInicio ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
                 } ${
                   errors.horaInicio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
@@ -2986,23 +3181,24 @@ export default function ModalNuevaReserva({
                 Precio Total (€)
               </label>
               <div className="relative">
-                <input
-                  type="number"
-                  id="precio-banana"
-                  value={Number(formData.precio || 0).toFixed(2)}
-                  onChange={(e) => handleInputChange('precio', parseFloat(e.target.value) || 0)}
-                  disabled={!precioManualPendiente}
-                  min="0"
-                  step="0.01"
-                  className={`w-full px-3 py-2 pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                    errors.precio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
-                  } ${
-                    precioManualPendiente
-                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
-                      : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                  }`}
-                  placeholder="0.00"
-                />
+              <input
+                type="text"
+                id="precio-banana"
+                inputMode="decimal"
+                value={priceInputValue}
+                onChange={(e) => handlePriceInputChange(e.target.value)}
+                onFocus={handlePriceInputFocus}
+                onBlur={handlePriceInputBlur}
+                disabled={!precioManualPendiente}
+                className={`w-full px-3 py-2 pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                  errors.precio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                } ${
+                  precioManualPendiente
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                    : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                }`}
+                placeholder="0,00"
+              />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                   <span className="text-gray-500 dark:text-gray-400 text-sm">€</span>
                 </div>
@@ -3393,6 +3589,73 @@ export default function ModalNuevaReserva({
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             <div>
+              <label htmlFor="duracionAlquiler" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Duración *
+              </label>
+              <select
+                id="duracionAlquiler"
+                value={rentalDurationSelectValue}
+                onChange={(e) => void handleRentalDurationSelection(e.target.value)}
+                disabled={!formData.fechaInicio || !formData.horaInicio}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                  errors.duracion ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                <option value="">Selecciona una duración</option>
+                {rentalDurationOptions.map((tarifa) => {
+                  const durationValue = buildTarifaDurationValue(tarifa);
+                  return (
+                    <option key={tarifa.id} value={durationValue}>
+                      {formatDurationLabel(durationValue)}
+                    </option>
+                  );
+                })}
+                <option value={CUSTOM_RENTAL_DURATION_OPTION}>Personalizado</option>
+              </select>
+              {isCustomRentalDuration ? (
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="duracionAlquilerHoras" className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
+                      Horas
+                    </label>
+                    <input
+                      type="number"
+                      id="duracionAlquilerHoras"
+                      min="0"
+                      inputMode="numeric"
+                      value={customRentalHours}
+                      onChange={(e) => void handleCustomRentalDurationChange('hours', e.target.value)}
+                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="duracionAlquilerMinutos" className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
+                      Minutos
+                    </label>
+                    <input
+                      type="number"
+                      id="duracionAlquilerMinutos"
+                      min="0"
+                      max="59"
+                      inputMode="numeric"
+                      value={customRentalMinutes}
+                      onChange={(e) => void handleCustomRentalDurationChange('minutes', e.target.value)}
+                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                      placeholder="00"
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {isCustomRentalDuration ? (
+                <p className="mt-2 text-xs text-on-surface-variant">
+                  Define una duración libre en horas y minutos. El sistema seguirá comprobando disponibilidad con ese tramo exacto.
+                </p>
+              ) : null}
+              {errors.duracion && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.duracion}</p>}
+            </div>
+
+            <div>
               <label htmlFor="cantidadReservada" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Unid. Reservadas *
               </label>
@@ -3410,32 +3673,6 @@ export default function ModalNuevaReserva({
               {errors.cantidadReservada && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.cantidadReservada}</p>
               )}
-            </div>
-
-            <div>
-              <label htmlFor="duracionAlquiler" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Duración *
-              </label>
-              <select
-                id="duracionAlquiler"
-                value={formData.duracion}
-                onChange={(e) => handleInputChange('duracion', e.target.value)}
-                disabled={!formData.fechaInicio || !formData.horaInicio || rentalDurationOptions.length === 0}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
-                  errors.duracion ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
-                } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:cursor-not-allowed disabled:opacity-50`}
-              >
-                <option value="">Selecciona una duración</option>
-                {rentalDurationOptions.map((tarifa) => {
-                  const durationValue = buildTarifaDurationValue(tarifa);
-                  return (
-                    <option key={tarifa.id} value={durationValue}>
-                      {formatDurationLabel(durationValue)}
-                    </option>
-                  );
-                })}
-              </select>
-              {errors.duracion && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.duracion}</p>}
             </div>
 
             <div>
@@ -3497,13 +3734,14 @@ export default function ModalNuevaReserva({
             </label>
             <div className="relative">
               <input
-                type="number"
+                type="text"
                 id="precio"
-                value={Number(formData.precio || 0).toFixed(2)}
-                onChange={(e) => handleInputChange('precio', parseFloat(e.target.value) || 0)}
+                inputMode="decimal"
+                value={priceInputValue}
+                onChange={(e) => handlePriceInputChange(e.target.value)}
+                onFocus={handlePriceInputFocus}
+                onBlur={handlePriceInputBlur}
                 disabled={!precioManualPendiente}
-                min="0"
-                step="0.01"
                 className={`w-full px-3 py-2 pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                   errors.precio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                 } ${
@@ -3511,7 +3749,7 @@ export default function ModalNuevaReserva({
                     ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                     : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 }`}
-                placeholder="0.00"
+                placeholder="0,00"
               />
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                 <span className="text-gray-500 dark:text-gray-400 text-sm">€</span>
@@ -3519,7 +3757,9 @@ export default function ModalNuevaReserva({
             </div>
             {precioManualPendiente ? (
               <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                Introduce el precio total manualmente porque la tarifa seleccionada sigue marcada como manual.
+                {isCustomRentalDuration
+                  ? 'En modo personalizado puedes ajustar libremente el precio total de la reserva.'
+                  : 'Introduce el precio total manualmente porque la tarifa seleccionada sigue marcada como manual.'}
               </p>
             ) : (
               <p className="mt-1 text-xs text-on-surface-variant">
@@ -3667,13 +3907,14 @@ export default function ModalNuevaReserva({
               </label>
               <div className="relative">
                 <input
-                  type="number"
+                  type="text"
                   id="precio-curso"
-                  value={Number(formData.precio || 0).toFixed(2)}
-                  onChange={(e) => handleInputChange('precio', parseFloat(e.target.value) || 0)}
+                  inputMode="decimal"
+                  value={priceInputValue}
+                  onChange={(e) => handlePriceInputChange(e.target.value)}
+                  onFocus={handlePriceInputFocus}
+                  onBlur={handlePriceInputBlur}
                   disabled={!precioManualPendiente}
-                  min="0"
-                  step="0.01"
                   className={`w-full px-3 py-2 pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                     errors.precio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                   } ${
@@ -3681,7 +3922,7 @@ export default function ModalNuevaReserva({
                       ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                       : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                   }`}
-                  placeholder="0.00"
+                  placeholder="0,00"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                   <span className="text-gray-500 dark:text-gray-400 text-sm">€</span>
@@ -3735,7 +3976,7 @@ export default function ModalNuevaReserva({
                     value={formData.fechaInicio}
                     onChange={(e) => handleInputChange('fechaInicio', e.target.value)}
                     min={today}
-                    className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                    className={`activities-date-input w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                       errors.fechaInicio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                     } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
                   />
@@ -3809,7 +4050,7 @@ export default function ModalNuevaReserva({
                 max={maxNumeroPersonas}
                 value={formData.numeroPersonas}
                 onChange={(e) => handleInputChange('numeroPersonas', Math.min(parseInt(e.target.value, 10) || 1, maxNumeroPersonas))}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                className={`activities-date-input w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                   errors.numeroPersonas ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                 } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
                 placeholder="1"
@@ -4046,7 +4287,7 @@ export default function ModalNuevaReserva({
                 value={formData.fechaInicio}
                 onChange={(e) => handleInputChange('fechaInicio', e.target.value)}
                 min={today}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                className={`activities-date-input w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                   errors.fechaInicio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                 } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
               />
@@ -4063,7 +4304,7 @@ export default function ModalNuevaReserva({
                 value={formData.fechaFin}
                 onChange={(e) => handleInputChange('fechaFin', e.target.value)}
                 min={formData.fechaInicio || today}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+                className={`activities-date-input w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                   errors.fechaFin ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                 } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
               />
@@ -4252,7 +4493,7 @@ export default function ModalNuevaReserva({
             id="empresa-ruta"
             value={formData.empresa}
             onChange={(e) => handleInputChange('empresa', e.target.value as 'Flecha Extreme' | 'Rober')}
-            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+            className={`activities-date-input w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
               errors.empresa ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
             } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-pointer`}
           >
@@ -4477,13 +4718,14 @@ export default function ModalNuevaReserva({
               </label>
               <div className="relative">
                 <input
-                  type="number"
+                  type="text"
                   id="precio-ruta"
-                  value={Number(formData.precio || 0).toFixed(2)}
-                  onChange={(e) => handleInputChange('precio', parseFloat(e.target.value) || 0)}
+                  inputMode="decimal"
+                  value={priceInputValue}
+                  onChange={(e) => handlePriceInputChange(e.target.value)}
+                  onFocus={handlePriceInputFocus}
+                  onBlur={handlePriceInputBlur}
                   disabled={!precioManualPendiente}
-                  min="0"
-                  step="0.01"
                   className={`w-full px-3 py-2 pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                     errors.precio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                   } ${
@@ -4491,7 +4733,7 @@ export default function ModalNuevaReserva({
                       ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                       : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                   }`}
-                  placeholder="0.00"
+                  placeholder="0,00"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                   <span className="text-gray-500 dark:text-gray-400 text-sm">€</span>
@@ -4872,13 +5114,14 @@ export default function ModalNuevaReserva({
           </label>
           <div className="relative">
             <input
-              type="number"
+              type="text"
               id="precio"
-              value={Number(formData.precio || 0).toFixed(2)}
-              onChange={(e) => handleInputChange('precio', parseFloat(e.target.value) || 0)}
+              inputMode="decimal"
+              value={priceInputValue}
+              onChange={(e) => handlePriceInputChange(e.target.value)}
+              onFocus={handlePriceInputFocus}
+              onBlur={handlePriceInputBlur}
               disabled={!precioManualPendiente}
-              min="0"
-              step="0.01"
               className={`w-full px-3 py-2 pr-8 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
                 errors.precio ? 'border-red-300 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
               } ${
@@ -4886,7 +5129,7 @@ export default function ModalNuevaReserva({
                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                   : 'bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
-              placeholder="0.00"
+              placeholder="0,00"
             />
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
               <span className="text-gray-500 dark:text-gray-400 text-sm">€</span>
@@ -5099,7 +5342,7 @@ export default function ModalNuevaReserva({
                                 value={range.fechaInicio}
                                 min={today}
                                 onChange={(e) => updateCourseRangeEditorField(range.id, 'fechaInicio', e.target.value)}
-                                className="w-full px-3 py-2"
+                                className="activities-date-input w-full px-3 py-2"
                               />
                             </div>
                             <div>

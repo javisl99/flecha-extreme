@@ -185,7 +185,11 @@ export default function VistaPedidos() {
 
   return (
     <div className="space-y-5">
-      <FiltrosPedidos onFiltrosChange={setFiltros} />
+      <FiltrosPedidos
+        onFiltrosChange={setFiltros}
+        title="Listado de pedidos"
+        subtitle="Revisa y filtra los pedidos de la tienda desde una sola vista."
+      />
 
       <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
         <div className="hidden overflow-x-auto md:block">

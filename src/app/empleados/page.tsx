@@ -405,16 +405,20 @@ export default function EmpleadosPage() {
     }
   };
 
-  const handleAddEmployeeToWeek = async (empleadoId: string) => {
+  const handleAddEmployeeToWeek = async (empleadoIds: string[]) => {
     if (!semana) return;
 
     try {
-      await agregarEmpleadoASemana({ semanaId: semana.id, empleadoId });
+      await agregarEmpleadoASemana({ semanaId: semana.id, empleadoIds });
       setIsAddEmployeeModalOpen(false);
-      toast.success('Empleado añadido a la semana');
+      toast.success(
+        empleadoIds.length === 1
+          ? 'Empleado añadido a la semana'
+          : 'Empleados añadidos a la semana',
+      );
     } catch (error) {
       console.error('Error añadiendo empleado a la semana:', error);
-      toast.error('No se pudo añadir el empleado');
+      toast.error('No se pudieron añadir los empleados');
     }
   };
 
@@ -495,14 +499,16 @@ export default function EmpleadosPage() {
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="min-h-11 rounded-full border-outline-variant/45 bg-surface-container-low px-5 text-on-surface-variant hover:bg-surface-container-high"
-                    onClick={() => setIsCreateWeekModalOpen(true)}
-                  >
-                    Crear semana
-                  </Button>
+                  {!semana ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11 rounded-full border-outline-variant/45 bg-surface-container-low px-5 text-on-surface-variant hover:bg-surface-container-high"
+                      onClick={() => setIsCreateWeekModalOpen(true)}
+                    >
+                      Crear semana
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     variant="outline"

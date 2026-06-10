@@ -476,7 +476,7 @@ export default function ModalPendientesTramosCurso({
                                       value={range.fechaInicio}
                                       onChange={(event) => updateEditorField(range.id, 'fechaInicio', event.target.value)}
                                       min={getTodayInputValue()}
-                                      className="w-full rounded-2xl border border-outline-variant/35 bg-surface-container-low px-3 py-2 text-sm text-on-surface shadow-sm focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/15"
+                                      className="activities-date-input w-full rounded-2xl border border-outline-variant/35 bg-surface-container-low px-3 py-2 text-sm text-on-surface shadow-sm focus:border-primary/35 focus:outline-none focus:ring-2 focus:ring-primary/15"
                                     />
                                   </div>
                                   <div>
