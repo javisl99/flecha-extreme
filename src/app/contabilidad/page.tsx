@@ -17,7 +17,9 @@ import {
   ArrowTrendingDownIcon,
   ArrowTrendingUpIcon,
   BanknotesIcon,
+  ChevronDownIcon,
   BuildingLibraryIcon,
+  FunnelIcon,
   ScaleIcon,
 } from '@heroicons/react/24/outline';
 import ProtectedRoute from '@/components/Layout/ProtectedRoute';
@@ -35,6 +37,7 @@ import TraspasoModalV2, {
   type TraspasoFormState,
 } from '@/components/Contabilidad/TraspasoModal';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
+import PaginationControls from '@/components/shared/PaginationControls';
 import { useContabilidad, type PendingBizum } from '@/hooks/useContabilidad';
 import { useEmpleados } from '@/hooks/useEmpleados';
 import {
@@ -115,6 +118,8 @@ const findAccountIdFromMovimiento = (
   movimiento: MovimientoContable,
   findAccountByCode: (code: string) => CuentaContable | null
 ) => movimiento.cuenta_id || findAccountByCode(movimiento.caja)?.id || '';
+
+const MOVIMIENTOS_POR_PAGINA = 10;
 
 const getSourceLabel = (movimiento: MovimientoContable) => {
   if (movimiento.es_devolucion) return 'Devolución';
@@ -484,6 +489,53 @@ function MovimientosSection({
   lockedCuenta?: CuentaContable | null;
   onClearLockedCuenta?: () => void;
 }) {
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [paginaMovimientos, setPaginaMovimientos] = useState(1);
+  const filtersContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!filtersContainerRef.current?.contains(event.target as Node)) {
+        setIsFiltersOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFiltersOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
+  const activeFiltersCount = Object.entries(filtros).reduce((count, [key, value]) => {
+    if (!value) return count;
+    if (lockedCuenta && key === 'cuentaId') return count;
+    return count + 1;
+  }, 0) + (lockedCuenta ? 1 : 0);
+
+  const totalPaginasMovimientos = Math.max(1, Math.ceil(movimientos.length / MOVIMIENTOS_POR_PAGINA));
+  const paginaMovimientosActiva = Math.min(paginaMovimientos, totalPaginasMovimientos);
+  const movimientosPaginados = useMemo(() => {
+    const inicio = (paginaMovimientosActiva - 1) * MOVIMIENTOS_POR_PAGINA;
+    return movimientos.slice(inicio, inicio + MOVIMIENTOS_POR_PAGINA);
+  }, [movimientos, paginaMovimientosActiva]);
+
+  useEffect(() => {
+    setPaginaMovimientos(1);
+  }, [movimientos, filtros, lockedCuenta]);
+
+  useEffect(() => {
+    setPaginaMovimientos((paginaActual) => Math.min(paginaActual, totalPaginasMovimientos));
+  }, [totalPaginasMovimientos]);
+
   return (
     <section className={`overflow-hidden ${cardClassName}`}>
       <header className="border-b border-outline-variant/20 px-6 py-4">
@@ -499,126 +551,155 @@ function MovimientosSection({
       </header>
 
       <div className="space-y-5 p-4 sm:p-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-          <label className="text-sm text-on-surface">
-            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-              Desde
-            </span>
-            <input
-              type="date"
-              className={fieldClassName}
-              value={filtros.fechaInicio}
-              onChange={(e) =>
-                setFiltros((prev) => ({ ...prev, fechaInicio: e.target.value }))
-              }
-            />
-          </label>
-
-          <label className="text-sm text-on-surface">
-            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-              Hasta
-            </span>
-            <input
-              type="date"
-              className={fieldClassName}
-              value={filtros.fechaFin}
-              onChange={(e) => setFiltros((prev) => ({ ...prev, fechaFin: e.target.value }))}
-            />
-          </label>
-
-          <label className="text-sm text-on-surface">
-            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-              Tipo
-            </span>
-            <select
-              className={fieldClassName}
-              value={filtros.tipo}
-              onChange={(e) =>
-                setFiltros((prev) => ({
-                  ...prev,
-                  tipo: e.target.value as '' | TipoMovimientoContable,
-                }))
-              }
-            >
-              <option value="">Todos</option>
-              <option value="ingreso">Aportación</option>
-              <option value="gasto">Gasto</option>
-              <option value="traspaso_entrada">Traspaso entrada</option>
-              <option value="traspaso_salida">Traspaso salida</option>
-            </select>
-          </label>
-
-          {lockedCuenta ? (
-            <div className="text-sm text-on-surface">
-              <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                Cuenta activa
+        <div ref={filtersContainerRef} className="space-y-4">
+          <button
+            type="button"
+            onClick={() => setIsFiltersOpen((prev) => !prev)}
+            className={`inline-flex min-h-11 w-full items-center justify-center gap-3 rounded-full border px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-primary/15 sm:w-auto sm:justify-start ${
+              isFiltersOpen
+                ? 'border-primary/25 bg-primary text-white shadow-md shadow-primary/15'
+                : 'border-outline-variant/35 bg-white text-on-surface-variant hover:border-primary/25 hover:text-primary'
+            }`}
+          >
+            <FunnelIcon className="h-4 w-4" />
+            <span>Filtros</span>
+            {activeFiltersCount > 0 ? (
+              <span
+                className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-[11px] font-black ${
+                  isFiltersOpen ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'
+                }`}
+              >
+                {activeFiltersCount}
               </span>
-              <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-primary/15 bg-primary/5 px-3 text-sm text-primary-dark">
-                <span className="truncate font-semibold">{accountLabel(lockedCuenta)}</span>
-                {onClearLockedCuenta ? (
-                  <button
-                    type="button"
-                    onClick={onClearLockedCuenta}
-                    className="shrink-0 text-xs font-bold uppercase tracking-[0.08em] text-primary transition hover:opacity-80"
+            ) : null}
+            <ChevronDownIcon className={`h-4 w-4 transition-transform ${isFiltersOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {isFiltersOpen ? (
+            <div className="rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-low px-4 py-4 sm:px-6 sm:py-5">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+                <label className="text-sm text-on-surface">
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                    Desde
+                  </span>
+                  <input
+                    type="date"
+                    className={fieldClassName}
+                    value={filtros.fechaInicio}
+                    onChange={(e) =>
+                      setFiltros((prev) => ({ ...prev, fechaInicio: e.target.value }))
+                    }
+                  />
+                </label>
+
+                <label className="text-sm text-on-surface">
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                    Hasta
+                  </span>
+                  <input
+                    type="date"
+                    className={fieldClassName}
+                    value={filtros.fechaFin}
+                    onChange={(e) => setFiltros((prev) => ({ ...prev, fechaFin: e.target.value }))}
+                  />
+                </label>
+
+                <label className="text-sm text-on-surface">
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                    Tipo
+                  </span>
+                  <select
+                    className={fieldClassName}
+                    value={filtros.tipo}
+                    onChange={(e) =>
+                      setFiltros((prev) => ({
+                        ...prev,
+                        tipo: e.target.value as '' | TipoMovimientoContable,
+                      }))
+                    }
                   >
-                    Ver todas
-                  </button>
-                ) : null}
+                    <option value="">Todos</option>
+                    <option value="ingreso">Aportación</option>
+                    <option value="gasto">Gasto</option>
+                    <option value="traspaso_entrada">Traspaso entrada</option>
+                    <option value="traspaso_salida">Traspaso salida</option>
+                  </select>
+                </label>
+
+                {lockedCuenta ? (
+                  <div className="text-sm text-on-surface">
+                    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Cuenta activa
+                    </span>
+                    <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-primary/15 bg-primary/5 px-3 text-sm text-primary-dark">
+                      <span className="truncate font-semibold">{accountLabel(lockedCuenta)}</span>
+                      {onClearLockedCuenta ? (
+                        <button
+                          type="button"
+                          onClick={onClearLockedCuenta}
+                          className="shrink-0 text-xs font-bold uppercase tracking-[0.08em] text-primary transition hover:opacity-80"
+                        >
+                          Ver todas
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <label className="text-sm text-on-surface">
+                    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                      Cuenta
+                    </span>
+                    <select
+                      className={fieldClassName}
+                      value={filtros.cuentaId}
+                      onChange={(e) =>
+                        setFiltros((prev) => ({ ...prev, cuentaId: e.target.value }))
+                      }
+                    >
+                      <option value="">Todas</option>
+                      {cuentas.map((cuenta) => (
+                        <option key={cuenta.id} value={cuenta.id}>
+                          {accountLabel(cuenta)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                <label className="text-sm text-on-surface">
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                    Origen
+                  </span>
+                  <select
+                    className={fieldClassName}
+                    value={filtros.origen}
+                    onChange={(e) =>
+                      setFiltros((prev) => ({ ...prev, origen: e.target.value as FiltroOrigen }))
+                    }
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="manual">Manuales</option>
+                    <option value="sync">Sincronizados</option>
+                    <option value="devolucion">Devoluciones</option>
+                    <option value="traspaso">Traspasos</option>
+                  </select>
+                </label>
+
+                <label className="text-sm text-on-surface">
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+                    Buscar
+                  </span>
+                  <input
+                    type="text"
+                    className={fieldClassName}
+                    value={filtros.busqueda}
+                    onChange={(e) => setFiltros((prev) => ({ ...prev, busqueda: e.target.value }))}
+                    placeholder="Concepto, proveedor, factura..."
+                  />
+                </label>
               </div>
             </div>
-          ) : (
-            <label className="text-sm text-on-surface">
-              <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-                Cuenta
-              </span>
-              <select
-                className={fieldClassName}
-                value={filtros.cuentaId}
-                onChange={(e) =>
-                  setFiltros((prev) => ({ ...prev, cuentaId: e.target.value }))
-                }
-              >
-                <option value="">Todas</option>
-                {cuentas.map((cuenta) => (
-                  <option key={cuenta.id} value={cuenta.id}>
-                    {accountLabel(cuenta)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          <label className="text-sm text-on-surface">
-            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-              Origen
-            </span>
-            <select
-              className={fieldClassName}
-              value={filtros.origen}
-              onChange={(e) =>
-                setFiltros((prev) => ({ ...prev, origen: e.target.value as FiltroOrigen }))
-              }
-            >
-              <option value="todos">Todos</option>
-              <option value="manual">Manuales</option>
-              <option value="sync">Sincronizados</option>
-              <option value="devolucion">Devoluciones</option>
-              <option value="traspaso">Traspasos</option>
-            </select>
-          </label>
-
-          <label className="text-sm text-on-surface">
-            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-outline">
-              Buscar
-            </span>
-            <input
-              type="text"
-              className={fieldClassName}
-              value={filtros.busqueda}
-              onChange={(e) => setFiltros((prev) => ({ ...prev, busqueda: e.target.value }))}
-              placeholder="Concepto, proveedor, factura..."
-            />
-          </label>
+          ) : null}
         </div>
 
         {loading ? (
@@ -740,7 +821,7 @@ function MovimientosSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {movimientos.map((movimiento, index) => {
+                  {movimientosPaginados.map((movimiento, index) => {
                     const esTraspaso =
                       movimiento.tipo === 'traspaso_entrada' ||
                       movimiento.tipo === 'traspaso_salida';
@@ -839,7 +920,7 @@ function MovimientosSection({
                               <button
                                 type="button"
                                 onClick={() => onEditGasto(movimiento)}
-                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary cursor-pointer"
                               >
                                 Editar
                               </button>
@@ -849,7 +930,7 @@ function MovimientosSection({
                               <button
                                 type="button"
                                 onClick={() => onEditAportacion(movimiento)}
-                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary cursor-pointer"
                               >
                                 Editar
                               </button>
@@ -859,7 +940,7 @@ function MovimientosSection({
                               <button
                                 type="button"
                                 onClick={() => onEditTraspaso(movimiento)}
-                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary cursor-pointer"
                               >
                                 Editar
                               </button>
@@ -869,7 +950,7 @@ function MovimientosSection({
                               <button
                                 type="button"
                                 onClick={() => onAbrirPagoSincronizado(movimiento)}
-                                className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                                className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer"
                               >
                                 Ver pago
                               </button>
@@ -879,7 +960,7 @@ function MovimientosSection({
                               <button
                                 type="button"
                                 onClick={() => onAnular(movimiento)}
-                                className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                                className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 cursor-pointer"
                               >
                                 Anular
                               </button>
@@ -905,12 +986,12 @@ function MovimientosSection({
             </div>
 
             <div className="space-y-3 md:hidden">
-              {movimientos.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+                {movimientos.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
                   No hay movimientos para los filtros actuales.
                 </div>
               ) : (
-                movimientos.map((movimiento) => {
+                movimientosPaginados.map((movimiento) => {
                   const esTraspaso =
                     movimiento.tipo === 'traspaso_entrada' ||
                     movimiento.tipo === 'traspaso_salida';
@@ -1034,6 +1115,14 @@ function MovimientosSection({
                 })
               )}
             </div>
+
+            <PaginationControls
+              currentPage={paginaMovimientosActiva}
+              totalPages={totalPaginasMovimientos}
+              totalItems={movimientos.length}
+              pageSize={MOVIMIENTOS_POR_PAGINA}
+              onPageChange={setPaginaMovimientos}
+            />
           </>
         )}
       </div>
@@ -1120,14 +1209,14 @@ function BizumPendientesSection({
                           <button
                             type="button"
                             onClick={() => void onCompletar(bizum.id)}
-                            className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                            className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 cursor-pointer"
                           >
                             Completar
                           </button>
                           <button
                             type="button"
                             onClick={() => void onCancelar(bizum.id)}
-                            className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
+                            className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 cursor-pointer"
                           >
                             Cancelar
                           </button>
@@ -1165,14 +1254,14 @@ function BizumPendientesSection({
                     <button
                       type="button"
                       onClick={() => void onCompletar(bizum.id)}
-                      className="min-h-11 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      className="min-h-11 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 cursor-pointer"
                     >
                       Completar
                     </button>
                     <button
                       type="button"
                       onClick={() => void onCancelar(bizum.id)}
-                      className="min-h-11 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                      className="min-h-11 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer"
                     >
                       Cancelar
                     </button>

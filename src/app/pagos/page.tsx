@@ -1,10 +1,11 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { usePagos, type Pago } from '@/hooks/usePagos';
 import { usePedidos, type Pedido } from '@/hooks/usePedidos';
 import { useActividades, type Reserva as ReservaActividad } from '@/hooks/useActividades';
+import { useSupabase } from '@/hooks/useSupabase';
 import type { CampamentoInscripcion, CampamentoPrograma } from '@/lib/campamento';
 import { toast } from 'react-hot-toast';
 import TableSkeleton from '@/components/shared/TableSkeleton';
@@ -13,6 +14,15 @@ import DetallePagoInscripcionCampamentoModal from '@/components/Pagos/DetallePag
 import ModalPago from '@/components/Tienda/ModalPago';
 import ModalDetalleReserva from '@/components/Actividades/ModalDetalleReserva';
 import { FiltrosPagos, type FiltrosPagoState } from '@/components/Pagos/FiltrosPagos';
+import PaginationControls from '@/components/shared/PaginationControls';
+
+const PAGOS_POR_PAGINA = 10;
+const MIN_SKELETON_MS = 900;
+
+const formatConceptoForTable = (concepto: string, maxLength = 22) => {
+  if (concepto.length <= maxLength) return concepto;
+  return `${concepto.slice(0, maxLength - 1)}…`;
+};
 
 export default function PagosPage() {
   return (
@@ -46,24 +56,89 @@ function PagosPageContent() {
   const [isDetallePagoCampamentoModalOpen, setIsDetallePagoCampamentoModalOpen] = useState(false);
   const [programaCampamentoSeleccionado, setProgramaCampamentoSeleccionado] = useState<CampamentoPrograma | null>(null);
   const [inscripcionCampamentoSeleccionada, setInscripcionCampamentoSeleccionada] = useState<CampamentoInscripcion | null>(null);
+  const [ticketUrlsPorPago, setTicketUrlsPorPago] = useState<Record<string, string>>({});
+  const [paginaPagos, setPaginaPagos] = useState(1);
   const pagoAutoseleccionadoRef = useRef(false);
+  const loadingStartedAtRef = useRef<number | null>(null);
+  const loadingTimerRef = useRef<number | null>(null);
+  const [showLoadingSkeleton, setShowLoadingSkeleton] = useState(true);
+  const { supabase } = useSupabase();
   const { pagos, loading, error, refreshPagos, actualizarPago } = usePagos();
   const { obtenerPedidoPorId } = usePedidos();
-  const { obtenerReservas, obtenerReservaPorId, actualizarReserva, obtenerDetalleProgramaCampamento } = useActividades();
+  const { obtenerReservaPorId, actualizarReserva, obtenerDetalleProgramaCampamento } = useActividades();
   
-  const pagosFiltrados = pagos.filter(pago => {
-    const cumpleCliente = !filtros.cliente || (
-      pago.cliente ? 
-      `${pago.cliente.nombre} ${pago.cliente.apellidos}`.toLowerCase().includes(filtros.cliente.toLowerCase()) :
-      'Cliente no establecido'.toLowerCase().includes(filtros.cliente.toLowerCase())
-    );
-    const cumpleOrigen = !filtros.origen_tipo || pago.origen_tipo === filtros.origen_tipo;
-    const cumpleConcepto = !filtros.concepto || pago.concepto.toLowerCase().includes(filtros.concepto.toLowerCase());
-    const cumpleMetodo = !filtros.metodo || pago.metodo === filtros.metodo;
-    const cumpleEstado = !filtros.estado || pago.estado === filtros.estado;
+  const pagosFiltrados = useMemo(() => {
+    return pagos.filter(pago => {
+      const cumpleCliente = !filtros.cliente || (
+        pago.cliente ?
+        `${pago.cliente.nombre} ${pago.cliente.apellidos}`.toLowerCase().includes(filtros.cliente.toLowerCase()) :
+        'Cliente no establecido'.toLowerCase().includes(filtros.cliente.toLowerCase())
+      );
+      const cumpleOrigen = !filtros.origen_tipo || pago.origen_tipo === filtros.origen_tipo;
+      const cumpleConcepto = !filtros.concepto || pago.concepto.toLowerCase().includes(filtros.concepto.toLowerCase());
+      const cumpleMetodo = !filtros.metodo || pago.metodo === filtros.metodo;
+      const cumpleEstado = !filtros.estado || pago.estado === filtros.estado;
 
-    return cumpleCliente && cumpleOrigen && cumpleConcepto && cumpleMetodo && cumpleEstado;
-  });
+      return cumpleCliente && cumpleOrigen && cumpleConcepto && cumpleMetodo && cumpleEstado;
+    });
+  }, [filtros, pagos]);
+
+  const totalPaginasPagos = Math.max(1, Math.ceil(pagosFiltrados.length / PAGOS_POR_PAGINA));
+  const paginaPagosActiva = Math.min(paginaPagos, totalPaginasPagos);
+  const pagosPaginados = useMemo(() => {
+    const inicio = (paginaPagosActiva - 1) * PAGOS_POR_PAGINA;
+    return pagosFiltrados.slice(inicio, inicio + PAGOS_POR_PAGINA);
+  }, [paginaPagosActiva, pagosFiltrados]);
+
+  useEffect(() => {
+    setPaginaPagos(1);
+  }, [filtros]);
+
+  useEffect(() => {
+    setPaginaPagos((paginaActual) => Math.min(paginaActual, totalPaginasPagos));
+  }, [totalPaginasPagos]);
+
+  useEffect(() => {
+    if (loading) {
+      if (loadingTimerRef.current !== null) {
+        window.clearTimeout(loadingTimerRef.current);
+        loadingTimerRef.current = null;
+      }
+
+      if (loadingStartedAtRef.current === null) {
+        loadingStartedAtRef.current = Date.now();
+      }
+
+      setShowLoadingSkeleton(true);
+      return;
+    }
+
+    if (loadingStartedAtRef.current === null) {
+      setShowLoadingSkeleton(false);
+      return;
+    }
+
+    const elapsed = Date.now() - loadingStartedAtRef.current;
+    if (elapsed < MIN_SKELETON_MS) {
+      loadingTimerRef.current = window.setTimeout(() => {
+        setShowLoadingSkeleton(false);
+        loadingStartedAtRef.current = null;
+        loadingTimerRef.current = null;
+      }, MIN_SKELETON_MS - elapsed);
+      return;
+    }
+
+    setShowLoadingSkeleton(false);
+    loadingStartedAtRef.current = null;
+  }, [loading]);
+
+  useEffect(() => {
+    return () => {
+      if (loadingTimerRef.current !== null) {
+        window.clearTimeout(loadingTimerRef.current);
+      }
+    };
+  }, []);
   
   const capitalizarOrigen = (origen: Pago['origen_tipo']) => {
     return origen.charAt(0).toUpperCase() + origen.slice(1);
@@ -107,7 +182,7 @@ function PagosPageContent() {
     }
   };
 
-  const handleVerPago = async (pago: Pago) => {
+  const handleVerPago = useCallback(async (pago: Pago) => {
     if (pago.origen_tipo === 'pedido' && pago.origen_id) {
       // Si es un pago de pedido, cargar los datos del pedido y abrir ModalPago
       try {
@@ -155,30 +230,20 @@ function PagosPageContent() {
       setPagoSeleccionado(pago);
       setIsDetallePagoModalOpen(true);
     }
-  };
+  }, [obtenerDetalleProgramaCampamento, obtenerPedidoPorId, obtenerReservaPorId]);
 
   const handleAbrirTicketPago = async (pago: Pago) => {
-    if (pago.origen_tipo !== 'pedido' || !pago.origen_id) {
-      await handleVerPago(pago);
-      return;
-    }
-
     try {
-      const pedido = await obtenerPedidoPorId(pago.origen_id);
-      if (!pedido) {
-        toast.error('No se pudo cargar la información del pedido');
+      const ticketUrl = ticketUrlsPorPago[pago.id];
+      if (!ticketUrl) {
+        toast.error('Este pago no tiene ticket disponible');
         return;
       }
 
-      if (!pedido.ticket_url) {
-        toast.error('Este pedido de tienda no tiene ticket disponible');
-        return;
-      }
-
-      window.open(pedido.ticket_url, '_blank', 'noopener,noreferrer');
+      window.open(ticketUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
-      console.error('Error abriendo ticket del pedido:', error);
-      toast.error('Error al abrir el ticket del pedido');
+      console.error('Error abriendo ticket del pago:', error);
+      toast.error('Error al abrir el ticket del pago');
     }
   };
 
@@ -196,8 +261,125 @@ function PagosPageContent() {
     if (!pago) return;
 
     pagoAutoseleccionadoRef.current = true;
-    void handleVerPago(pago);
-  }, [loading, pagos, searchParams]);
+    queueMicrotask(() => {
+      void handleVerPago(pago);
+    });
+  }, [handleVerPago, loading, pagos, searchParams]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const cargarTicketsPorPago = async () => {
+      const pagosConOrigen = pagos.filter(
+        (pago) => Boolean(pago.origen_id) && (pago.origen_tipo === 'pedido' || pago.origen_tipo === 'reserva')
+      );
+
+      if (pagosConOrigen.length === 0) {
+        if (!isCancelled) {
+          setTicketUrlsPorPago({});
+        }
+        return;
+      }
+
+      const pedidoIds = Array.from(
+        new Set(
+          pagosConOrigen
+            .filter((pago) => pago.origen_tipo === 'pedido' && pago.origen_id)
+            .map((pago) => pago.origen_id as string)
+        )
+      );
+
+      const reservaIds = Array.from(
+        new Set(
+          pagosConOrigen
+            .filter((pago) => pago.origen_tipo === 'reserva' && pago.origen_id)
+            .map((pago) => pago.origen_id as string)
+        )
+      );
+
+      try {
+        const [pedidosResult, reservasResult] = await Promise.all([
+          pedidoIds.length > 0
+            ? supabase.from('pedido').select('id, ticket_url').in('id', pedidoIds)
+            : Promise.resolve({ data: [], error: null }),
+          reservaIds.length > 0
+            ? supabase.from('reserva_servicio').select('id, ticket_url, ticket_url_reserva').in('id', reservaIds)
+            : Promise.resolve({ data: [], error: null })
+        ]);
+
+        if (pedidosResult.error) {
+          throw pedidosResult.error;
+        }
+
+        if (reservasResult.error) {
+          throw reservasResult.error;
+        }
+
+        const pedidosConTicket = new Map(
+          (pedidosResult.data ?? [])
+            .filter((pedido) => Boolean(pedido.ticket_url))
+            .map((pedido) => [pedido.id, pedido.ticket_url as string])
+        );
+
+        const reservasConTicket = new Map(
+          (reservasResult.data ?? []).map((reserva) => [
+            reserva.id,
+            {
+              ticket_url: reserva.ticket_url,
+              ticket_url_reserva: reserva.ticket_url_reserva
+            }
+          ])
+        );
+
+        const nextTicketUrlsPorPago: Record<string, string> = {};
+
+        for (const pago of pagosConOrigen) {
+          if (!pago.origen_id) continue;
+
+          if (pago.origen_tipo === 'pedido') {
+            const ticketUrl = pedidosConTicket.get(pago.origen_id);
+            if (ticketUrl) {
+              nextTicketUrlsPorPago[pago.id] = ticketUrl;
+            }
+            continue;
+          }
+
+          if (pago.origen_tipo === 'reserva') {
+            const ticketsReserva = reservasConTicket.get(pago.origen_id);
+            if (!ticketsReserva) continue;
+
+            const conceptoNormalizado = pago.concepto.toLowerCase();
+            const priorizaTicketReserva =
+              conceptoNormalizado.includes('pendiente') ||
+              conceptoNormalizado.includes('resto inscripción');
+
+            const ticketUrl = priorizaTicketReserva
+              ? ticketsReserva.ticket_url_reserva ?? ticketsReserva.ticket_url ?? ''
+              : ticketsReserva.ticket_url ?? ticketsReserva.ticket_url_reserva ?? '';
+
+            if (ticketUrl) {
+              nextTicketUrlsPorPago[pago.id] = ticketUrl;
+            }
+          }
+        }
+
+        if (!isCancelled) {
+          setTicketUrlsPorPago(nextTicketUrlsPorPago);
+        }
+      } catch (error) {
+        console.error('Error cargando tickets asociados a pagos:', error);
+        if (!isCancelled) {
+          setTicketUrlsPorPago({});
+        }
+      }
+    };
+
+    void cargarTicketsPorPago();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [pagos, supabase]);
 
   const refreshReservaSeleccionada = async (reservaId: string) => {
     const resultado = await obtenerReservaPorId(reservaId);
@@ -330,13 +512,17 @@ function PagosPageContent() {
 
       <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
         <div className="px-4 py-4 sm:px-6 sm:py-6">
-          <FiltrosPagos onFiltrosChange={setFiltros} />
+          <FiltrosPagos
+            onFiltrosChange={setFiltros}
+            title="Listado de pagos"
+            subtitle="Consulta y filtra los pagos registrados sin perder el contexto de la tabla."
+          />
         </div>
 
         <div className="border-t border-outline-variant/20" />
 
         <div className="hidden overflow-x-auto md:block">
-          {loading ? (
+          {showLoadingSkeleton ? (
             <TableSkeleton columns={7} rows={5} />
           ) : (
             <table className="min-w-full border-collapse text-left">
@@ -351,7 +537,7 @@ function PagosPageContent() {
                   <th className="px-6 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-outline">
                     Importe
                   </th>
-                  <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                  <th className="w-[240px] px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
                     Concepto
                   </th>
                   <th className="px-6 py-4 text-center text-[11px] font-black uppercase tracking-[0.14em] text-outline">
@@ -366,7 +552,7 @@ function PagosPageContent() {
                 </tr>
               </thead>
               <tbody>
-                {pagosFiltrados.map((pago, index) => (
+                {pagosPaginados.map((pago, index) => (
                   <tr
                     key={pago.id}
                     className={`cursor-pointer border-b border-outline-variant/10 transition hover:bg-surface-container-low ${
@@ -387,8 +573,10 @@ function PagosPageContent() {
                       }).format(pago.importe)}{' '}
                       €
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface-variant">
-                      {pago.concepto}
+                    <td className="w-[240px] px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface-variant">
+                      <span className="block max-w-[240px] truncate" title={pago.concepto}>
+                        {formatConceptoForTable(pago.concepto)}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-primary">
                       {formatearMetodoPago(pago.metodo)}
@@ -403,10 +591,10 @@ function PagosPageContent() {
                         <button
                           type="button"
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant/35 bg-surface-container-lowest text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
-                          title={pago.origen_tipo === 'pedido' ? 'Abrir ticket' : 'Ver'}
+                          title="Ver"
                           onClick={(e) => {
                             e.stopPropagation();
-                            void handleAbrirTicketPago(pago);
+                            void handleVerPago(pago);
                           }}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -414,6 +602,21 @@ function PagosPageContent() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                           </svg>
                         </button>
+                        {ticketUrlsPorPago[pago.id] ? (
+                          <button
+                            type="button"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant/35 bg-surface-container-lowest text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
+                            title="Descargar ticket"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleAbrirTicketPago(pago);
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -432,14 +635,14 @@ function PagosPageContent() {
         </div>
 
         <div className="space-y-3 p-4 md:hidden">
-          {loading ? (
+          {showLoadingSkeleton ? (
             <TableSkeleton columns={1} rows={4} />
           ) : pagosFiltrados.length === 0 ? (
             <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
               No se encontraron pagos con los filtros seleccionados.
             </div>
           ) : (
-            pagosFiltrados.map((pago) => (
+            pagosPaginados.map((pago) => (
               <div
                 key={pago.id}
                 role="button"
@@ -466,7 +669,9 @@ function PagosPageContent() {
                 </div>
 
                 <div className="mt-3 space-y-1 text-sm text-on-surface-variant">
-                  <p className="font-medium text-on-surface">{pago.concepto}</p>
+                  <p className="font-medium text-on-surface" title={pago.concepto}>
+                    {formatConceptoForTable(pago.concepto, 26)}
+                  </p>
                   <p>Método: {formatearMetodoPago(pago.metodo)}</p>
                   <p className="font-bold text-primary-dark">
                     {new Intl.NumberFormat('es-ES', {
@@ -483,16 +688,36 @@ function PagosPageContent() {
                     className="min-h-11 flex-1 rounded-full border border-outline-variant/35 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
                     onClick={(e) => {
                       e.stopPropagation();
-                      void handleAbrirTicketPago(pago);
+                      void handleVerPago(pago);
                     }}
                   >
-                    {pago.origen_tipo === 'pedido' ? 'Abrir ticket' : 'Ver'}
+                    Ver
                   </button>
+                  {ticketUrlsPorPago[pago.id] ? (
+                    <button
+                      type="button"
+                      className="min-h-11 flex-1 rounded-full border border-outline-variant/35 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary/30 hover:bg-surface-container-low"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleAbrirTicketPago(pago);
+                      }}
+                    >
+                      Descargar ticket
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))
           )}
         </div>
+
+        <PaginationControls
+          currentPage={paginaPagosActiva}
+          totalPages={totalPaginasPagos}
+          totalItems={pagosFiltrados.length}
+          pageSize={PAGOS_POR_PAGINA}
+          onPageChange={setPaginaPagos}
+        />
       </section>
 
       <DetallePagoModal

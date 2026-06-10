@@ -403,6 +403,9 @@ export default function ParkingPage() {
     fecha_fin: string;
     id_tarifa: string;
     id_cliente: string | null;
+    descuento: number;
+    descuentoPorcentaje: number;
+    discountLabel?: string;
     pago?: {
       concepto: string;
       metodo: MetodoPago;
@@ -414,6 +417,9 @@ export default function ParkingPage() {
       fecha_fin: data.fecha_fin,
       id_tarifa: data.id_tarifa,
       id_cliente: data.id_cliente,
+      descuento: data.descuento,
+      descuentoPorcentaje: data.descuentoPorcentaje,
+      discountLabel: data.discountLabel,
       pago: data.pago
     });
 
@@ -621,6 +627,9 @@ export default function ParkingPage() {
             void handleCrearReserva({
               ...reservaDraft,
               id_cliente: paymentData.id_cliente,
+              descuento: paymentData.descuento,
+              descuentoPorcentaje: paymentData.descuentoPorcentaje,
+              discountLabel: paymentData.discountLabel,
               pago: paymentData.pago
             });
           }}

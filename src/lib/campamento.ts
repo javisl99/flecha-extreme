@@ -48,6 +48,7 @@ export interface CampamentoParticipante {
   participante_id?: string | null;
   nombre: string;
   dni?: string | null;
+  descuentos_aplicados?: CampamentoParticipanteDescuento[];
   created_at?: string;
   updated_at?: string;
 }
@@ -58,6 +59,57 @@ export interface CampamentoParticipanteCatalogo {
   dni?: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export type DescuentoTipoValor = 'importe_fijo' | 'porcentaje';
+export type DescuentoScope = 'campamento_inscripcion';
+
+export interface DescuentoCatalogo {
+  id: string;
+  codigo: string;
+  nombre: string;
+  tipo_valor: DescuentoTipoValor;
+  valor: number;
+  scope: DescuentoScope;
+  acumulable: boolean;
+  activo: boolean;
+  orden: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CampamentoParticipanteDescuentoSeleccionado {
+  descuento_id: string;
+  codigo: string;
+  nombre: string;
+  tipo_valor: DescuentoTipoValor;
+  valor: number;
+}
+
+export interface CampamentoParticipanteDescuento {
+  id: string;
+  campamento_participante_id?: string | null;
+  descuento_id?: string | null;
+  codigo?: string | null;
+  nombre: string;
+  tipo_valor: DescuentoTipoValor;
+  valor_configurado: number;
+  importe_aplicado: number;
+  created_at?: string;
+}
+
+export interface PagoDescuentoSnapshot {
+  id: string;
+  pago_id: string;
+  reserva_id: string;
+  campamento_participante_id?: string | null;
+  descuento_id?: string | null;
+  participante_nombre: string;
+  descuento_nombre: string;
+  tipo_valor: DescuentoTipoValor;
+  valor_configurado: number;
+  importe_aplicado: number;
+  created_at?: string;
 }
 
 export interface CampamentoInscripcion {
@@ -78,10 +130,14 @@ export interface CampamentoInscripcion {
   tarifa_nombre?: string | null;
   cantidad_participantes: number;
   precio_unitario: number;
+  precio_bruto: number;
+  descuento_total: number;
   precio_total: number;
+  precio_total_neto: number;
   estado: string;
   nota?: string | null;
   participantes: CampamentoParticipante[];
+  descuentos_snapshot?: PagoDescuentoSnapshot[];
   created_at?: string;
   updated_at?: string;
 }
@@ -122,6 +178,46 @@ const WEEKDAY_LABELS: Record<number, string> = {
 
 function pad(value: number) {
   return String(value).padStart(2, '0');
+}
+
+export function roundCampamentoCurrency(value: number) {
+  return Number(value.toFixed(2));
+}
+
+export function calculateCampamentoDiscountAmount(
+  baseAmount: number,
+  discount: Pick<DescuentoCatalogo, 'tipo_valor' | 'valor'>
+) {
+  if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
+    return 0;
+  }
+
+  if (discount.tipo_valor === 'porcentaje') {
+    return roundCampamentoCurrency((baseAmount * discount.valor) / 100);
+  }
+
+  return roundCampamentoCurrency(discount.valor);
+}
+
+export function calculateCampamentoParticipantDiscountTotal(
+  baseAmount: number,
+  discounts: Array<Pick<DescuentoCatalogo, 'tipo_valor' | 'valor'>>
+) {
+  return roundCampamentoCurrency(
+    discounts.reduce((total, discount) => total + calculateCampamentoDiscountAmount(baseAmount, discount), 0)
+  );
+}
+
+export function calculateCampamentoReservationDiscountTotal(
+  baseAmount: number,
+  participants: Array<{ descuentos?: Array<Pick<DescuentoCatalogo, 'tipo_valor' | 'valor'>> }>
+) {
+  return roundCampamentoCurrency(
+    participants.reduce(
+      (total, participante) => total + calculateCampamentoParticipantDiscountTotal(baseAmount, participante.descuentos ?? []),
+      0
+    )
+  );
 }
 
 export function normalizeTimeValue(value: string) {

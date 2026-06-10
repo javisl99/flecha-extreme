@@ -92,7 +92,7 @@ interface ActualizarResumenSemanaEmpleadoInput {
 
 interface AgregarEmpleadoASemanaInput {
   semanaId: string;
-  empleadoId: string;
+  empleadoIds: string[];
 }
 
 function normalizeWeekStart(value: string) {
@@ -410,25 +410,30 @@ export function useHorariosEmpleados() {
     }
   }, [semana]);
 
-  const agregarEmpleadoASemana = useCallback(async ({ semanaId, empleadoId }: AgregarEmpleadoASemanaInput) => {
+  const agregarEmpleadoASemana = useCallback(async ({ semanaId, empleadoIds }: AgregarEmpleadoASemanaInput) => {
     try {
       setSaving(true);
       setError(null);
 
+      if (!empleadoIds.length) {
+        return null;
+      }
+
       const nextOrder = semana?.empleados.length ?? 0;
       const { data, error: insertError } = await supabaseClient
         .from('empleado_horario_semana_empleado')
-        .insert({
-          semana_id: semanaId,
-          empleado_id: empleadoId,
-          orden: nextOrder,
-        })
-        .select('id')
-        .single();
+        .insert(
+          empleadoIds.map((empleadoId, index) => ({
+            semana_id: semanaId,
+            empleado_id: empleadoId,
+            orden: nextOrder + index,
+          })),
+        )
+        .select('id');
 
       if (insertError) throw insertError;
 
-      await insertEmptyDays([data.id]);
+      await insertEmptyDays((data || []).map((item) => item.id));
 
       if (semana?.semana_inicio) {
         return await cargarSemana(semana.semana_inicio);

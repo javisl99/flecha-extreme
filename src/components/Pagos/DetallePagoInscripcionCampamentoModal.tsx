@@ -65,6 +65,60 @@ const formatearFechaDia = (value?: string | null) => {
   return new Date(value).toLocaleDateString('es-ES');
 };
 
+function buildDiscountGroups(
+  pago: Pago,
+  inscripcion: CampamentoInscripcion | null
+) {
+  if (pago.descuentos_snapshot && pago.descuentos_snapshot.length > 0) {
+    const grouped = new Map<string, {
+      participanteNombre: string;
+      items: Array<{ id: string; descuento_nombre: string; importe_aplicado: number }>;
+      total: number;
+    }>();
+
+    pago.descuentos_snapshot.forEach((snapshot) => {
+      const current = grouped.get(snapshot.participante_nombre) ?? {
+        participanteNombre: snapshot.participante_nombre,
+        items: [],
+        total: 0
+      };
+      current.items.push({
+        id: snapshot.id,
+        descuento_nombre: snapshot.descuento_nombre,
+        importe_aplicado: snapshot.importe_aplicado
+      });
+      current.total += snapshot.importe_aplicado;
+      grouped.set(snapshot.participante_nombre, current);
+    });
+
+    return Array.from(grouped.values());
+  }
+
+  const grouped = new Map<string, {
+    participanteNombre: string;
+    items: Array<{ id: string; descuento_nombre: string; importe_aplicado: number }>;
+    total: number;
+  }>();
+
+  (inscripcion?.participantes ?? []).forEach((participante) => {
+    if (!participante.descuentos_aplicados?.length) {
+      return;
+    }
+
+    grouped.set(participante.nombre, {
+      participanteNombre: participante.nombre,
+      items: participante.descuentos_aplicados.map((descuento) => ({
+        id: descuento.id,
+        descuento_nombre: descuento.nombre,
+        importe_aplicado: descuento.importe_aplicado
+      })),
+      total: participante.descuentos_aplicados.reduce((total, descuento) => total + descuento.importe_aplicado, 0)
+    });
+  });
+
+  return Array.from(grouped.values());
+}
+
 export default function DetallePagoInscripcionCampamentoModal({
   isOpen,
   onClose,
@@ -88,6 +142,10 @@ export default function DetallePagoInscripcionCampamentoModal({
   const dataLabelClassName = 'text-[11px] font-black uppercase tracking-[0.12em] text-outline';
   const dataValueClassName = 'mt-1 text-sm font-semibold text-on-surface';
   const tarifaLabel = inscripcion?.tarifa_nombre || inscripcion?.tarifa_codigo || 'Tarifa';
+  const grossAmount = inscripcion?.precio_bruto ?? reserva.total_bruto ?? reserva.precio;
+  const discountAmount = inscripcion?.descuento_total ?? reserva.total_descuento ?? 0;
+  const netAmount = inscripcion?.precio_total_neto ?? inscripcion?.precio_total ?? reserva.total_neto ?? reserva.precio;
+  const discountGroups = buildDiscountGroups(pago, inscripcion);
 
   const handleCompletarPago = async () => {
     if (!onCompletarPago) return;
@@ -212,14 +270,22 @@ export default function DetallePagoInscripcionCampamentoModal({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
                       <p className={dataLabelClassName}>Precio unitario</p>
                       <p className={dataValueClassName}>{formatearImporte(inscripcion?.precio_unitario ?? 0)}</p>
                     </div>
                     <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
-                      <p className={dataLabelClassName}>Total inscripcion</p>
-                      <p className={dataValueClassName}>{formatearImporte(inscripcion?.precio_total ?? reserva.precio)}</p>
+                      <p className={dataLabelClassName}>Total bruto</p>
+                      <p className={dataValueClassName}>{formatearImporte(grossAmount)}</p>
+                    </div>
+                    <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                      <p className={dataLabelClassName}>Descuento total</p>
+                      <p className={dataValueClassName}>{formatearImporte(discountAmount)}</p>
+                    </div>
+                    <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4 md:col-span-3">
+                      <p className={dataLabelClassName}>Total neto inscripcion</p>
+                      <p className={dataValueClassName}>{formatearImporte(netAmount)}</p>
                     </div>
                   </div>
 
@@ -237,6 +303,36 @@ export default function DetallePagoInscripcionCampamentoModal({
                     ) : (
                       <p className={`${dataValueClassName} text-on-surface-variant`}>
                         No hay participantes registrados para esta inscripcion.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-4">
+                    <p className={dataLabelClassName}>Descuentos aplicados</p>
+                    {discountGroups.length > 0 ? (
+                      <div className="mt-2 space-y-2">
+                        {discountGroups.map((group) => (
+                          <div key={group.participanteNombre} className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest px-3 py-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-sm font-semibold text-on-surface">{group.participanteNombre}</p>
+                              <span className="text-xs font-black uppercase tracking-[0.08em] text-primary">
+                                -{formatearImporte(group.total)}
+                              </span>
+                            </div>
+                            <div className="mt-2 space-y-1">
+                              {group.items.map((item) => (
+                                <div key={item.id} className="flex items-center justify-between gap-3 text-xs text-on-surface-variant">
+                                  <span>{item.descuento_nombre}</span>
+                                  <span>-{formatearImporte(item.importe_aplicado)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className={`${dataValueClassName} text-on-surface-variant`}>
+                        No se aplicaron descuentos en esta inscripción.
                       </p>
                     )}
                   </div>

@@ -4,7 +4,11 @@ import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ReceiptPercentIcon, CheckCircleIcon, ClockIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { formatPrice } from '@/lib/formatUtils';
-import { useActividades, type ReservaServicioItemInput } from '@/hooks/useActividades';
+import {
+  useActividades,
+  type PagoDescuentoSnapshotDraft,
+  type ReservaServicioItemInput
+} from '@/hooks/useActividades';
 import SurfSpinner from '@/components/shared/SurfSpinner';
 import TicketCompra from '@/components/Tienda/TicketCompra';
 import { SelectorCliente } from '@/components/Actividades/SelectorCliente';
@@ -12,7 +16,14 @@ import ModalNuevoClientePago from '@/components/Actividades/ModalNuevoClientePag
 import { useTickets } from '@/hooks/useTickets';
 import { toast } from 'react-hot-toast';
 import { ACTIVE_PAYMENT_METHOD_OPTIONS } from '@/lib/contabilidadCatalogos';
-import type { CampamentoMetadata } from '@/lib/campamento';
+import { calculateDiscountAmount, calculateDiscountPercentage, type DescuentoModo } from '@/lib/descuentos';
+import {
+  calculateCampamentoDiscountAmount,
+  roundCampamentoCurrency,
+  type CampamentoMetadata,
+  type CampamentoParticipanteDescuentoSeleccionado,
+  type DescuentoCatalogo
+} from '@/lib/campamento';
 import type { Cliente } from '@/shared/types';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'transferencia' | 'bizum_alfonso';
@@ -56,7 +67,15 @@ interface ActividadReserva {
     participanteId?: string;
     nombre: string;
     dni?: string;
+    descuentos?: CampamentoParticipanteDescuentoSeleccionado[];
   }>;
+}
+
+interface CampamentoParticipantePagoDraft {
+  participanteId?: string;
+  nombre: string;
+  dni?: string;
+  descuentos: CampamentoParticipanteDescuentoSeleccionado[];
 }
 
 interface PagoReservaModalProps {
@@ -128,6 +147,200 @@ function buildReservaItemsFromRanges(
   }));
 }
 
+function buildInitialCampamentoParticipantes(
+  participantes?: ActividadReserva['participantes']
+): CampamentoParticipantePagoDraft[] {
+  return (participantes ?? []).map((participante) => ({
+    participanteId: participante.participanteId,
+    nombre: participante.nombre,
+    dni: participante.dni,
+    descuentos: [...(participante.descuentos ?? [])]
+  }));
+}
+
+function calculateCampamentoDiscountSummary(
+  participants: CampamentoParticipantePagoDraft[],
+  baseAmountPerParticipant: number
+) {
+  const totalDiscount = roundCampamentoCurrency(
+    participants.reduce(
+      (total, participante) =>
+        total + participante.descuentos.reduce(
+          (subtotal, descuento) => subtotal + calculateCampamentoDiscountAmount(baseAmountPerParticipant, descuento),
+          0
+        ),
+      0
+    )
+  );
+
+  const appliedDiscountCount = participants.reduce(
+    (total, participante) => total + participante.descuentos.length,
+    0
+  );
+
+  return {
+    totalDiscount,
+    appliedDiscountCount
+  };
+}
+
+interface CampamentoDiscountConfiguratorModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  participants: CampamentoParticipantePagoDraft[];
+  discounts: DescuentoCatalogo[];
+  baseAmountPerParticipant: number;
+  onToggleDiscount: (participantIndex: number, discount: DescuentoCatalogo) => void;
+}
+
+function CampamentoDiscountConfiguratorModal({
+  isOpen,
+  onClose,
+  participants,
+  discounts,
+  baseAmountPerParticipant,
+  onToggleDiscount
+}: CampamentoDiscountConfiguratorModalProps) {
+  return (
+    <Transition.Root show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-[75]" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-150"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-100"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/45" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 z-[75] flex items-center justify-center p-4">
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-150"
+            enterFrom="opacity-0 scale-95"
+            enterTo="opacity-100 scale-100"
+            leave="ease-in duration-100"
+            leaveFrom="opacity-100 scale-100"
+            leaveTo="opacity-0 scale-95"
+          >
+            <Dialog.Panel className="w-full max-w-3xl overflow-hidden rounded-3xl border border-outline-variant/25 bg-surface-container-lowest shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-outline-variant/20 px-6 py-5">
+                <div>
+                  <Dialog.Title className="text-xl font-black text-on-surface">
+                    Configurar descuentos
+                  </Dialog.Title>
+                  <p className="mt-1 text-sm text-on-surface-variant">
+                    Selecciona uno o varios descuentos por participante.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-full border border-outline-variant/30 p-2 text-on-surface-variant transition hover:border-primary/30 hover:text-primary cursor-pointer"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="max-h-[75vh] overflow-y-auto px-6 py-6">
+                <div className="space-y-4">
+                  {participants.map((participante, participantIndex) => {
+                    const participantDiscount = roundCampamentoCurrency(
+                      participante.descuentos.reduce(
+                        (total, descuento) => total + calculateCampamentoDiscountAmount(baseAmountPerParticipant, descuento),
+                        0
+                      )
+                    );
+
+                    return (
+                      <div
+                        key={`${participante.participanteId ?? participante.nombre}-${participantIndex}`}
+                        className="rounded-2xl border border-outline-variant/20 bg-surface-container-low p-4"
+                      >
+                        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="text-sm font-black text-on-surface">{participante.nombre}</p>
+                            <p className="mt-1 text-xs text-on-surface-variant">
+                              DNI: {participante.dni || '-'}
+                            </p>
+                          </div>
+                          <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                            Descuento aplicado: {formatPrice(participantDiscount)}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          {discounts.map((discount) => {
+                            const isSelected = participante.descuentos.some(
+                              (selected) => selected.descuento_id === discount.id
+                            );
+                            const discountAmount = calculateCampamentoDiscountAmount(baseAmountPerParticipant, discount);
+
+                            return (
+                              <button
+                                key={discount.id}
+                                type="button"
+                                onClick={() => onToggleDiscount(participantIndex, discount)}
+                                className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${
+                                  isSelected
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-outline-variant/25 bg-surface-container-lowest text-on-surface hover:border-primary/30'
+                                } cursor-pointer`}
+                              >
+                                <div>
+                                  <p className="text-sm font-semibold">{discount.nombre}</p>
+                                  <p className="mt-1 text-xs opacity-80">
+                                    {discount.tipo_valor === 'porcentaje'
+                                      ? `${discount.valor}%`
+                                      : `${formatPrice(discount.valor)} por participante`}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-sm font-black">
+                                    -{formatPrice(discountAmount)}
+                                  </span>
+                                  <span
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                                      isSelected ? 'bg-primary' : 'bg-surface-container-high'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                        isSelected ? 'translate-x-6' : 'translate-x-1'
+                                      }`}
+                                    />
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex justify-end border-t border-outline-variant/20 px-6 py-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 cursor-pointer"
+                >
+                  Listo
+                </button>
+              </div>
+            </Dialog.Panel>
+          </Transition.Child>
+        </div>
+      </Dialog>
+    </Transition.Root>
+  );
+}
+
 export default function PagoReservaModal({ 
   isOpen, 
   onClose, 
@@ -138,7 +351,13 @@ export default function PagoReservaModal({
   initialClienteId = null,
   requireCliente = false
 }: PagoReservaModalProps) {
-  const { crearReserva, crearInscripcionCampamento, crearPago, obtenerIdEmpresa } = useActividades();
+  const {
+    crearReserva,
+    crearInscripcionCampamento,
+    crearPago,
+    obtenerIdEmpresa,
+    obtenerDescuentosActivosCampamento
+  } = useActividades();
   const { saveTicket } = useTickets();
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
@@ -146,15 +365,23 @@ export default function PagoReservaModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [esReservaOverride, setEsReservaOverride] = useState<boolean | null>(null);
   const [precioReservaOverride, setPrecioReservaOverride] = useState<number | null>(null);
+  const [reservaPreviaPagada, setReservaPreviaPagada] = useState(true);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [showNuevoClienteModal, setShowNuevoClienteModal] = useState(false);
+  const [showDiscountConfigurator, setShowDiscountConfigurator] = useState(false);
   const [isSavingTicket, setIsSavingTicket] = useState(false);
+  const [isLoadingDiscounts, setIsLoadingDiscounts] = useState(false);
+  const [discountMode, setDiscountMode] = useState<DescuentoModo>('porcentaje');
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [descuentosDisponibles, setDescuentosDisponibles] = useState<DescuentoCatalogo[]>([]);
+  const [participantesConDescuentos, setParticipantesConDescuentos] = useState<CampamentoParticipantePagoDraft[]>([]);
   const [processedPaymentData, setProcessedPaymentData] = useState<{
     actividad: ActividadReserva;
     subtotal: number;
     descuento: number;
     discountPercentage: number;
+    discountLabel?: string;
     iva: number;
     total: number;
     metodoPago: string;
@@ -179,6 +406,61 @@ export default function PagoReservaModal({
     setSelectedClienteId(initialClienteId);
   }, [initialClienteId, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setDiscountMode('porcentaje');
+      setDiscountValue(0);
+      setParticipantesConDescuentos([]);
+      setDescuentosDisponibles([]);
+      setShowDiscountConfigurator(false);
+      setIsLoadingDiscounts(false);
+      setEsReservaOverride(null);
+      setPrecioReservaOverride(null);
+      setReservaPreviaPagada(true);
+      return;
+    }
+
+    setParticipantesConDescuentos(buildInitialCampamentoParticipantes(actividad.participantes));
+    setDiscountMode('porcentaje');
+    setDiscountValue(0);
+    setEsReservaOverride(Boolean(actividad.campamentoProgramaId) ? true : null);
+    setPrecioReservaOverride(actividad.precioReserva ?? null);
+    setReservaPreviaPagada(true);
+
+    if (!actividad.campamentoProgramaId || !actividad.participantes?.length) {
+      setDescuentosDisponibles([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadDiscounts = async () => {
+      try {
+        setIsLoadingDiscounts(true);
+        const result = await obtenerDescuentosActivosCampamento();
+        if (!cancelled) {
+          setDescuentosDisponibles(result);
+        }
+      } catch (error) {
+        console.error('Error cargando descuentos de campamento:', error);
+        if (!cancelled) {
+          setDescuentosDisponibles([]);
+          toast.error('No se pudieron cargar los descuentos disponibles');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingDiscounts(false);
+        }
+      }
+    };
+
+    void loadDiscounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [actividad.campamentoProgramaId, actividad.participantes, isOpen, obtenerDescuentosActivosCampamento]);
+
   const metodosPago = useMemo(
     () => ACTIVE_PAYMENT_METHOD_OPTIONS as Array<{ value: MetodoPago; label: string }>,
     []
@@ -193,22 +475,80 @@ export default function PagoReservaModal({
   const depositoObligatorio = actividad.depositoObligatorio ?? false;
   const esReserva = esReservaOverride ?? depositoObligatorio;
   const precioReserva = precioReservaOverride ?? Math.max(actividad.precioReserva ?? 0, 0);
-  const isCampamento = !!actividad.campamentoMetadata;
+  const isCampamento = Boolean(actividad.campamentoProgramaId);
+  const usaReservaPreviaCampamento = isCampamento && esReserva;
+  const usaConfirmacionPagoNormal = !esReserva || usaReservaPreviaCampamento;
+  const precioBaseParticipante = useMemo(
+    () => actividad.numeroPersonas > 0 ? roundCampamentoCurrency(actividad.precio / actividad.numeroPersonas) : actividad.precio,
+    [actividad.numeroPersonas, actividad.precio]
+  );
+  const { totalDiscount: descuentoCampamentoTotal, appliedDiscountCount } = useMemo(
+    () => calculateCampamentoDiscountSummary(participantesConDescuentos, precioBaseParticipante),
+    [participantesConDescuentos, precioBaseParticipante]
+  );
+
+  const descuentoManual = useMemo(() => {
+    if (isCampamento) {
+      return 0;
+    }
+
+    return calculateDiscountAmount(actividad.precio, discountMode, discountValue);
+  }, [actividad.precio, discountMode, discountValue, isCampamento]);
 
   // Cálculos de precios optimizados con useMemo
-  const { subtotal, descuento, iva, total, precioRestante } = useMemo(() => {
+  const {
+    subtotal,
+    descuento,
+    discountPercentageValue,
+    discountLabel,
+    iva,
+    total,
+    precioRestante,
+    importeReserva,
+    importeInscripcionPendiente
+  } = useMemo(() => {
     const subtotal = actividad.precio;
-    const descuento = 0; // Sin descuento por defecto para actividades
-    const subtotalConDescuento = subtotal - descuento;
+    const descuento = isCampamento ? descuentoCampamentoTotal : descuentoManual;
+    const subtotalConDescuento = Math.max(subtotal - descuento, 0);
     const iva = subtotalConDescuento * 0.21; // 21% de IVA (informativo)
-    
-    // Si es reserva, el pago inmediato es el precio de reserva
-    // y se genera un pago pendiente con el precio restante
-    const total = esReserva ? precioReserva : subtotalConDescuento;
-    const precioRestante = esReserva ? subtotalConDescuento - precioReserva : 0;
-    
-    return { subtotal, descuento, iva, total, precioRestante };
-  }, [actividad.precio, esReserva, precioReserva]);
+
+    const importeReserva = esReserva ? Math.min(precioReserva, subtotalConDescuento) : 0;
+    const importeInscripcionPendiente = esReserva ? Math.max(subtotalConDescuento - importeReserva, 0) : 0;
+    const total = usaReservaPreviaCampamento
+      ? importeInscripcionPendiente
+      : esReserva
+        ? importeReserva
+        : subtotalConDescuento;
+    const precioRestante = usaReservaPreviaCampamento ? 0 : importeInscripcionPendiente;
+    const discountPercentageValue = calculateDiscountPercentage(subtotal, descuento);
+    const discountLabel = isCampamento
+      ? 'Descuento campamento'
+      : discountMode === 'porcentaje'
+        ? `Descuento (${discountValue}%)`
+        : 'Descuento (€)';
+
+    return {
+      subtotal,
+      descuento,
+      discountPercentageValue,
+      discountLabel,
+      iva,
+      total,
+      precioRestante,
+      importeReserva,
+      importeInscripcionPendiente
+    };
+  }, [
+    actividad.precio,
+    descuentoCampamentoTotal,
+    descuentoManual,
+    discountMode,
+    discountValue,
+    esReserva,
+    isCampamento,
+    precioReserva,
+    usaReservaPreviaCampamento
+  ]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -218,8 +558,43 @@ export default function PagoReservaModal({
       return;
     }
 
+    if (esReserva && precioReserva <= 0) {
+      toast.error('Debes indicar un importe de reserva mayor que 0');
+      return;
+    }
+
     // Mostrar modal de confirmación
     setShowConfirmationModal(true);
+  };
+
+  const handleToggleParticipantDiscount = (participantIndex: number, discount: DescuentoCatalogo) => {
+    setParticipantesConDescuentos((current) => current.map((participante, index) => {
+      if (index !== participantIndex) {
+        return participante;
+      }
+
+      const isSelected = participante.descuentos.some((selected) => selected.descuento_id === discount.id);
+      if (isSelected) {
+        return {
+          ...participante,
+          descuentos: participante.descuentos.filter((selected) => selected.descuento_id !== discount.id)
+        };
+      }
+
+      return {
+        ...participante,
+        descuentos: [
+          ...participante.descuentos,
+          {
+            descuento_id: discount.id,
+            codigo: discount.codigo,
+            nombre: discount.nombre,
+            tipo_valor: discount.tipo_valor,
+            valor: discount.valor
+          }
+        ]
+      };
+    }));
   };
 
   const handleConfirmPaymentWithState = async (estado: EstadoPago) => {
@@ -262,7 +637,17 @@ export default function PagoReservaModal({
             ? 'completa'
             : 'no_aplica';
         
-        const estadoReserva = esReserva ? 'pendiente' : (estado === 'completado' ? 'confirmada' : 'pendiente');
+        const estadoReserva = usaReservaPreviaCampamento
+          ? (reservaPreviaPagada && (importeInscripcionPendiente <= 0 || estado === 'completado') ? 'confirmada' : 'pendiente')
+          : esReserva
+            ? 'pendiente'
+            : (estado === 'completado' ? 'confirmada' : 'pendiente');
+        const participantesPayload = participantesConDescuentos.map((participante) => ({
+          participanteId: participante.participanteId ?? null,
+          nombre: participante.nombre,
+          dni: participante.dni,
+          descuentos: participante.descuentos
+        }));
         const resultadoReserva = actividad.campamentoProgramaId && actividad.tarifaId
           ? await crearInscripcionCampamento({
               campamentoProgramaId: actividad.campamentoProgramaId,
@@ -273,7 +658,7 @@ export default function PagoReservaModal({
               precioUnitario: actividad.numeroPersonas > 0
                 ? Number((actividad.precio / actividad.numeroPersonas).toFixed(2))
                 : actividad.precio,
-              precioTotal: actividad.precio,
+              precioTotal: subtotal,
               cantidadParticipantes: actividad.numeroPersonas,
               fechaInicio: fechaInicio.toISOString(),
               fechaFin: fechaFin.toISOString(),
@@ -281,7 +666,7 @@ export default function PagoReservaModal({
               horaFin: actividad.horaFin,
               estado: estadoReserva,
               nota: actividad.nota || undefined,
-              participantes: actividad.participantes ?? []
+              participantes: participantesPayload
             })
           : await crearReserva({
               id_cliente: clienteId,
@@ -308,18 +693,57 @@ export default function PagoReservaModal({
         }
         
         reservaId = resultadoReserva.reservaId;
+        const descuentosSnapshot: PagoDescuentoSnapshotDraft[] =
+          'descuentosSnapshot' in resultadoReserva && Array.isArray(resultadoReserva.descuentosSnapshot)
+            ? resultadoReserva.descuentosSnapshot
+            : [];
         
         // Crear los pagos en la base de datos
-        if (esReserva && precioRestante > 0) {
+        if (usaReservaPreviaCampamento) {
+          if (importeReserva > 0) {
+            const resultadoPagoReservaPrevia = await crearPago({
+              id_cliente: clienteId,
+              origen_tipo: 'reserva',
+              origen_id: reservaId!,
+              concepto: `Reserva previa - ${concepto}`,
+              importe: importeReserva,
+              metodo: metodoPago,
+              estado: reservaPreviaPagada ? 'completado' : 'pendiente',
+              descuentosSnapshot
+            });
+
+            if (!resultadoPagoReservaPrevia.success) {
+              throw new Error(resultadoPagoReservaPrevia.message);
+            }
+          }
+
+          if (importeInscripcionPendiente > 0) {
+            const resultadoPagoRestoInscripcion = await crearPago({
+              id_cliente: clienteId,
+              origen_tipo: 'reserva',
+              origen_id: reservaId!,
+              concepto: `Resto inscripción - ${concepto}`,
+              importe: importeInscripcionPendiente,
+              metodo: metodoPago,
+              estado,
+              descuentosSnapshot
+            });
+
+            if (!resultadoPagoRestoInscripcion.success) {
+              throw new Error(resultadoPagoRestoInscripcion.message);
+            }
+          }
+        } else if (esReserva && precioRestante > 0) {
           // Crear pago inmediato (reserva)
           const resultadoPagoReserva = await crearPago({
             id_cliente: clienteId,
             origen_tipo: 'reserva',
             origen_id: reservaId!,
             concepto: `Reserva - ${concepto}`,
-            importe: precioReserva,
+            importe: total,
             metodo: metodoPago,
-            estado: 'completado'
+            estado: 'completado',
+            descuentosSnapshot
           });
           
           if (!resultadoPagoReserva.success) {
@@ -334,7 +758,8 @@ export default function PagoReservaModal({
             concepto: `Pago pendiente - ${concepto}`,
             importe: precioRestante,
             metodo: metodoPago,
-            estado: 'pendiente'
+            estado: 'pendiente',
+            descuentosSnapshot
           });
           
           if (!resultadoPagoPendiente.success) {
@@ -347,9 +772,10 @@ export default function PagoReservaModal({
             origen_tipo: 'reserva',
             origen_id: reservaId!,
             concepto: concepto,
-            importe: actividad.precio,
+            importe: total,
             metodo: metodoPago,
-            estado: estado
+            estado: estado,
+            descuentosSnapshot
           });
           
           if (!resultadoPago.success) {
@@ -359,16 +785,23 @@ export default function PagoReservaModal({
       }
       
       // Preservar los datos del pago para el ticket
-      const paymentData = {
-        actividad: { 
-          ...actividad,
+        const paymentData = {
+          actividad: { 
+            ...actividad,
+            participantes: participantesConDescuentos.map((participante) => ({
+              participanteId: participante.participanteId,
+              nombre: participante.nombre,
+            dni: participante.dni,
+            descuentos: participante.descuentos
+          })),
           // Si es reserva, modificar el precio para el ticket
-          precio: esReserva ? precioReserva : actividad.precio
+          precio: esReserva ? total : actividad.precio
         },
-        subtotal: esReserva ? precioReserva : subtotal,
-        descuento,
-        discountPercentage: 0,
-        iva: esReserva ? precioReserva * 0.21 : iva,
+        subtotal: esReserva ? total : subtotal,
+        descuento: esReserva ? 0 : descuento,
+        discountPercentage: isCampamento ? 0 : discountPercentageValue,
+        discountLabel,
+        iva: esReserva ? total * 0.21 : iva,
         total,
         metodoPago: (() => {
           const metodo = selectedMetodoPago?.label || 'Efectivo';
@@ -386,11 +819,19 @@ export default function PagoReservaModal({
       // Ejecutar onSubmit del componente padre si no es readOnly
       if (!readOnly) {
         await onSubmit({
-          actividad,
-          subtotal,
-          descuento,
-          descuentoPorcentaje: 0,
-          iva,
+          actividad: {
+            ...actividad,
+            participantes: participantesConDescuentos.map((participante) => ({
+              participanteId: participante.participanteId,
+              nombre: participante.nombre,
+              dni: participante.dni,
+              descuentos: participante.descuentos
+            }))
+          },
+        subtotal,
+        descuento,
+        descuentoPorcentaje: isCampamento ? 0 : discountPercentageValue,
+        iva,
           total,
           concepto, // Usar el concepto del campo del formulario
           pago: {
@@ -440,8 +881,10 @@ export default function PagoReservaModal({
       const ticketData = {
         cartItems: [{
           id: processedPaymentData.actividad.id,
-          name: esReserva 
-            ? `Reserva - ${processedPaymentData.actividad.nombre}`
+          name: usaReservaPreviaCampamento
+            ? `Resto inscripción - ${processedPaymentData.actividad.nombre}`
+            : esReserva 
+              ? `Reserva - ${processedPaymentData.actividad.nombre}`
             : processedPaymentData.actividad.nombre,
           price: ticketUnitPrice,
           quantity: ticketQuantity,
@@ -450,6 +893,7 @@ export default function PagoReservaModal({
         subtotal: processedPaymentData.subtotal,
         descuento: processedPaymentData.descuento,
         discountPercentage: processedPaymentData.discountPercentage,
+        discountLabel: processedPaymentData.discountLabel,
         iva: processedPaymentData.iva,
         total: processedPaymentData.total,
         metodoPago: processedPaymentData.metodoPago,
@@ -515,15 +959,24 @@ export default function PagoReservaModal({
     setSelectedClienteId(null);
     setMetodoPago('efectivo');
     setConcepto('');
+    setDiscountMode('porcentaje');
+    setDiscountValue(0);
     setEsReservaOverride(null);
     setPrecioReservaOverride(null);
+    setReservaPreviaPagada(true);
+    setShowDiscountConfigurator(false);
+    setParticipantesConDescuentos(buildInitialCampamentoParticipantes(actividad.participantes));
     onClose();
   };
 
   const handleCloseModal = () => {
     setEsReservaOverride(null);
     setPrecioReservaOverride(null);
+    setReservaPreviaPagada(true);
+    setDiscountMode('porcentaje');
+    setDiscountValue(0);
     setShowNuevoClienteModal(false);
+    setShowDiscountConfigurator(false);
     onClose();
   };
 
@@ -624,23 +1077,23 @@ export default function PagoReservaModal({
                         </div>
 
                         {/* Switch de Reserva y Precio de Reserva */}
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className={`grid gap-6 ${usaReservaPreviaCampamento ? 'grid-cols-1 xl:grid-cols-3' : 'grid-cols-2'}`}>
                           {/* Switch de Reserva */}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                              Reserva
+                              {isCampamento ? 'Reserva previa' : 'Reserva'}
                             </label>
                             <div className="flex items-center">
                               <button
                                 type="button"
                                 onClick={() => setEsReservaOverride(!esReserva)}
-                                disabled={readOnly || !depositoPermitido || depositoObligatorio}
+                                disabled={readOnly || (!depositoPermitido && !isCampamento) || depositoObligatorio}
                                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer ${
                                   esReserva 
                                     ? 'bg-primary' 
                                     : 'bg-gray-200 dark:bg-gray-700'
                                 } ${
-                                  readOnly || !depositoPermitido || depositoObligatorio
+                                  readOnly || ((!depositoPermitido && !isCampamento) || depositoObligatorio)
                                     ? 'opacity-50 cursor-not-allowed'
                                     : ''
                                 }`}
@@ -654,6 +1107,8 @@ export default function PagoReservaModal({
                             <span className="ml-3 text-sm text-gray-600 dark:text-gray-400">
                               {depositoObligatorio
                                 ? 'Obligatorio'
+                                : isCampamento
+                                  ? (esReserva ? 'Activada' : 'Desactivada')
                                 : depositoPermitido
                                   ? (esReserva ? 'Activado' : 'Desactivado')
                                   : 'No disponible'}
@@ -664,13 +1119,38 @@ export default function PagoReservaModal({
                               Esta actividad exige anticipo para confirmar la reserva.
                             </p>
                           )}
+                          {!readOnly && isCampamento && (
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                              Si la inscripción viene de una reserva previa, podrás registrar ese cobro como pagado o pendiente.
+                            </p>
+                          )}
                           </div>
+
+                          {usaReservaPreviaCampamento && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Estado reserva previa
+                              </label>
+                              <select
+                                value={reservaPreviaPagada ? 'completado' : 'pendiente'}
+                                onChange={(e) => setReservaPreviaPagada(e.target.value === 'completado')}
+                                disabled={readOnly}
+                                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <option value="completado">Pagada</option>
+                                <option value="pendiente">Pendiente</option>
+                              </select>
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Esto definirá el estado del pago correspondiente a la reserva previa.
+                              </p>
+                            </div>
+                          )}
 
                           {/* Precio de Reserva */}
                           {esReserva && (
                             <div>
                               <label htmlFor="precioReserva" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Precio de Reserva (€)
+                                {usaReservaPreviaCampamento ? 'Importe reserva previa (€)' : 'Precio de Reserva (€)'}
                               </label>
                               <div className="relative">
                                 <input
@@ -693,7 +1173,9 @@ export default function PagoReservaModal({
                                 </div>
                               </div>
                               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                {depositoObligatorio
+                                {usaReservaPreviaCampamento
+                                  ? 'Se registrará como un pago separado de la inscripción.'
+                                  : depositoObligatorio
                                   ? 'Se usa el anticipo configurado en la actividad'
                                   : 'Pago inmediato al realizar la reserva'}
                               </p>
@@ -741,14 +1223,73 @@ export default function PagoReservaModal({
                               disabled={readOnly}
                             />
                           </div>
+
+                          {!readOnly && !isCampamento ? (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Descuento
+                              </label>
+                              <div className="grid grid-cols-3 gap-2">
+                                <select
+                                  value={discountMode}
+                                  onChange={(e) => setDiscountMode(e.target.value as DescuentoModo)}
+                                  className="col-span-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                >
+                                  <option value="porcentaje">%</option>
+                                  <option value="importe">€</option>
+                                </select>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={discountMode === 'porcentaje' ? 100 : undefined}
+                                  step="0.01"
+                                  value={discountValue === 0 ? '' : discountValue}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    if (raw === '') {
+                                      setDiscountValue(0);
+                                      return;
+                                    }
+
+                                    const parsed = Number(raw);
+                                    if (Number.isNaN(parsed)) {
+                                      return;
+                                    }
+
+                                    setDiscountValue(discountMode === 'porcentaje'
+                                      ? Math.min(100, Math.max(0, parsed))
+                                      : Math.max(0, parsed));
+                                  }}
+                                  className="col-span-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Puedes aplicar un descuento en porcentaje o en importe fijo.
+                              </p>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
 
                       {/* Columna derecha - Ticket de reserva */}
                       <div className="space-y-4">
-                        <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                          Ticket de Reserva
-                        </h4>
+                        <div className="flex items-center justify-between gap-3">
+                          <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                            Ticket de Reserva
+                          </h4>
+                          {isCampamento && participantesConDescuentos.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowDiscountConfigurator(true)}
+                              disabled={readOnly || isLoadingDiscounts || descuentosDisponibles.length === 0}
+                              className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                            >
+                              <ReceiptPercentIcon className="h-4 w-4" />
+                              {isLoadingDiscounts ? 'Cargando...' : 'Configurar descuentos'}
+                            </button>
+                          ) : null}
+                        </div>
                         
                         {/* Ticket container */}
                         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border-2 border-dashed border-gray-300 dark:border-gray-600">
@@ -796,7 +1337,7 @@ export default function PagoReservaModal({
                                 </div>
                               </div>
                               <span className="text-gray-900 dark:text-gray-100 font-medium">
-                                {formatPrice(actividad.precio)}
+                                {formatPrice(subtotal)}
                               </span>
                             </div>
                           </div>
@@ -812,6 +1353,32 @@ export default function PagoReservaModal({
                                 {formatPrice(subtotal)}
                               </span>
                             </div>
+
+                            {isCampamento ? (
+                              <div className="rounded-md bg-primary/5 px-3 py-2 text-xs text-primary-dark">
+                                <div className="flex items-center justify-between gap-3">
+                                  <span>Participantes con descuento</span>
+                                  <span className="font-bold">
+                                    {participantesConDescuentos.filter((participante) => participante.descuentos.length > 0).length}
+                                  </span>
+                                </div>
+                                <div className="mt-1 flex items-center justify-between gap-3">
+                                  <span>Descuentos aplicados</span>
+                                  <span className="font-bold">{appliedDiscountCount}</span>
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {descuento > 0 ? (
+                              <div className="flex justify-between">
+                                <span className="text-emerald-700 dark:text-emerald-300">
+                                  {discountLabel}:
+                                </span>
+                                <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                  -{formatPrice(descuento)}
+                                </span>
+                              </div>
+                            ) : null}
                             
                             <div className="flex justify-between text-gray-500 dark:text-gray-500">
                               <span>IVA incluido (21%):</span>
@@ -820,7 +1387,29 @@ export default function PagoReservaModal({
                               </span>
                             </div>
                             
-                            {esReserva && precioRestante > 0 && (
+                            {usaReservaPreviaCampamento && importeReserva > 0 && (
+                              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3 mt-3">
+                                <div className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+                                  <strong>Inscripción con reserva previa:</strong>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-blue-600 dark:text-blue-400">
+                                    Reserva previa ({reservaPreviaPagada ? 'pagada' : 'pendiente'}):
+                                  </span>
+                                  <span className="font-medium text-blue-700 dark:text-blue-300">
+                                    {formatPrice(importeReserva)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-blue-600 dark:text-blue-400">Resto inscripción:</span>
+                                  <span className="font-medium text-blue-700 dark:text-blue-300">
+                                    {formatPrice(importeInscripcionPendiente)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {!usaReservaPreviaCampamento && esReserva && precioRestante > 0 && (
                               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3 mt-3">
                                 <div className="text-xs text-blue-700 dark:text-blue-300 mb-2">
                                   <strong>Pago con Reserva:</strong>
@@ -843,7 +1432,9 @@ export default function PagoReservaModal({
                             <div className="border-t border-gray-300 dark:border-gray-600 pt-2 mt-2">
                               <div className="flex justify-between text-lg font-bold">
                                 <span className="text-gray-900 dark:text-gray-100">
-                                  {esReserva ? 'TOTAL A PAGAR AHORA:' : 'TOTAL:'}
+                                  {usaReservaPreviaCampamento
+                                    ? 'RESTO DE INSCRIPCIÓN:'
+                                    : esReserva ? 'TOTAL A PAGAR AHORA:' : 'TOTAL:'}
                                 </span>
                                 <span className="text-primary">
                                   {formatPrice(total)}
@@ -934,8 +1525,8 @@ export default function PagoReservaModal({
                       
                       {/* Descripción */}
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                        {!esReserva 
-                          ? `Seleccione cómo desea procesar el pago de ${formatPrice(total)}`
+                        {usaConfirmacionPagoNormal
+                          ? `Seleccione cómo desea registrar el pago de ${formatPrice(total)}`
                           : `Por favor, confirme cuando haya recibido el pago de ${formatPrice(total)}`
                         }
                       </p>
@@ -959,7 +1550,7 @@ export default function PagoReservaModal({
                       </div>
                       
                       {/* Botones */}
-                      {!esReserva ? (
+                      {usaConfirmacionPagoNormal ? (
                         // Opciones para pago completo (sin reserva)
                         <div className="flex flex-col space-y-3">
                           <div className="flex space-x-3">
@@ -1010,7 +1601,7 @@ export default function PagoReservaModal({
                           </button>
                         </div>
                       ) : (
-                        // Opción única para reserva
+                        // Opción única para reserva cobrada ahora
                         <div className="flex space-x-3">
                           <button
                             type="button"
@@ -1052,6 +1643,15 @@ export default function PagoReservaModal({
         onSuccess={handleNuevoClienteSuccess}
       />
 
+      <CampamentoDiscountConfiguratorModal
+        isOpen={showDiscountConfigurator}
+        onClose={() => setShowDiscountConfigurator(false)}
+        participants={participantesConDescuentos}
+        discounts={descuentosDisponibles}
+        baseAmountPerParticipant={precioBaseParticipante}
+        onToggleDiscount={handleToggleParticipantDiscount}
+      />
+
       {/* Modal del ticket de compra */}
       {processedPaymentData && (
         <TicketCompra
@@ -1060,9 +1660,11 @@ export default function PagoReservaModal({
           onGuardar={handleGuardarTicket}
           cartItems={[{
             id: processedPaymentData.actividad.id,
-            name: esReserva 
-              ? `Reserva - ${processedPaymentData.actividad.nombre} - Personas:`
-              : `${processedPaymentData.actividad.nombre} - Personas:`,
+            name: usaReservaPreviaCampamento
+              ? `Resto inscripción - ${processedPaymentData.actividad.nombre} - Personas:`
+              : esReserva 
+                ? `Reserva - ${processedPaymentData.actividad.nombre} - Personas:`
+                : `${processedPaymentData.actividad.nombre} - Personas:`,
             price: processedPaymentData.actividad.precio / processedPaymentData.actividad.numeroPersonas,
             quantity: processedPaymentData.actividad.numeroPersonas, 
             image: '',
@@ -1070,6 +1672,7 @@ export default function PagoReservaModal({
           subtotal={processedPaymentData.subtotal}
           descuento={processedPaymentData.descuento}
           discountPercentage={processedPaymentData.discountPercentage}
+          discountLabel={processedPaymentData.discountLabel}
           iva={processedPaymentData.iva}
           total={processedPaymentData.total}
           metodoPago={processedPaymentData.metodoPago}

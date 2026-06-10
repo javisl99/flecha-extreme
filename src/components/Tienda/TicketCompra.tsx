@@ -26,6 +26,7 @@ interface TicketCompraProps {
   subtotal: number;
   descuento: number;
   discountPercentage: number;
+  discountLabel?: string;
   iva: number;
   total: number;
   metodoPago: string;
@@ -44,6 +45,7 @@ export default function TicketCompra({
   subtotal,
   descuento,
   discountPercentage,
+  discountLabel,
   iva,
   total,
   metodoPago,
@@ -63,6 +65,7 @@ export default function TicketCompra({
       subtotal,
       descuento,
       discountPercentage,
+      discountLabel,
       iva,
       total,
       metodoPago,
@@ -111,6 +114,7 @@ export default function TicketCompra({
       subtotal,
       descuento,
       discountPercentage,
+      discountLabel,
       iva,
       total,
       metodoPago,
@@ -284,9 +288,9 @@ export default function TicketCompra({
                           <span>{formatPrice(iva)}</span>
                         </div>
                         
-                        {discountPercentage > 0 && (
+                        {descuento > 0 && (
                           <div className="flex justify-between text-xs mb-1">
-                            <span>Descuento ({formatNumber(discountPercentage, 0)}%):</span>
+                            <span>{discountLabel ?? (discountPercentage > 0 ? `Descuento (${formatNumber(discountPercentage, 0)}%)` : 'Descuento')}:</span>
                             <span>-{formatPrice(descuento)}</span>
                           </div>
                         )}

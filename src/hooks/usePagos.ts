@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSupabase } from './useSupabase';
 import { useProductos } from './useProductos';
 import { resolvePaymentMethodIdByCode } from '@/lib/contabilidadCatalogos';
+import type { DescuentoTipoValor, PagoDescuentoSnapshot } from '@/lib/campamento';
 
 interface CartItem {
   id: string;
@@ -47,6 +48,7 @@ export interface Pago {
   metodo: 'efectivo' | 'tpv' | 'tpv_online' | 'bizum_alfonso' | 'bizum_robe' | 'bizum_alba' | 'bizum_maria' | 'bizum_jm' | 'angeles' | 'transferencia';
   metodo_pago_id?: string | null;
   estado: 'completado' | 'pendiente' | 'cancelado';
+  descuentos_snapshot?: PagoDescuentoSnapshot[];
   created_at: string;
   updated_at: string;
   cliente?: {
@@ -72,7 +74,20 @@ export function usePagos() {
         .from('pago')
         .select(`
           *,
-          cliente:cliente(id, nombre, apellidos)
+          cliente:cliente(id, nombre, apellidos),
+          descuentos_snapshot:pago_descuento_snapshot(
+            id,
+            pago_id,
+            reserva_id,
+            campamento_participante_id,
+            descuento_id,
+            participante_nombre,
+            descuento_nombre,
+            tipo_valor,
+            valor_configurado,
+            importe_aplicado,
+            created_at
+          )
         `)
         .order('created_at', { ascending: false });
 
@@ -80,7 +95,34 @@ export function usePagos() {
         throw new Error(fetchError.message);
       }
 
-      setPagos(data || []);
+      setPagos((data ?? []).map((pago) => ({
+        ...pago,
+        descuentos_snapshot: ((pago.descuentos_snapshot ?? []) as Array<{
+          id?: string | null;
+          pago_id?: string | null;
+          reserva_id?: string | null;
+          campamento_participante_id?: string | null;
+          descuento_id?: string | null;
+          participante_nombre?: string | null;
+          descuento_nombre?: string | null;
+          tipo_valor?: DescuentoTipoValor | null;
+          valor_configurado?: number | string | null;
+          importe_aplicado?: number | string | null;
+          created_at?: string | null;
+        }>).map((snapshot) => ({
+          id: snapshot.id ?? '',
+          pago_id: snapshot.pago_id ?? '',
+          reserva_id: snapshot.reserva_id ?? '',
+          campamento_participante_id: snapshot.campamento_participante_id ?? null,
+          descuento_id: snapshot.descuento_id ?? null,
+          participante_nombre: snapshot.participante_nombre ?? '',
+          descuento_nombre: snapshot.descuento_nombre ?? 'Descuento',
+          tipo_valor: snapshot.tipo_valor === 'porcentaje' ? 'porcentaje' : 'importe_fijo',
+          valor_configurado: Number(snapshot.valor_configurado ?? 0),
+          importe_aplicado: Number(snapshot.importe_aplicado ?? 0),
+          created_at: snapshot.created_at ?? undefined
+        }))
+      })));
     } catch (err) {
       console.error('Error cargando pagos:', err);
       setError(err instanceof Error ? err.message : 'Error al cargar pagos');
