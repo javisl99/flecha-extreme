@@ -37,6 +37,7 @@ import TraspasoModalV2, {
   type TraspasoFormState,
 } from '@/components/Contabilidad/TraspasoModal';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
+import PaginationControls from '@/components/shared/PaginationControls';
 import { useContabilidad, type PendingBizum } from '@/hooks/useContabilidad';
 import { useEmpleados } from '@/hooks/useEmpleados';
 import {
@@ -117,6 +118,8 @@ const findAccountIdFromMovimiento = (
   movimiento: MovimientoContable,
   findAccountByCode: (code: string) => CuentaContable | null
 ) => movimiento.cuenta_id || findAccountByCode(movimiento.caja)?.id || '';
+
+const MOVIMIENTOS_POR_PAGINA = 10;
 
 const getSourceLabel = (movimiento: MovimientoContable) => {
   if (movimiento.es_devolucion) return 'Devolución';
@@ -487,6 +490,7 @@ function MovimientosSection({
   onClearLockedCuenta?: () => void;
 }) {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [paginaMovimientos, setPaginaMovimientos] = useState(1);
   const filtersContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -516,6 +520,21 @@ function MovimientosSection({
     if (lockedCuenta && key === 'cuentaId') return count;
     return count + 1;
   }, 0) + (lockedCuenta ? 1 : 0);
+
+  const totalPaginasMovimientos = Math.max(1, Math.ceil(movimientos.length / MOVIMIENTOS_POR_PAGINA));
+  const paginaMovimientosActiva = Math.min(paginaMovimientos, totalPaginasMovimientos);
+  const movimientosPaginados = useMemo(() => {
+    const inicio = (paginaMovimientosActiva - 1) * MOVIMIENTOS_POR_PAGINA;
+    return movimientos.slice(inicio, inicio + MOVIMIENTOS_POR_PAGINA);
+  }, [movimientos, paginaMovimientosActiva]);
+
+  useEffect(() => {
+    setPaginaMovimientos(1);
+  }, [movimientos, filtros, lockedCuenta]);
+
+  useEffect(() => {
+    setPaginaMovimientos((paginaActual) => Math.min(paginaActual, totalPaginasMovimientos));
+  }, [totalPaginasMovimientos]);
 
   return (
     <section className={`overflow-hidden ${cardClassName}`}>
@@ -802,7 +821,7 @@ function MovimientosSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {movimientos.map((movimiento, index) => {
+                  {movimientosPaginados.map((movimiento, index) => {
                     const esTraspaso =
                       movimiento.tipo === 'traspaso_entrada' ||
                       movimiento.tipo === 'traspaso_salida';
@@ -901,7 +920,7 @@ function MovimientosSection({
                               <button
                                 type="button"
                                 onClick={() => onEditGasto(movimiento)}
-                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary cursor-pointer"
                               >
                                 Editar
                               </button>
@@ -911,7 +930,7 @@ function MovimientosSection({
                               <button
                                 type="button"
                                 onClick={() => onEditAportacion(movimiento)}
-                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary cursor-pointer"
                               >
                                 Editar
                               </button>
@@ -921,7 +940,7 @@ function MovimientosSection({
                               <button
                                 type="button"
                                 onClick={() => onEditTraspaso(movimiento)}
-                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary"
+                                className="rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:border-primary/30 hover:text-primary cursor-pointer"
                               >
                                 Editar
                               </button>
@@ -931,7 +950,7 @@ function MovimientosSection({
                               <button
                                 type="button"
                                 onClick={() => onAbrirPagoSincronizado(movimiento)}
-                                className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                                className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer"
                               >
                                 Ver pago
                               </button>
@@ -941,7 +960,7 @@ function MovimientosSection({
                               <button
                                 type="button"
                                 onClick={() => onAnular(movimiento)}
-                                className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                                className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 cursor-pointer"
                               >
                                 Anular
                               </button>
@@ -967,12 +986,12 @@ function MovimientosSection({
             </div>
 
             <div className="space-y-3 md:hidden">
-              {movimientos.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+                {movimientos.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
                   No hay movimientos para los filtros actuales.
                 </div>
               ) : (
-                movimientos.map((movimiento) => {
+                movimientosPaginados.map((movimiento) => {
                   const esTraspaso =
                     movimiento.tipo === 'traspaso_entrada' ||
                     movimiento.tipo === 'traspaso_salida';
@@ -1096,6 +1115,14 @@ function MovimientosSection({
                 })
               )}
             </div>
+
+            <PaginationControls
+              currentPage={paginaMovimientosActiva}
+              totalPages={totalPaginasMovimientos}
+              totalItems={movimientos.length}
+              pageSize={MOVIMIENTOS_POR_PAGINA}
+              onPageChange={setPaginaMovimientos}
+            />
           </>
         )}
       </div>
@@ -1182,14 +1209,14 @@ function BizumPendientesSection({
                           <button
                             type="button"
                             onClick={() => void onCompletar(bizum.id)}
-                            className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                            className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 cursor-pointer"
                           >
                             Completar
                           </button>
                           <button
                             type="button"
                             onClick={() => void onCancelar(bizum.id)}
-                            className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
+                            className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 cursor-pointer"
                           >
                             Cancelar
                           </button>
@@ -1227,14 +1254,14 @@ function BizumPendientesSection({
                     <button
                       type="button"
                       onClick={() => void onCompletar(bizum.id)}
-                      className="min-h-11 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      className="min-h-11 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 cursor-pointer"
                     >
                       Completar
                     </button>
                     <button
                       type="button"
                       onClick={() => void onCancelar(bizum.id)}
-                      className="min-h-11 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                      className="min-h-11 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 cursor-pointer"
                     >
                       Cancelar
                     </button>

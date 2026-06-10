@@ -91,6 +91,17 @@ function isCompletedStatus(value?: string | null) {
   return status === 'completada' || status === 'completado' || status === 'cerrado';
 }
 
+function isCompletedForToday(reserva: ActividadReserva, now: Date, dateKey: string) {
+  if (isCompletedStatus(reserva.estado)) {
+    return true;
+  }
+
+  return getReservationIntervals(reserva).some((interval) => {
+    if (!intervalTouchesDay(interval, dateKey)) return false;
+    return interval.end.getTime() <= now.getTime();
+  });
+}
+
 function buildClientName(reserva: ActividadReserva) {
   const fullName = `${reserva.cliente?.nombre ?? ''} ${reserva.cliente?.apellidos ?? ''}`.trim();
   return fullName || 'Cliente sin asignar';
@@ -258,6 +269,9 @@ export function useDashboardData() {
   const [reservas, setReservas] = useState<ActividadReserva[]>([]);
   const [reservasLoading, setReservasLoading] = useState(true);
   const todayKey = useMemo(() => getLocalDateKey(), []);
+  const role = usuario?.rol as DatabaseRole | undefined;
+  const hasManagerAccess = role === 'admin' || role === 'fl-admin';
+  const isEmployee = role === 'fl-empleado';
 
   useEffect(() => {
     let mounted = true;
@@ -289,21 +303,26 @@ export function useDashboardData() {
   }, [fetchPlazasParking, obtenerReservas]);
 
   const resumenEfe = useMemo(() => getResumenEfeDiario(todayKey), [getResumenEfeDiario, todayKey]);
-  const role = usuario?.rol as DatabaseRole | undefined;
-  const hasManagerAccess = role === 'admin' || role === 'fl-admin';
 
   const visibleAccounts = useMemo(() => {
+    if (!resumenEfe) {
+      return [];
+    }
+
     const efectivo = resumenEfe.cuentas.find((item) => item.cuenta.codigo === 'efectivo');
     if (hasManagerAccess) {
       return resumenEfe.cuentas;
     }
 
     return efectivo ? [efectivo] : [];
-  }, [hasManagerAccess, resumenEfe.cuentas]);
+  }, [hasManagerAccess, resumenEfe]);
 
   const cashAccount = useMemo(
-    () => resumenEfe.cuentas.find((item) => item.cuenta.codigo === 'efectivo') ?? visibleAccounts[0] ?? null,
-    [resumenEfe.cuentas, visibleAccounts]
+    () => {
+      if (!resumenEfe) return null;
+      return resumenEfe.cuentas.find((item) => item.cuenta.codigo === 'efectivo') ?? visibleAccounts[0] ?? null;
+    },
+    [resumenEfe, visibleAccounts]
   );
 
   const latestCashMovement = useMemo<MovimientoContable | null>(
@@ -326,11 +345,12 @@ export function useDashboardData() {
   }, [reservas, todayKey]);
 
   const activityProgress = useMemo(() => {
+    const now = new Date();
     const reservationsToday = reservas.filter((reserva) =>
       getReservationIntervals(reserva).some((interval) => intervalTouchesDay(interval, todayKey))
     );
     const total = reservationsToday.filter((reserva) => !isCanceledStatus(reserva.estado)).length;
-    const completed = reservationsToday.filter((reserva) => isCompletedStatus(reserva.estado)).length;
+    const completed = reservationsToday.filter((reserva) => isCompletedForToday(reserva, now, todayKey)).length;
 
     return { completed, total };
   }, [reservas, todayKey]);
@@ -344,6 +364,7 @@ export function useDashboardData() {
     usuario,
     role,
     hasManagerAccess,
+    isEmployee,
     todayKey,
     loading: userLoading || accountingLoading || reservasLoading || parkingLoading,
     accountingLoading,

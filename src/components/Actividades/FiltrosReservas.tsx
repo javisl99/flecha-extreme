@@ -72,7 +72,7 @@ export default function FiltrosReservas({ onFiltrosChange }: FiltrosReservasProp
   const activeFiltersCount = Object.values(filtros).filter(Boolean).length;
 
   const inputClassName =
-    'h-11 w-full rounded-full border border-primary/10 bg-surface-container-lowest px-4 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15';
+    'h-11 w-full rounded-full border border-primary/10 bg-surface-container-lowest px-4 text-sm text-on-surface shadow-sm transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15 cursor-pointer';
 
   const dateInputClassName = `${inputClassName} activities-date-input`;
 
@@ -87,7 +87,7 @@ export default function FiltrosReservas({ onFiltrosChange }: FiltrosReservasProp
           isOpen
             ? 'border-primary/25 bg-primary text-white shadow-md shadow-primary/15'
             : 'border-outline-variant/35 bg-white text-on-surface-variant hover:border-primary/25 hover:text-primary'
-        }`}
+        } cursor-pointer`}
       >
         <FunnelIcon className="h-4 w-4" />
         <span>Filtros</span>
@@ -113,7 +113,7 @@ export default function FiltrosReservas({ onFiltrosChange }: FiltrosReservasProp
             <button
               type="button"
               onClick={limpiarFiltros}
-              className="min-h-10 rounded-full border border-outline-variant/35 bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+              className="min-h-10 rounded-full border border-outline-variant/35 bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/1 cursor-pointer"
             >
               Limpiar
             </button>

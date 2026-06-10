@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/shared/components';
 import {
   ArrowDownTrayIcon,
@@ -16,6 +16,9 @@ import { useUserData } from '@/hooks/useUserData';
 import { FiltrosDocumentos, type FiltrosDocumentoState } from '@/components/Documentos/FiltrosDocumentos';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 import TableSkeleton from '@/components/shared/TableSkeleton';
+import PaginationControls from '@/components/shared/PaginationControls';
+
+const DOCUMENTOS_POR_PAGINA = 10;
 
 export default function DocumentosPage() {
   const [filtros, setFiltros] = useState<FiltrosDocumentoState>({
@@ -31,6 +34,7 @@ export default function DocumentosPage() {
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [paginaDocumentos, setPaginaDocumentos] = useState(1);
   const { obtenerDocumentos, eliminarDocumento } = useDocumentos();
   const { usuario, loading: userLoading } = useUserData();
 
@@ -43,20 +47,29 @@ export default function DocumentosPage() {
     return Number.isNaN(parsedDate.getTime()) ? '-' : parsedDate.toLocaleDateString('es-ES');
   };
 
-  const documentosFiltrados = documentos.filter((doc) => {
-    const cumpleNombre = !filtros.nombre || doc.nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
-    const cumpleDescripcion = !filtros.descripcion || (doc.descripcion?.toLowerCase() || '').includes(filtros.descripcion.toLowerCase());
-    const cumpleUsuario = !filtros.usuario || (
-      doc.usuario &&
-      (`${doc.usuario.nombre} ${doc.usuario.apellidos}`).toLowerCase().includes(filtros.usuario.toLowerCase())
-    );
+  const documentosFiltrados = useMemo(() => {
+    return documentos.filter((doc) => {
+      const cumpleNombre = !filtros.nombre || doc.nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
+      const cumpleDescripcion = !filtros.descripcion || (doc.descripcion?.toLowerCase() || '').includes(filtros.descripcion.toLowerCase());
+      const cumpleUsuario = !filtros.usuario || (
+        doc.usuario &&
+        (`${doc.usuario.nombre} ${doc.usuario.apellidos}`).toLowerCase().includes(filtros.usuario.toLowerCase())
+      );
 
-    const fechaDocumento = new Date(getDocumentoFecha(doc));
-    const cumpleFechaDesde = !filtros.fechaDesde || fechaDocumento >= new Date(filtros.fechaDesde);
-    const cumpleFechaHasta = !filtros.fechaHasta || fechaDocumento <= new Date(filtros.fechaHasta);
+      const fechaDocumento = new Date(getDocumentoFecha(doc));
+      const cumpleFechaDesde = !filtros.fechaDesde || fechaDocumento >= new Date(filtros.fechaDesde);
+      const cumpleFechaHasta = !filtros.fechaHasta || fechaDocumento <= new Date(filtros.fechaHasta);
 
-    return cumpleNombre && cumpleDescripcion && cumpleUsuario && cumpleFechaDesde && cumpleFechaHasta;
-  });
+      return cumpleNombre && cumpleDescripcion && cumpleUsuario && cumpleFechaDesde && cumpleFechaHasta;
+    });
+  }, [documentos, filtros]);
+
+  const totalPaginasDocumentos = Math.max(1, Math.ceil(documentosFiltrados.length / DOCUMENTOS_POR_PAGINA));
+  const paginaDocumentosActiva = Math.min(paginaDocumentos, totalPaginasDocumentos);
+  const documentosPaginados = useMemo(() => {
+    const inicio = (paginaDocumentosActiva - 1) * DOCUMENTOS_POR_PAGINA;
+    return documentosFiltrados.slice(inicio, inicio + DOCUMENTOS_POR_PAGINA);
+  }, [documentosFiltrados, paginaDocumentosActiva]);
 
   const cargarDocumentos = useCallback(async () => {
     try {
@@ -96,6 +109,14 @@ export default function DocumentosPage() {
 
     inicializarDatos();
   }, [userLoading, usuario, obtenerDocumentos]);
+
+  useEffect(() => {
+    setPaginaDocumentos(1);
+  }, [filtros]);
+
+  useEffect(() => {
+    setPaginaDocumentos((paginaActual) => Math.min(paginaActual, totalPaginasDocumentos));
+  }, [totalPaginasDocumentos]);
 
   const handleEliminarDocumento = (documento: Documento) => {
     setDocumentoAEliminar(documento);
@@ -185,7 +206,7 @@ export default function DocumentosPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {documentosFiltrados.map((documento, index) => (
+                  {documentosPaginados.map((documento, index) => (
                     <tr
                       key={documento.id}
                       onClick={() => handleVerDocumento(documento.url)}
@@ -254,7 +275,7 @@ export default function DocumentosPage() {
                 No se encontraron documentos que coincidan con los filtros aplicados
               </div>
             ) : (
-              documentosFiltrados.map((documento) => (
+              documentosPaginados.map((documento) => (
                 <div
                   key={documento.id}
                   role="button"
@@ -315,6 +336,14 @@ export default function DocumentosPage() {
               ))
             )}
           </div>
+
+          <PaginationControls
+            currentPage={paginaDocumentosActiva}
+            totalPages={totalPaginasDocumentos}
+            totalItems={documentosFiltrados.length}
+            pageSize={DOCUMENTOS_POR_PAGINA}
+            onPageChange={setPaginaDocumentos}
+          />
         </section>
 
         <SubirDocumentoModal
