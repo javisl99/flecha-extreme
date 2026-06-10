@@ -53,6 +53,80 @@ function getEstadoClass(estado: string) {
   }
 }
 
+function SkeletonBlock({ className }: { className: string }) {
+  return <div className={`animate-pulse rounded-full bg-surface-container-high ${className}`} />;
+}
+
+function ModalDetalleCampamentoProgramaSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-4">
+        <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-low p-4">
+          <SkeletonBlock className="h-3 w-16" />
+          <SkeletonBlock className="mt-4 h-5 w-3/4" />
+          <SkeletonBlock className="mt-2 h-3 w-1/2" />
+        </div>
+        <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-low p-4">
+          <SkeletonBlock className="h-3 w-14" />
+          <SkeletonBlock className="mt-4 h-7 w-24 rounded-full" />
+        </div>
+        <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-low p-4">
+          <SkeletonBlock className="h-3 w-24" />
+          <SkeletonBlock className="mt-4 h-8 w-16" />
+        </div>
+        <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-low p-4">
+          <SkeletonBlock className="h-3 w-24" />
+          <SkeletonBlock className="mt-4 h-8 w-20" />
+          <SkeletonBlock className="mt-2 h-3 w-28" />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-low p-4">
+        <SkeletonBlock className="h-3 w-16" />
+        <SkeletonBlock className="mt-4 h-4 w-full" />
+        <SkeletonBlock className="mt-3 h-4 w-5/6" />
+      </div>
+
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-2">
+          <SkeletonBlock className="h-5 w-40" />
+          <SkeletonBlock className="h-3 w-64" />
+        </div>
+        <SkeletonBlock className="h-11 w-40 rounded-full" />
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-outline-variant/20">
+        <div className="grid grid-cols-6 gap-0 bg-surface-container-low/70 px-4 py-3">
+          <SkeletonBlock className="h-3 w-20 rounded-full" />
+          <SkeletonBlock className="h-3 w-16 rounded-full" />
+          <SkeletonBlock className="h-3 w-16 rounded-full" />
+          <SkeletonBlock className="h-3 w-24 rounded-full" />
+          <SkeletonBlock className="h-3 w-16 rounded-full" />
+          <SkeletonBlock className="h-3 w-14 rounded-full" />
+        </div>
+        <div className="space-y-0">
+          <div className="grid grid-cols-6 gap-0 border-t border-outline-variant/10 bg-surface-container-lowest px-4 py-5">
+            <SkeletonBlock className="h-4 w-32 rounded-full" />
+            <SkeletonBlock className="h-4 w-24 rounded-full" />
+            <SkeletonBlock className="h-4 w-28 rounded-full" />
+            <SkeletonBlock className="h-4 w-36 rounded-full" />
+            <SkeletonBlock className="h-4 w-20 rounded-full" />
+            <SkeletonBlock className="h-4 w-20 rounded-full" />
+          </div>
+          <div className="grid grid-cols-6 gap-0 border-t border-outline-variant/10 bg-surface-container-low px-4 py-5">
+            <SkeletonBlock className="h-4 w-28 rounded-full" />
+            <SkeletonBlock className="h-4 w-20 rounded-full" />
+            <SkeletonBlock className="h-4 w-24 rounded-full" />
+            <SkeletonBlock className="h-4 w-40 rounded-full" />
+            <SkeletonBlock className="h-4 w-16 rounded-full" />
+            <SkeletonBlock className="h-4 w-20 rounded-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ModalDetalleCampamentoPrograma({
   isOpen,
   programaId,
@@ -63,20 +137,25 @@ export default function ModalDetalleCampamentoPrograma({
   const [programa, setPrograma] = useState<CampamentoProgramaDetalle | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showSkeleton, setShowSkeleton] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !programaId) {
       setPrograma(null);
       setLoadError(null);
       setLoading(false);
+      setShowSkeleton(false);
       return;
     }
 
     let cancelled = false;
+    const startedAt = Date.now();
+    setPrograma(null);
+    setLoadError(null);
+    setLoading(true);
+    setShowSkeleton(true);
 
     const load = async () => {
-      setLoading(true);
-      setLoadError(null);
       const result = await obtenerDetalleProgramaCampamento(programaId);
       if (!cancelled) {
         if (result.success && result.programa) {
@@ -87,6 +166,13 @@ export default function ModalDetalleCampamentoPrograma({
           setLoadError(result.message || 'No se pudo cargar el programa de campamento');
         }
         setLoading(false);
+        const elapsed = Date.now() - startedAt;
+        const remaining = Math.max(0, 300 - elapsed);
+        window.setTimeout(() => {
+          if (!cancelled) {
+            setShowSkeleton(false);
+          }
+        }, remaining);
       }
     };
 
@@ -95,7 +181,7 @@ export default function ModalDetalleCampamentoPrograma({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, programaId]);
+  }, [isOpen, obtenerDetalleProgramaCampamento, programaId]);
 
   const resumenHorario = useMemo(() => {
     if (!programa) return '';
@@ -149,10 +235,8 @@ export default function ModalDetalleCampamentoPrograma({
               </div>
 
               <div className="max-h-[80vh] overflow-y-auto px-6 py-6">
-                {loading ? (
-                  <div className="rounded-2xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm text-on-surface-variant">
-                    Cargando programa...
-                  </div>
+                {loading || showSkeleton ? (
+                  <ModalDetalleCampamentoProgramaSkeleton />
                 ) : loadError ? (
                   <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-10 text-center text-sm text-red-700">
                     {loadError}
@@ -263,8 +347,15 @@ export default function ModalDetalleCampamentoPrograma({
                                     {inscripcion.estado}
                                   </span>
                                 </td>
-                                <td className="px-4 py-4 text-sm font-bold text-on-surface">
-                                  {formatCurrency(inscripcion.precio_total)}
+                                <td className="px-4 py-4">
+                                  <p className="text-sm font-bold text-on-surface">
+                                    {formatCurrency(inscripcion.precio_total_neto)}
+                                  </p>
+                                  {inscripcion.descuento_total > 0 ? (
+                                    <p className="mt-1 text-xs text-emerald-700">
+                                      Descuento: -{formatCurrency(inscripcion.descuento_total)}
+                                    </p>
+                                  ) : null}
                                 </td>
                               </tr>
                             ))}

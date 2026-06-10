@@ -259,8 +259,8 @@ export function useTickets() {
     rightAlignText(`${formatSpanishNumber(data.iva)}€`, yPosition, 8);
     yPosition += lineHeight;
 
-    if (data.discountPercentage > 0) {
-      doc.text(`Descuento (${data.discountPercentage}%):`, margin, yPosition);
+    if (data.descuento > 0) {
+      doc.text(data.discountLabel ?? (data.discountPercentage > 0 ? `Descuento (${data.discountPercentage}%):` : 'Descuento:'), margin, yPosition);
       rightAlignText(`-${formatSpanishNumber(data.descuento)}€`, yPosition, 8);
       yPosition += lineHeight;
     }

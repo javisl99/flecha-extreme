@@ -274,13 +274,9 @@ export default function ModalNuevaReservaCampamentoInscripcion({
   };
 
   const handleClosePago = () => {
-    if (paymentCompleted) {
-      setShowPagoModal(false);
-      onClose();
-      return;
-    }
-
     setShowPagoModal(false);
+    setPaymentCompleted(false);
+    onClose();
   };
 
   return (
@@ -382,7 +378,7 @@ export default function ModalNuevaReservaCampamentoInscripcion({
                               setFechaInicio(event.target.value);
                               setErrors((prev) => ({ ...prev, fechaInicio: '' }));
                             }}
-                            className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary ${
+                            className={`activities-date-input w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary ${
                               errors.fechaInicio ? 'border-red-300 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
                             } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
                           />
@@ -402,7 +398,7 @@ export default function ModalNuevaReservaCampamentoInscripcion({
                               setFechaFin(event.target.value);
                               setErrors((prev) => ({ ...prev, fechaFin: '' }));
                             }}
-                            className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary ${
+                            className={`activities-date-input w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary ${
                               errors.fechaFin ? 'border-red-300 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
                             } bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
                           />
@@ -565,6 +561,9 @@ export default function ModalNuevaReservaCampamentoInscripcion({
           horaFin: programa.hora_fin.slice(0, 5),
           nota: nota || undefined,
           modoPrecio: 'por_persona',
+          depositoPermitido: true,
+          depositoObligatorio: false,
+          precioReserva: 0,
           resumenHorario: `${programa.hora_inicio.slice(0, 5)} - ${programa.hora_fin.slice(0, 5)}`,
           resumenFechas: `${fechaInicio} - ${fechaFin}`,
           campamentoProgramaId: programa.id,
@@ -572,7 +571,8 @@ export default function ModalNuevaReservaCampamentoInscripcion({
           participantes: participantes.map((participante) => ({
             participanteId: participante.participanteId ?? undefined,
             nombre: participante.nombre.trim(),
-            dni: participante.dni.trim() || undefined
+            dni: participante.dni.trim() || undefined,
+            descuentos: []
           }))
         }}
       />

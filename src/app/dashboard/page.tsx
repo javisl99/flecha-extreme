@@ -13,6 +13,7 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 export default function DashboardPage() {
   const {
     hasManagerAccess,
+    isEmployee,
     accountingUiLoading,
     reservationsUiLoading,
     parkingUiLoading,
@@ -28,7 +29,7 @@ export default function DashboardPage() {
     pendingPayments,
   } = useDashboardData();
 
-  const topbarBadge = hasManagerAccess ? 'Vista gerencia' : 'Caja efectivo';
+  const topbarBadge = hasManagerAccess ? 'Vista gerencia' : isEmployee ? 'Vista empleado' : 'Caja efectivo';
 
   return (
     <div className="page-container space-y-6">
@@ -63,23 +64,25 @@ export default function DashboardPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
-          {accountingUiLoading
-            ? Array.from({ length: hasManagerAccess ? 4 : 1 }).map((_, index) => (
-                <AccountBalanceCard
-                  key={`account-skeleton-${index}`}
-                  loading
-                  compact={!hasManagerAccess}
-                />
-              ))
-            : visibleAccounts.map((account) => (
-                <AccountBalanceCard
-                  key={account.cuenta_id}
-                  account={account}
-                  compact={!hasManagerAccess && visibleAccounts.length === 1}
-                />
-              ))}
-        </div>
+        {!isEmployee ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
+            {accountingUiLoading
+              ? Array.from({ length: hasManagerAccess ? 4 : 1 }).map((_, index) => (
+                  <AccountBalanceCard
+                    key={`account-skeleton-${index}`}
+                    loading
+                    compact={!hasManagerAccess}
+                  />
+                ))
+              : visibleAccounts.map((account) => (
+                  <AccountBalanceCard
+                    key={account.cuenta_id}
+                    account={account}
+                    compact={!hasManagerAccess && visibleAccounts.length === 1}
+                  />
+                ))}
+          </div>
+        ) : null}
 
         <div className="grid gap-6 xl:grid-cols-12">
           <TodayReservationsPanel reservations={todayReservations} loading={reservationsUiLoading} />

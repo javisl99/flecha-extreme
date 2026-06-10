@@ -233,6 +233,64 @@ function buildInitialRefundInputs(pagos: PagoReservaConReembolsos[]) {
   }, {});
 }
 
+function DetailSkeletonCard() {
+  return (
+    <div className="animate-pulse rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+      <div className="h-3 w-20 rounded-full bg-surface-container-high" />
+      <div className="mt-2 h-4 w-3/4 rounded-full bg-surface-container-high" />
+    </div>
+  );
+}
+
+function ModalDetalleReservaSkeleton() {
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <DetailSkeletonCard />
+        <DetailSkeletonCard />
+        <DetailSkeletonCard />
+        <DetailSkeletonCard />
+        <DetailSkeletonCard />
+        <DetailSkeletonCard />
+        <DetailSkeletonCard />
+        <DetailSkeletonCard />
+      </div>
+
+      <section className="space-y-4 rounded-2xl border border-outline-variant/25 bg-surface-container-low p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-2">
+            <div className="h-4 w-44 rounded-full bg-surface-container-high animate-pulse" />
+            <div className="h-3 w-64 rounded-full bg-surface-container-high animate-pulse" />
+          </div>
+          <div className="h-7 w-24 rounded-full bg-surface-container-high animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <DetailSkeletonCard />
+          <DetailSkeletonCard />
+          <DetailSkeletonCard />
+        </div>
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-outline-variant/25 bg-surface-container-low p-4">
+        <div className="h-4 w-36 rounded-full bg-surface-container-high animate-pulse" />
+        <div className="space-y-3">
+          <div className="h-20 rounded-xl bg-surface-container-high animate-pulse" />
+          <div className="h-20 rounded-xl bg-surface-container-high animate-pulse" />
+        </div>
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-outline-variant/25 bg-surface-container-low p-4">
+        <div className="h-4 w-32 rounded-full bg-surface-container-high animate-pulse" />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="h-24 rounded-xl bg-surface-container-high animate-pulse" />
+          <div className="h-24 rounded-xl bg-surface-container-high animate-pulse" />
+          <div className="h-24 rounded-xl bg-surface-container-high animate-pulse" />
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function ModalDetalleReserva({
   isOpen,
   reserva,
@@ -260,6 +318,7 @@ export default function ModalDetalleReserva({
   const [showDeleteTramoModal, setShowDeleteTramoModal] = useState(false);
   const [tramoAEliminar, setTramoAEliminar] = useState<{ id: string; inicio: string } | null>(null);
   const [reservaDetalle, setReservaDetalle] = useState<Reserva | null>(reserva);
+  const [showSkeleton, setShowSkeleton] = useState(false);
 
   const {
     obtenerPagosPendientesReserva,
@@ -277,12 +336,19 @@ export default function ModalDetalleReserva({
 
   useEffect(() => {
     if (!isOpen || !reserva) {
+      setShowSkeleton(false);
       return;
     }
 
+    setShowSkeleton(true);
     setReservaDetalle(reserva);
 
     let cancelled = false;
+    const skeletonTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        setShowSkeleton(false);
+      }
+    }, 250);
 
     const cargarPagosReserva = async () => {
       setIsLoadingPagosReserva(true);
@@ -301,6 +367,7 @@ export default function ModalDetalleReserva({
 
     return () => {
       cancelled = true;
+      window.clearTimeout(skeletonTimer);
     };
   }, [isOpen, obtenerPagosReservaConReembolsos, reserva]);
 
@@ -748,7 +815,8 @@ export default function ModalDetalleReserva({
         </div>
 
         <div className="p-6">
-          <div className="space-y-5">
+          {showSkeleton ? <ModalDetalleReservaSkeleton /> : null}
+          <div className={showSkeleton ? 'hidden' : 'space-y-5'}>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
                 <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Cliente</label>
@@ -790,6 +858,18 @@ export default function ModalDetalleReserva({
                 <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Precio</label>
                 <p className="mt-1 font-bold text-on-surface">{formatearImporte(reserva.precio)}</p>
               </div>
+              {typeof reserva.total_bruto === 'number' && reserva.total_descuento && reserva.total_descuento > 0 ? (
+                <>
+                  <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                    <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Total bruto</label>
+                    <p className="mt-1 font-medium text-on-surface">{formatearImporte(reserva.total_bruto)}</p>
+                  </div>
+                  <div className="rounded-xl border border-outline-variant/25 bg-surface-container-low p-3">
+                    <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-outline">Descuento</label>
+                    <p className="mt-1 font-bold text-emerald-700">{formatearImporte(reserva.total_descuento)}</p>
+                  </div>
+                </>
+              ) : null}
             </div>
 
             {showAssignmentProgress ? (

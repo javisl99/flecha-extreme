@@ -4,7 +4,7 @@ import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ReceiptPercentIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { SelectorClienteCompacto } from './SelectorClienteCompacto';
-import { formatPrice, formatNumber } from '@/lib/formatUtils';
+import { formatPrice } from '@/lib/formatUtils';
 import { useClientes } from '@/hooks/useClientes';
 import { useProductos } from '@/hooks/useProductos';
 import { useTickets } from '@/hooks/useTickets';
@@ -12,6 +12,7 @@ import SurfSpinner from '@/components/shared/SurfSpinner';
 import TicketCompra from './TicketCompra';
 import { toast } from 'react-hot-toast';
 import { ACTIVE_PAYMENT_METHOD_OPTIONS } from '@/lib/contabilidadCatalogos';
+import { calculateDiscountAmount, calculateDiscountPercentage, type DescuentoModo } from '@/lib/descuentos';
 
 type MetodoPago = 'efectivo' | 'tpv' | 'transferencia' | 'bizum_alfonso';
 type EstadoPago = 'completado' | 'pendiente' | 'cancelado';
@@ -77,11 +78,14 @@ export default function ModalPago({
   const [stockValidationError, setStockValidationError] = useState<string | null>(null);
   const [isCompletingPayment, setIsCompletingPayment] = useState(false);
   const [isSavingTicket, setIsSavingTicket] = useState(false);
+  const [discountMode, setDiscountMode] = useState<DescuentoModo>('porcentaje');
+  const [discountValue, setDiscountValue] = useState<number>(0);
   const [processedPaymentData, setProcessedPaymentData] = useState<{
     cartItems: CartItem[];
     subtotal: number;
     descuento: number;
     discountPercentage: number;
+    discountLabel?: string;
     iva: number;
     total: number;
     metodoPago: string;
@@ -99,6 +103,17 @@ export default function ModalPago({
       setConcepto(pedidoData.concepto);
     }
   }, [pedidoData, readOnly]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setDiscountMode('porcentaje');
+      setDiscountValue(0);
+      return;
+    }
+
+    setDiscountMode('porcentaje');
+    setDiscountValue(discountPercentage);
+  }, [discountPercentage, isOpen]);
 
   // Limpiar error de stock cuando cambien los items del carrito
   useEffect(() => {
@@ -122,7 +137,7 @@ export default function ModalPago({
   );
 
   // Cálculos de precios optimizados con useMemo
-  const { subtotal, descuento, iva, total } = useMemo(() => {
+  const { subtotal, descuento, discountPercentageValue, discountLabel, iva, total } = useMemo(() => {
     
     const subtotal = cartItems.reduce((total, item) => {
       // Para el producto desconocido, usar directamente el precio (ya que quantity es 0)
@@ -131,13 +146,17 @@ export default function ModalPago({
       }
       return total + (item.price * item.quantity);
     }, 0);
-    const descuento = (subtotal * discountPercentage) / 100;
+    const descuento = calculateDiscountAmount(subtotal, discountMode, discountValue);
     const subtotalConDescuento = subtotal - descuento;
     const iva = subtotalConDescuento * 0.21; // 21% de IVA (informativo)
     const total = subtotalConDescuento; // El total es el subtotal con descuento, el IVA ya está incluido
+    const discountPercentageValue = calculateDiscountPercentage(subtotal, descuento);
+    const discountLabel = discountMode === 'porcentaje'
+      ? `Descuento (${discountValue}%)`
+      : 'Descuento (€)';
     
-    return { subtotal, descuento, iva, total };
-  }, [cartItems, discountPercentage]);
+    return { subtotal, descuento, discountPercentageValue, discountLabel, iva, total };
+  }, [cartItems, discountMode, discountValue]);
 
 
   // Función para validar stock disponible
@@ -188,7 +207,8 @@ export default function ModalPago({
         cartItems: [...cartItems], // Crear una copia del array
         subtotal,
         descuento,
-        discountPercentage,
+        discountPercentage: discountPercentageValue,
+        discountLabel,
         iva,
         total,
         metodoPago: (() => {
@@ -211,7 +231,7 @@ export default function ModalPago({
           items: cartItems,
           subtotal,
           descuento,
-          descuentoPorcentaje: discountPercentage,
+          descuentoPorcentaje: discountPercentageValue,
           iva,
           total,
           concepto,
@@ -262,6 +282,7 @@ export default function ModalPago({
         subtotal: processedPaymentData.subtotal,
         descuento: processedPaymentData.descuento,
         discountPercentage: processedPaymentData.discountPercentage,
+        discountLabel: processedPaymentData.discountLabel,
         iva: processedPaymentData.iva,
         total: processedPaymentData.total,
         metodoPago: processedPaymentData.metodoPago,
@@ -313,6 +334,8 @@ export default function ModalPago({
       setMetodoPago('efectivo');
       // Estado del pago: pendiente
       setConcepto('');
+      setDiscountMode('porcentaje');
+      setDiscountValue(0);
       onClose();
     }
   };
@@ -352,7 +375,8 @@ export default function ModalPago({
         cartItems,
         subtotal,
         descuento,
-        discountPercentage,
+        discountPercentage: discountPercentageValue,
+        discountLabel,
         iva,
         total,
         metodoPago: (() => {
@@ -520,11 +544,11 @@ export default function ModalPago({
                             </select>
                           </div>
 
-                          <div>
-                            <label htmlFor="concepto" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                              Concepto
-                            </label>
-                            <input
+                        <div>
+                          <label htmlFor="concepto" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Concepto
+                          </label>
+                          <input
                               type="text"
                               id="concepto"
                               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -534,6 +558,52 @@ export default function ModalPago({
                               disabled={readOnly}
                             />
                           </div>
+
+                          {!readOnly ? (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Descuento
+                              </label>
+                              <div className="grid grid-cols-3 gap-2">
+                                <select
+                                  value={discountMode}
+                                  onChange={(e) => setDiscountMode(e.target.value as DescuentoModo)}
+                                  className="col-span-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                >
+                                  <option value="porcentaje">%</option>
+                                  <option value="importe">€</option>
+                                </select>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={discountMode === 'porcentaje' ? 100 : undefined}
+                                  step="0.01"
+                                  value={discountValue === 0 ? '' : discountValue}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    if (raw === '') {
+                                      setDiscountValue(0);
+                                      return;
+                                    }
+
+                                    const parsed = Number(raw);
+                                    if (Number.isNaN(parsed)) {
+                                      return;
+                                    }
+
+                                    setDiscountValue(discountMode === 'porcentaje'
+                                      ? Math.min(100, Math.max(0, parsed))
+                                      : Math.max(0, parsed));
+                                  }}
+                                  className="col-span-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Puedes aplicar un descuento en porcentaje o en importe fijo.
+                              </p>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
 
@@ -606,9 +676,9 @@ export default function ModalPago({
                               </span>
                             </div>
                             
-                            {discountPercentage > 0 && (
+                            {descuento > 0 && (
                               <div className="flex justify-between text-green-600 dark:text-green-400">
-                                <span>Descuento ({formatNumber(discountPercentage, 0)}%):</span>
+                                <span>{discountLabel}:</span>
                                 <span>-{formatPrice(descuento)}</span>
                               </div>
                             )}
@@ -815,6 +885,7 @@ export default function ModalPago({
           subtotal={processedPaymentData.subtotal}
           descuento={processedPaymentData.descuento}
           discountPercentage={processedPaymentData.discountPercentage}
+          discountLabel={processedPaymentData.discountLabel}
           iva={processedPaymentData.iva}
           total={processedPaymentData.total}
           metodoPago={processedPaymentData.metodoPago}

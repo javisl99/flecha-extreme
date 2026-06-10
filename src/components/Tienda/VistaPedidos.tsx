@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePedidos, type Pedido } from '@/hooks/usePedidos';
 import { FiltrosPedidos, type FiltrosPedidoState } from './FiltrosPedidos';
 import TableSkeleton from '@/components/shared/TableSkeleton';
@@ -8,6 +8,9 @@ import ModalPago from './ModalPago';
 import { formatPrice } from '@/lib/formatUtils';
 import { toast } from 'react-hot-toast';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
+import PaginationControls from '@/components/shared/PaginationControls';
+
+const PEDIDOS_POR_PAGINA = 10;
 
 export default function VistaPedidos() {
   const [filtros, setFiltros] = useState<FiltrosPedidoState>({
@@ -21,23 +24,41 @@ export default function VistaPedidos() {
   const [isModalPagoOpen, setIsModalPagoOpen] = useState(false);
   const [mostrarModalEliminar, setMostrarModalEliminar] = useState(false);
   const [pedidoAEliminar, setPedidoAEliminar] = useState<Pedido | null>(null);
+  const [paginaPedidos, setPaginaPedidos] = useState(1);
 
   const { pedidos, loading, error, eliminarPedido, refreshPedidos } = usePedidos();
 
-  const pedidosFiltrados = pedidos.filter((pedido) => {
-    const cumpleCliente =
-      !filtros.cliente ||
-      (pedido.cliente
-        ? `${pedido.cliente.nombre} ${pedido.cliente.apellidos}`.toLowerCase().includes(filtros.cliente.toLowerCase())
-        : 'cliente no establecido'.includes(filtros.cliente.toLowerCase()));
+  const pedidosFiltrados = useMemo(() => {
+    return pedidos.filter((pedido) => {
+      const cumpleCliente =
+        !filtros.cliente ||
+        (pedido.cliente
+          ? `${pedido.cliente.nombre} ${pedido.cliente.apellidos}`.toLowerCase().includes(filtros.cliente.toLowerCase())
+          : 'cliente no establecido'.includes(filtros.cliente.toLowerCase()));
 
-    const cumpleEstado = !filtros.estado || pedido.estado === filtros.estado;
-    const cumpleFechaDesde = !filtros.fecha_desde || new Date(pedido.fecha) >= new Date(filtros.fecha_desde);
-    const cumpleFechaHasta = !filtros.fecha_hasta || new Date(pedido.fecha) <= new Date(filtros.fecha_hasta);
-    const cumpleConcepto = !filtros.concepto || pedido.concepto?.toLowerCase().includes(filtros.concepto.toLowerCase());
+      const cumpleEstado = !filtros.estado || pedido.estado === filtros.estado;
+      const cumpleFechaDesde = !filtros.fecha_desde || new Date(pedido.fecha) >= new Date(filtros.fecha_desde);
+      const cumpleFechaHasta = !filtros.fecha_hasta || new Date(pedido.fecha) <= new Date(filtros.fecha_hasta);
+      const cumpleConcepto = !filtros.concepto || pedido.concepto?.toLowerCase().includes(filtros.concepto.toLowerCase());
 
-    return cumpleCliente && cumpleEstado && cumpleFechaDesde && cumpleFechaHasta && cumpleConcepto;
-  });
+      return cumpleCliente && cumpleEstado && cumpleFechaDesde && cumpleFechaHasta && cumpleConcepto;
+    });
+  }, [filtros, pedidos]);
+
+  const totalPaginasPedidos = Math.max(1, Math.ceil(pedidosFiltrados.length / PEDIDOS_POR_PAGINA));
+  const paginaPedidosActiva = Math.min(paginaPedidos, totalPaginasPedidos);
+  const pedidosPaginados = useMemo(() => {
+    const inicio = (paginaPedidosActiva - 1) * PEDIDOS_POR_PAGINA;
+    return pedidosFiltrados.slice(inicio, inicio + PEDIDOS_POR_PAGINA);
+  }, [paginaPedidosActiva, pedidosFiltrados]);
+
+  useEffect(() => {
+    setPaginaPedidos(1);
+  }, [filtros]);
+
+  useEffect(() => {
+    setPaginaPedidos((paginaActual) => Math.min(paginaActual, totalPaginasPedidos));
+  }, [totalPaginasPedidos]);
 
   const formatearEstado = (estado: string) => {
     const estadosFormateados: Record<string, string> = {
@@ -185,7 +206,11 @@ export default function VistaPedidos() {
 
   return (
     <div className="space-y-5">
-      <FiltrosPedidos onFiltrosChange={setFiltros} />
+      <FiltrosPedidos
+        onFiltrosChange={setFiltros}
+        title="Listado de pedidos"
+        subtitle="Revisa y filtra los pedidos de la tienda desde una sola vista."
+      />
 
       <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
         <div className="hidden overflow-x-auto md:block">
@@ -205,7 +230,7 @@ export default function VistaPedidos() {
                 </tr>
               </thead>
               <tbody>
-                {pedidosFiltrados.map((pedido, index) => (
+                {pedidosPaginados.map((pedido, index) => (
                   <tr
                     key={pedido.id}
                     className={`cursor-pointer border-b border-outline-variant/10 transition ${
@@ -287,7 +312,7 @@ export default function VistaPedidos() {
               No se encontraron pedidos con los filtros seleccionados.
             </div>
           ) : (
-            pedidosFiltrados.map((pedido) => (
+            pedidosPaginados.map((pedido) => (
               <div
                 key={pedido.id}
                 role="button"
@@ -344,6 +369,14 @@ export default function VistaPedidos() {
             ))
           )}
         </div>
+
+        <PaginationControls
+          currentPage={paginaPedidosActiva}
+          totalPages={totalPaginasPedidos}
+          totalItems={pedidosFiltrados.length}
+          pageSize={PEDIDOS_POR_PAGINA}
+          onPageChange={setPaginaPedidos}
+        />
       </section>
 
       <ModalPago

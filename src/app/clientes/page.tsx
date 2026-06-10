@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/shared/components';
 import { Cliente } from '@/shared/types';
 import { useClientes } from '@/hooks/useClientes';
@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
 import TableSkeleton from '@/components/shared/TableSkeleton';
 import OverlayPanel from '@/components/shared/OverlayPanel';
+import PaginationControls from '@/components/shared/PaginationControls';
 
 const NewItemIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -28,6 +29,14 @@ const initials = (nombre: string, apellidos: string) => {
   const second = apellidos?.charAt(0) || '';
   return `${first}${second}`.toUpperCase() || 'CL';
 };
+
+const formatEmailForTable = (email: string, maxLength = 28) => {
+  if (email.length <= maxLength) return email;
+  return `${email.slice(0, maxLength - 1)}…`;
+};
+
+const CLIENTES_POR_PAGINA = 10;
+const MIN_SKELETON_MS = 900;
 
 function ClienteDetailsContent({
   cliente,
@@ -138,17 +147,80 @@ export default function ClientesPage() {
   const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [modoModal, setModoModal] = useState<'nuevo' | 'editar'>('nuevo');
+  const [paginaClientes, setPaginaClientes] = useState(1);
   const { clientes, loading, error, refreshClientes, eliminarCliente } = useClientes();
+  const loadingStartedAtRef = useRef<number | null>(null);
+  const loadingTimerRef = useRef<number | null>(null);
+  const [showLoadingSkeleton, setShowLoadingSkeleton] = useState(true);
 
-  const clientesFiltrados = clientes.filter((cliente) => {
-    const cumpleNombre = !filtros.nombre || cliente.nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
-    const cumpleApellidos = !filtros.apellidos || cliente.apellidos.toLowerCase().includes(filtros.apellidos.toLowerCase());
-    const cumpleEmail = !filtros.email || cliente.email.toLowerCase().includes(filtros.email.toLowerCase());
-    const cumpleMovil = !filtros.movil || String(cliente.movil).includes(filtros.movil);
-    const cumpleDni = !filtros.dni || (cliente.dni && cliente.dni.toLowerCase().includes(filtros.dni.toLowerCase()));
+  const clientesFiltrados = useMemo(() => {
+    return clientes.filter((cliente) => {
+      const cumpleNombre = !filtros.nombre || cliente.nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
+      const cumpleApellidos = !filtros.apellidos || cliente.apellidos.toLowerCase().includes(filtros.apellidos.toLowerCase());
+      const cumpleEmail = !filtros.email || cliente.email.toLowerCase().includes(filtros.email.toLowerCase());
+      const cumpleMovil = !filtros.movil || String(cliente.movil).includes(filtros.movil);
+      const cumpleDni = !filtros.dni || (cliente.dni && cliente.dni.toLowerCase().includes(filtros.dni.toLowerCase()));
 
-    return cumpleNombre && cumpleApellidos && cumpleEmail && cumpleMovil && cumpleDni;
-  });
+      return cumpleNombre && cumpleApellidos && cumpleEmail && cumpleMovil && cumpleDni;
+    });
+  }, [clientes, filtros]);
+
+  const totalPaginasClientes = Math.max(1, Math.ceil(clientesFiltrados.length / CLIENTES_POR_PAGINA));
+  const paginaClientesActiva = Math.min(paginaClientes, totalPaginasClientes);
+  const clientesPaginados = useMemo(() => {
+    const inicio = (paginaClientesActiva - 1) * CLIENTES_POR_PAGINA;
+    return clientesFiltrados.slice(inicio, inicio + CLIENTES_POR_PAGINA);
+  }, [clientesFiltrados, paginaClientesActiva]);
+
+  useEffect(() => {
+    setPaginaClientes(1);
+  }, [filtros]);
+
+  useEffect(() => {
+    setPaginaClientes((paginaActual) => Math.min(paginaActual, totalPaginasClientes));
+  }, [totalPaginasClientes]);
+
+  useEffect(() => {
+    if (loading) {
+      if (loadingTimerRef.current !== null) {
+        window.clearTimeout(loadingTimerRef.current);
+        loadingTimerRef.current = null;
+      }
+
+      if (loadingStartedAtRef.current === null) {
+        loadingStartedAtRef.current = Date.now();
+      }
+
+      setShowLoadingSkeleton(true);
+      return;
+    }
+
+    if (loadingStartedAtRef.current === null) {
+      setShowLoadingSkeleton(false);
+      return;
+    }
+
+    const elapsed = Date.now() - loadingStartedAtRef.current;
+    if (elapsed < MIN_SKELETON_MS) {
+      loadingTimerRef.current = window.setTimeout(() => {
+        setShowLoadingSkeleton(false);
+        loadingStartedAtRef.current = null;
+        loadingTimerRef.current = null;
+      }, MIN_SKELETON_MS - elapsed);
+      return;
+    }
+
+    setShowLoadingSkeleton(false);
+    loadingStartedAtRef.current = null;
+  }, [loading]);
+
+  useEffect(() => {
+    return () => {
+      if (loadingTimerRef.current !== null) {
+        window.clearTimeout(loadingTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleNuevoClienteSuccess = async (updatedClient: Cliente) => {
     await refreshClientes();
@@ -220,26 +292,30 @@ export default function ClientesPage() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient xl:col-span-2">
           <div className="px-4 py-4 sm:px-6 sm:py-6">
-            <FiltrosClientes onFiltrosChange={setFiltros} />
+            <FiltrosClientes
+              onFiltrosChange={setFiltros}
+              title="Listado de clientes"
+              subtitle="Consulta, filtra y localiza clientes desde esta tabla."
+            />
           </div>
 
           <div className="border-t border-outline-variant/20" />
 
           <div className="hidden overflow-x-auto md:block">
-            {loading ? (
+            {showLoadingSkeleton ? (
               <TableSkeleton columns={4} rows={5} />
             ) : (
               <table className="min-w-full border-collapse text-left">
                 <thead>
                   <tr className="bg-surface-container-low/70 backdrop-blur-md">
                     <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">Cliente</th>
-                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">Email</th>
+                    <th className="w-[280px] px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">Email</th>
                     <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">Móvil</th>
                     <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">DNI</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {clientesFiltrados.map((cliente, index) => (
+                  {clientesPaginados.map((cliente, index) => (
                     <tr
                       key={cliente.id}
                       className={`cursor-pointer border-b border-outline-variant/10 transition ${
@@ -264,7 +340,14 @@ export default function ClientesPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-on-surface-variant">{cliente.email}</td>
+                      <td className="w-[280px] px-6 py-4 text-sm text-on-surface-variant">
+                        <span
+                          className="block max-w-[280px] truncate"
+                          title={cliente.email}
+                        >
+                          {formatEmailForTable(cliente.email)}
+                        </span>
+                      </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-on-surface-variant">{cliente.movil || 'No especificado'}</td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-on-surface-variant">{cliente.dni || 'No especificado'}</td>
                     </tr>
@@ -278,19 +361,19 @@ export default function ClientesPage() {
                     </tr>
                   ) : null}
                 </tbody>
-              </table>
-            )}
-          </div>
+            </table>
+          )}
+        </div>
 
           <div className="space-y-3 p-4 md:hidden">
-            {loading ? (
+            {showLoadingSkeleton ? (
               <TableSkeleton columns={1} rows={4} />
             ) : clientesFiltrados.length === 0 ? (
               <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
                 No se encontraron clientes con esos criterios.
               </div>
             ) : (
-              clientesFiltrados.map((cliente) => (
+              clientesPaginados.map((cliente) => (
                 <button
                   key={cliente.id}
                   type="button"
@@ -328,6 +411,14 @@ export default function ClientesPage() {
               ))
             )}
           </div>
+
+          <PaginationControls
+            currentPage={paginaClientesActiva}
+            totalPages={totalPaginasClientes}
+            totalItems={clientesFiltrados.length}
+            pageSize={CLIENTES_POR_PAGINA}
+            onPageChange={setPaginaClientes}
+          />
         </section>
 
         <section className="hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-card-ambient xl:block">

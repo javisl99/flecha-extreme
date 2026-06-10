@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { Reserva } from '@/hooks/useActividades';
 import {
   buildCampamentoProgramaMetadata,
@@ -13,6 +14,7 @@ type CalendarView = 'month' | 'week' | 'day';
 
 interface VistaCalendarioProps {
   reservas: Reserva[];
+  loading?: boolean;
   onActualizarEstado?: (reserva: Reserva, nuevoEstado: string) => void;
   onReservaActualizada?: () => Promise<void> | void;
   onSeleccionarReserva?: (reserva: Reserva) => void;
@@ -40,6 +42,12 @@ const DAY_TITLE_FORMATTER = new Intl.DateTimeFormat('es-ES', {
   year: 'numeric',
 });
 const TIME_FORMATTER = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+const CalendarSkeletonBlock = ({ className = '' }: { className?: string }) => (
+  <div className={`relative overflow-hidden rounded-xl bg-surface-container-high ${className}`}>
+    <div className="actividades-loading-shimmer absolute inset-y-0 left-0 w-1/2" />
+  </div>
+);
 
 const startOfDay = (date: Date) => {
   const next = new Date(date);
@@ -148,7 +156,32 @@ const getEstadoVisual = (estado: string, end: Date) => {
   return end.getTime() < new Date().getTime() ? 'completada' : estado;
 };
 
-export default function VistaCalendario({ reservas, onActualizarEstado, onReservaActualizada, onSeleccionarReserva }: VistaCalendarioProps) {
+const getEventoCardVariant = (evento: EventoCalendario) => {
+  if (evento.resource.kind === 'campamento_programa') {
+    return {
+      event:
+        'border-indigo-300 bg-indigo-200 text-indigo-950 shadow-[0_12px_28px_-20px_rgba(79,70,229,0.75)] dark:border-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-50',
+      chip:
+        'bg-indigo-800 text-white shadow-sm shadow-indigo-800/20 dark:bg-indigo-300 dark:text-indigo-950',
+    };
+  }
+
+  const estadoVisual = getEstadoVisual(evento.estado, evento.end);
+  const estadoStyles = getEstadoClasses(estadoVisual);
+
+  return {
+    event: estadoStyles.event,
+    chip: estadoStyles.chip,
+  };
+};
+
+export default function VistaCalendario({
+  reservas,
+  loading = false,
+  onActualizarEstado,
+  onReservaActualizada,
+  onSeleccionarReserva,
+}: VistaCalendarioProps) {
   const [view, setView] = useState<CalendarView>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [reservaSeleccionada, setReservaSeleccionada] = useState<Reserva | null>(null);
@@ -301,6 +334,76 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
   })();
   const title = buildViewTitle(view, currentDate);
 
+  const renderMonthSkeleton = () => (
+    <div className="overflow-x-auto rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
+      <div className="min-w-[48rem]">
+        <div className="grid grid-cols-7 border-b border-outline-variant/20 bg-surface-container-low">
+          {WEEK_DAYS.map((day) => (
+            <div key={day} className="px-3 py-3 text-center text-[11px] font-black uppercase tracking-[0.12em] text-outline">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7">
+          {monthDays.map((day, index) => (
+            <div
+              key={day.toISOString()}
+              className="min-h-36 border-b border-r border-outline-variant/20 p-2"
+            >
+              <div className="mb-2 flex justify-end">
+                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-bold text-on-surface-variant">
+                  {day.getDate()}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                <CalendarSkeletonBlock className="h-8 w-full rounded-lg" />
+                <CalendarSkeletonBlock className="h-8 w-4/5 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderWeekSkeleton = () => (
+    <div className="overflow-x-auto rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-low p-4 shadow-card-ambient">
+      <div className="grid min-w-[48rem] grid-cols-7 gap-3">
+        {Array.from({ length: 7 }).map((_, index) => (
+          <div key={index} className="overflow-hidden rounded-xl border border-outline-variant/25 bg-surface-container-lowest shadow-sm">
+            <div className="w-full border-b border-outline-variant/20 bg-primary/10 px-3 py-2 text-sm font-bold text-primary-dark">
+              {DAY_LABEL_FORMATTER.format(weekDays[index])}
+            </div>
+            <div className="space-y-2 bg-surface-container-lowest p-2">
+              <CalendarSkeletonBlock className="h-16 w-full rounded-lg" />
+              <CalendarSkeletonBlock className="h-16 w-full rounded-lg" />
+              <CalendarSkeletonBlock className="h-12 w-full rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderDaySkeleton = () => (
+    <div className="rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-card-ambient">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-headline text-xl font-extrabold text-primary-dark">
+          Agenda del día
+        </h3>
+        <span className="rounded-full bg-surface-container-low px-3 py-1 text-xs font-black uppercase tracking-[0.1em] text-outline">
+          {DAY_LABEL_FORMATTER.format(currentDate)}
+        </span>
+      </div>
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <CalendarSkeletonBlock key={index} className="h-24 w-full rounded-xl" />
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <section className="space-y-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -308,17 +411,19 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
           <button
             type="button"
             onClick={() => handleNavigate('prev')}
-            className="rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary cursor-pointer"
+            aria-label="Anterior"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant shadow-sm transition hover:border-primary/25 hover:text-primary cursor-pointer"
           >
-            Anterior
+            <ChevronLeftIcon className="h-5 w-5" />
           </button>
           <button
             type="button"
             onClick={() => handleNavigate('today')}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition cursor-pointer ${
+            disabled={isViewingToday}
+            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
               isViewingToday
-                ? 'border-primary/30 bg-primary text-white shadow-md shadow-primary/20'
-                : 'border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant hover:border-primary/25 hover:text-primary'
+                ? 'cursor-not-allowed border-outline-variant/30 bg-surface-container-lowest text-outline'
+                : 'cursor-pointer border-primary/20 bg-primary text-white shadow-md shadow-primary/20 hover:brightness-110'
             }`}
           >
             Hoy
@@ -326,9 +431,10 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
           <button
             type="button"
             onClick={() => handleNavigate('next')}
-            className="rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface-variant transition hover:border-primary/25 hover:text-primary cursor-pointer"
+            aria-label="Siguiente"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant shadow-sm transition hover:border-primary/25 hover:text-primary cursor-pointer"
           >
-            Siguiente
+            <ChevronRightIcon className="h-5 w-5" />
           </button>
         </div>
 
@@ -370,7 +476,9 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
         ))}
       </div>
 
-      {view === 'month' ? (
+      {loading ? (
+        view === 'month' ? renderMonthSkeleton() : view === 'week' ? renderWeekSkeleton() : renderDaySkeleton()
+      ) : view === 'month' ? (
         <div className="overflow-x-auto rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
           <div className="min-w-[48rem]">
             <div className="grid grid-cols-7 border-b border-outline-variant/20 bg-surface-container-low">
@@ -416,7 +524,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
                     <div className="space-y-1">
                       {dailyEvents.slice(0, 3).map((evento) => {
                         const estadoVisual = getEstadoVisual(evento.estado, evento.end);
-                        const estadoStyles = getEstadoClasses(estadoVisual);
+                        const cardStyles = getEventoCardVariant(evento);
                         return (
                           <button
                             key={evento.id}
@@ -425,7 +533,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
                               event.stopPropagation();
                               handleEventoSeleccionado(evento.resource);
                             }}
-                            className={`w-full cursor-pointer rounded-lg border px-2 py-1 text-left transition hover:scale-[1.01] ${estadoStyles.event}`}
+                            className={`w-full cursor-pointer rounded-lg border px-2 py-1 text-left transition hover:scale-[1.01] ${cardStyles.event}`}
                           >
                             <p className="truncate text-[10px] font-black uppercase tracking-[0.08em]">
                               {TIME_FORMATTER.format(evento.start)}
@@ -444,10 +552,8 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
             </div>
           </div>
         </div>
-      ) : null}
-
-      {view === 'week' ? (
-        <div className="overflow-x-auto rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-lowest p-4 shadow-card-ambient">
+      ) : view === 'week' ? (
+        <div className="overflow-x-auto rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-low p-4 shadow-card-ambient">
           <div className="grid min-w-[48rem] grid-cols-7 gap-3">
             {weekDays.map((day) => {
               const dailyEvents = eventosDelDia(day);
@@ -455,31 +561,31 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
               return (
                 <div
                   key={day.toISOString()}
-                  className="overflow-hidden rounded-xl border border-outline-variant/25 bg-surface-container-low"
+                  className="overflow-hidden rounded-xl border border-outline-variant/25 bg-surface-container-lowest shadow-sm"
                 >
                   <button
                     type="button"
                     onClick={() => handleDayFocus(day)}
                     className={`w-full border-b border-outline-variant/20 px-3 py-2 text-left text-sm font-bold transition ${
-                      isToday ? 'bg-primary text-white' : 'bg-surface-container-lowest text-on-surface'
+                      isToday ? 'bg-primary text-white' : 'bg-primary/14 text-primary-dark hover:bg-primary/18'
                     }`}
                   >
                     {DAY_LABEL_FORMATTER.format(day)}
                   </button>
 
-                  <div className="space-y-2 p-2">
+                  <div className="space-y-2 bg-surface-container-lowest p-2">
                     {dailyEvents.length === 0 ? (
-                      <p className="rounded-lg bg-surface-container-lowest px-2 py-2 text-xs text-outline">Sin reservas</p>
+                      <p className="rounded-lg border border-outline-variant/15 bg-white px-2 py-2 text-xs text-outline">Sin reservas</p>
                     ) : (
                       dailyEvents.map((evento) => {
                         const estadoVisual = getEstadoVisual(evento.estado, evento.end);
-                        const estadoStyles = getEstadoClasses(estadoVisual);
+                        const cardStyles = getEventoCardVariant(evento);
                         return (
                           <button
                             key={evento.id}
                             type="button"
                             onClick={() => handleEventoSeleccionado(evento.resource)}
-                            className={`w-full cursor-pointer rounded-lg border p-2 text-left transition hover:scale-[1.01] ${estadoStyles.event}`}
+                            className={`w-full cursor-pointer rounded-lg border p-2 text-left transition hover:scale-[1.01] ${cardStyles.event}`}
                           >
                             <p className="text-[11px] font-black uppercase tracking-[0.08em]">
                               {TIME_FORMATTER.format(evento.start)} - {TIME_FORMATTER.format(evento.end)}
@@ -495,9 +601,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
             })}
           </div>
         </div>
-      ) : null}
-
-      {view === 'day' ? (
+      ) : (
         <div className="rounded-[1.25rem] border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-card-ambient">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="font-headline text-xl font-extrabold text-primary-dark">
@@ -516,13 +620,13 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
             ) : (
               eventosDelDia(currentDate).map((evento) => {
                 const estadoVisual = getEstadoVisual(evento.estado, evento.end);
-                const estadoStyles = getEstadoClasses(estadoVisual);
+                const cardStyles = getEventoCardVariant(evento);
                 return (
                   <button
                     key={evento.id}
                     type="button"
                     onClick={() => handleEventoSeleccionado(evento.resource)}
-                    className={`w-full cursor-pointer rounded-xl border p-4 text-left transition hover:scale-[1.005] ${estadoStyles.event}`}
+                    className={`w-full cursor-pointer rounded-xl border p-4 text-left transition hover:scale-[1.005] ${cardStyles.event}`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
@@ -532,7 +636,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
                         <p className="mt-1 text-base font-bold">{evento.title}</p>
                         <p className="mt-1 text-sm opacity-80">{evento.subtitle}</p>
                       </div>
-                      <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${estadoStyles.chip}`}>
+                      <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${cardStyles.chip}`}>
                         {estadoVisual}
                       </span>
                     </div>
@@ -542,7 +646,7 @@ export default function VistaCalendario({ reservas, onActualizarEstado, onReserv
             )}
           </div>
         </div>
-      ) : null}
+      )}
 
       <ModalDetalleReserva
         isOpen={!!reservaSeleccionada && reservaSeleccionada?.kind !== 'campamento_programa'}
