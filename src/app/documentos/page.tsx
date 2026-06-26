@@ -1,138 +1,374 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, Button } from '@/shared/components';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Button } from '@/shared/components';
+import {
+  ArrowDownTrayIcon,
+  DocumentIcon,
+  EyeIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline';
+import { SubirDocumentoModal } from '@/components/Documentos/SubirDocumentoModal';
+import { useDocumentos, Documento } from '@/hooks/useDocumentos';
+import { toast } from 'react-hot-toast';
+import ProtectedRoute from '@/components/Layout/ProtectedRoute';
+import { useUserData } from '@/hooks/useUserData';
+import { FiltrosDocumentos, type FiltrosDocumentoState } from '@/components/Documentos/FiltrosDocumentos';
+import ModalConfirmacion from '@/components/shared/ModalConfirmacion';
+import TableSkeleton from '@/components/shared/TableSkeleton';
+import PaginationControls from '@/components/shared/PaginationControls';
 
-// Datos de ejemplo para documentos
-const documentosMock = [
-  { 
-    id: '1', 
-    nombre: 'Contrato de Servicios.pdf', 
-    tipo: 'contrato', 
-    fechaCreacion: '2023-06-15',
-    url: '/documentos/contratos/contrato_servicios.pdf'
-  },
-  { 
-    id: '2', 
-    nombre: 'Factura-2023-0045.pdf', 
-    tipo: 'factura', 
-    fechaCreacion: '2023-06-10',
-    url: '/documentos/facturas/factura_2023_0045.pdf'
-  },
-  { 
-    id: '3', 
-    nombre: 'Seguro Responsabilidad Civil.pdf', 
-    tipo: 'otro', 
-    fechaCreacion: '2023-05-20',
-    url: '/documentos/seguros/seguro_responsabilidad_civil.pdf'
-  },
-  { 
-    id: '4', 
-    nombre: 'Recibo Pago 2023-06.pdf', 
-    tipo: 'recibo', 
-    fechaCreacion: '2023-06-12',
-    url: '/documentos/recibos/recibo_pago_2023_06.pdf'
-  },
-  { 
-    id: '5', 
-    nombre: 'Manual de Procedimientos.pdf', 
-    tipo: 'otro', 
-    fechaCreacion: '2023-06-01',
-    url: '/documentos/manuales/manual_procedimientos.pdf'
-  }
-];
+const DOCUMENTOS_POR_PAGINA = 10;
 
 export default function DocumentosPage() {
-  const [filtro, setFiltro] = useState('');
-  
-  const documentosFiltrados = documentosMock.filter(doc => 
-    doc.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-    doc.tipo.toLowerCase().includes(filtro.toLowerCase())
-  );
-  
+  const [filtros, setFiltros] = useState<FiltrosDocumentoState>({
+    nombre: '',
+    descripcion: '',
+    usuario: '',
+    fechaDesde: '',
+    fechaHasta: '',
+  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalConfirmacionOpen, setIsModalConfirmacionOpen] = useState(false);
+  const [documentoAEliminar, setDocumentoAEliminar] = useState<Documento | null>(null);
+  const [documentos, setDocumentos] = useState<Documento[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [paginaDocumentos, setPaginaDocumentos] = useState(1);
+  const { obtenerDocumentos, eliminarDocumento } = useDocumentos();
+  const { usuario, loading: userLoading } = useUserData();
+
+  const getDocumentoFecha = (documento: Documento) => documento.created_at || documento.fechaCreacion || '';
+
+  const formatearFechaDocumento = (documento: Documento) => {
+    const fecha = getDocumentoFecha(documento);
+    if (!fecha) return '-';
+    const parsedDate = new Date(fecha);
+    return Number.isNaN(parsedDate.getTime()) ? '-' : parsedDate.toLocaleDateString('es-ES');
+  };
+
+  const documentosFiltrados = useMemo(() => {
+    return documentos.filter((doc) => {
+      const cumpleNombre = !filtros.nombre || doc.nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
+      const cumpleDescripcion = !filtros.descripcion || (doc.descripcion?.toLowerCase() || '').includes(filtros.descripcion.toLowerCase());
+      const cumpleUsuario = !filtros.usuario || (
+        doc.usuario &&
+        (`${doc.usuario.nombre} ${doc.usuario.apellidos}`).toLowerCase().includes(filtros.usuario.toLowerCase())
+      );
+
+      const fechaDocumento = new Date(getDocumentoFecha(doc));
+      const cumpleFechaDesde = !filtros.fechaDesde || fechaDocumento >= new Date(filtros.fechaDesde);
+      const cumpleFechaHasta = !filtros.fechaHasta || fechaDocumento <= new Date(filtros.fechaHasta);
+
+      return cumpleNombre && cumpleDescripcion && cumpleUsuario && cumpleFechaDesde && cumpleFechaHasta;
+    });
+  }, [documentos, filtros]);
+
+  const totalPaginasDocumentos = Math.max(1, Math.ceil(documentosFiltrados.length / DOCUMENTOS_POR_PAGINA));
+  const paginaDocumentosActiva = Math.min(paginaDocumentos, totalPaginasDocumentos);
+  const documentosPaginados = useMemo(() => {
+    const inicio = (paginaDocumentosActiva - 1) * DOCUMENTOS_POR_PAGINA;
+    return documentosFiltrados.slice(inicio, inicio + DOCUMENTOS_POR_PAGINA);
+  }, [documentosFiltrados, paginaDocumentosActiva]);
+
+  const cargarDocumentos = useCallback(async () => {
+    try {
+      const result = await obtenerDocumentos();
+      
+      if (result.success && result.data) {
+        setDocumentos(result.data);
+      } else {
+        console.error('Error al cargar documentos:', result.error);
+        toast.error('Error al cargar los documentos');
+      }
+    } catch (error) {
+      console.error('Error al cargar documentos:', error);
+      toast.error('Error al cargar los documentos');
+    }
+  }, [obtenerDocumentos]);
+
+  useEffect(() => {
+    const inicializarDatos = async () => {
+      if (!userLoading && usuario) {
+        try {
+          const result = await obtenerDocumentos();
+          if (result.success && result.data) {
+            setDocumentos(result.data);
+          } else {
+            console.error('Error al cargar documentos:', result.error);
+            toast.error('Error al cargar los documentos');
+          }
+        } catch (error) {
+          console.error('Error al cargar documentos:', error);
+          toast.error('Error al cargar los documentos');
+        } finally {
+          setIsInitialLoading(false);
+        }
+      }
+    };
+
+    inicializarDatos();
+  }, [userLoading, usuario, obtenerDocumentos]);
+
+  useEffect(() => {
+    setPaginaDocumentos(1);
+  }, [filtros]);
+
+  useEffect(() => {
+    setPaginaDocumentos((paginaActual) => Math.min(paginaActual, totalPaginasDocumentos));
+  }, [totalPaginasDocumentos]);
+
+  const handleEliminarDocumento = (documento: Documento) => {
+    setDocumentoAEliminar(documento);
+    setIsModalConfirmacionOpen(true);
+  };
+
+  const handleConfirmarEliminacion = async () => {
+    if (!documentoAEliminar) return;
+
+    try {
+      setIsDeleting(true);
+      const result = await eliminarDocumento(documentoAEliminar);
+      
+      if (result.success) {
+          setDocumentos((docs) => docs.filter((doc) => doc.id !== documentoAEliminar.id));
+        toast.success('Documento eliminado correctamente');
+      } else {
+        toast.error(result.error || 'Error al eliminar el documento');
+      }
+    } catch (error) {
+      console.error('Error al eliminar documento:', error);
+      toast.error('Error inesperado al eliminar el documento');
+    } finally {
+      setIsDeleting(false);
+      setIsModalConfirmacionOpen(false);
+      setDocumentoAEliminar(null);
+    }
+  };
+
+  const handleVerDocumento = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Documentos</h1>
-        <div className="flex space-x-2">
-          <Button variant="outline" className="cursor-pointer">
-            Nueva Carpeta
-          </Button>
-          <Button variant="primary" className="cursor-pointer">
+    <ProtectedRoute>
+      <div className="page-container space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Documentos</h1>
+          <Button
+            variant="primary"
+            className="primary-gradient flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-primary-light/10 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:brightness-110"
+            onClick={() => setIsModalOpen(true)}
+            disabled={isInitialLoading}
+          >
+            <ArrowDownTrayIcon className="h-5 w-5" />
             Subir Documento
           </Button>
         </div>
-      </div>
-      
-      <Card>
-        <div className="mb-4">
-          <input
-            type="text"
-            placeholder="Buscar documentos..."
-            className="w-full px-4 py-2 border border-input-border dark:border-input-border bg-input-bg dark:bg-input-bg rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value)}
+
+        <section className="overflow-hidden rounded-[1.5rem] border border-outline-variant/30 bg-surface-container-lowest shadow-card-ambient">
+          <div className="px-4 py-4 sm:px-6 sm:py-6">
+            <FiltrosDocumentos
+              onFiltrosChange={setFiltros}
+              title="Listado de documentos"
+              subtitle="Encuentra documentos por nombre, usuario, descripción o fecha."
+            />
+          </div>
+
+          <div className="border-t border-outline-variant/20" />
+
+          <div className="hidden overflow-x-auto md:block">
+            {isInitialLoading || userLoading ? (
+              <TableSkeleton columns={5} rows={5} />
+            ) : documentosFiltrados.length === 0 ? (
+              <div className="px-6 py-12 text-center text-sm font-medium text-outline">
+                No se encontraron documentos que coincidan con los filtros aplicados
+              </div>
+            ) : (
+              <table className="min-w-full border-collapse text-left">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                      Nombre
+                    </th>
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                      Descripción
+                    </th>
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                      Usuario
+                    </th>
+                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                      Fecha
+                    </th>
+                    <th className="px-6 py-4 text-right text-[11px] font-black uppercase tracking-[0.14em] text-outline">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documentosPaginados.map((documento, index) => (
+                    <tr
+                      key={documento.id}
+                      onClick={() => handleVerDocumento(documento.url)}
+                      className={`group cursor-pointer border-b border-outline-variant/10 transition ${
+                        index % 2 ? 'bg-surface-container-low/25 hover:bg-surface-container-low' : 'hover:bg-surface-container-low'
+                      }`}
+                    >
+                      <td className="px-6 py-4 text-sm">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="rounded-lg border border-outline-variant/30 bg-surface-container-low p-1.5">
+                            <DocumentIcon className="h-4 w-4 text-outline" />
+                          </span>
+                          <span className="truncate font-semibold text-on-surface group-hover:text-primary transition-colors">
+                            {documento.nombre}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-on-surface-variant">
+                        {documento.descripcion || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-on-surface-variant">
+                        {documento.usuario ? `${documento.usuario.nombre} ${documento.usuario.apellidos}` : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant">
+                        {formatearFechaDocumento(documento)}
+                      </td>
+                      <td
+                        className="px-6 py-4 text-right text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex justify-end gap-2">
+                          <a
+                            href={documento.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-container-low text-primary-dark transition hover:border-primary/30 hover:text-primary"
+                            title="Ver"
+                          >
+                            <EyeIcon className="h-4.5 w-4.5" />
+                          </a>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEliminarDocumento(documento);
+                            }}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100"
+                            title="Eliminar"
+                            disabled={isDeleting}
+                          >
+                            <TrashIcon className={`h-4.5 w-4.5 ${isDeleting ? 'opacity-50' : ''}`} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div className="space-y-3 p-4 md:hidden">
+            {isInitialLoading || userLoading ? (
+              <TableSkeleton columns={1} rows={4} />
+            ) : documentosFiltrados.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-outline-variant/35 bg-surface-container-low px-4 py-10 text-center text-sm font-medium text-outline">
+                No se encontraron documentos que coincidan con los filtros aplicados
+              </div>
+            ) : (
+              documentosPaginados.map((documento) => (
+                <div
+                  key={documento.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleVerDocumento(documento.url)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleVerDocumento(documento.url);
+                    }
+                  }}
+                  className="group w-full rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-low px-4 py-4 text-left transition hover:bg-surface-container-high"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="rounded-lg border border-outline-variant/30 bg-surface-container-lowest p-1.5">
+                          <DocumentIcon className="h-4 w-4 text-outline" />
+                        </span>
+                        <span className="truncate text-sm font-semibold text-on-surface transition-colors group-hover:text-primary">
+                          {documento.nombre}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm text-on-surface-variant">{documento.descripcion || '-'}</p>
+                    </div>
+                    <span className="rounded-full bg-surface-container-lowest px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-primary">
+                      Ver
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-1 text-sm text-on-surface-variant">
+                    <p>{documento.usuario ? `${documento.usuario.nombre} ${documento.usuario.apellidos}` : '-'}</p>
+                    <p>{formatearFechaDocumento(documento)}</p>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <a
+                      href={documento.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-outline-variant/30 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-primary-dark transition hover:border-primary/30 hover:text-primary"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Ver documento
+                    </a>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEliminarDocumento(documento);
+                      }}
+                      className="min-h-11 flex-1 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+                      disabled={isDeleting}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <PaginationControls
+            currentPage={paginaDocumentosActiva}
+            totalPages={totalPaginasDocumentos}
+            totalItems={documentosFiltrados.length}
+            pageSize={DOCUMENTOS_POR_PAGINA}
+            onPageChange={setPaginaDocumentos}
           />
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nombre</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tipo</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="bg-card-bg divide-y divide-gray-200 dark:divide-gray-700">
-              {documentosFiltrados.map((documento) => (
-                <tr key={documento.id} className="hover:bg-table-row-hover dark:hover:bg-gray-700 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{documento.nombre}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {documento.tipo}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(documento.fechaCreacion).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                    <div className="flex justify-end space-x-2">
-                      <button className="p-1.5 rounded-full text-primary-dark dark:text-primary-light bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer" title="Ver">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </button>
-                      <button className="p-1.5 rounded-full text-primary-dark dark:text-primary-light bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer" title="Descargar">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                      </button>
-                      <button className="p-1.5 rounded-full text-red-600 dark:text-red-500 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 cursor-pointer" title="Eliminar">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              
-              {documentosFiltrados.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No se encontraron documentos con los criterios de búsqueda.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
+        </section>
+
+        <SubirDocumentoModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={() => {
+            setIsModalOpen(false);
+            cargarDocumentos();
+          }}
+        />
+
+        <ModalConfirmacion
+          isOpen={isModalConfirmacionOpen}
+          onClose={() => {
+            setIsModalConfirmacionOpen(false);
+            setDocumentoAEliminar(null);
+          }}
+          onConfirm={handleConfirmarEliminacion}
+          titulo="Eliminar Documento"
+          mensaje={`¿Estás seguro de que quieres eliminar el documento "${documentoAEliminar?.nombre}"? Esta acción no se puede deshacer.`}
+          textoConfirmar="Eliminar"
+          textoCancelar="Cancelar"
+          variante="documentos-v2"
+        />
+      </div>
+    </ProtectedRoute>
   );
-} 
+}

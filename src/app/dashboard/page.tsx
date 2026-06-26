@@ -1,98 +1,105 @@
 'use client';
 
-import { useState } from 'react';
-import { Card } from '@/shared/components';
-import ResumenDiario from '@/components/Dashboard/ResumenDiario';
-import ReservasHoy from '@/components/Dashboard/ReservasHoy';
-import PagosRecientes from '@/components/Dashboard/PagosRecientes';
-import { reservasMock } from '@/components/Reservas/data';
-import { pagosMock } from '@/components/Pagos/data';
-import { movimientosCajaMock } from '@/components/Contabilidad/data';
-
-// Componentes de iconos SVG para el dashboard
-const CalendarIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-  </svg>
-);
-
-const WalletIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-  </svg>
-);
-
-const ChartIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-  </svg>
-);
+import {
+  AccountBalanceCard,
+  ActivityProgressCard,
+  CashHeroCard,
+  ParkingOccupancyCard,
+  PendingPaymentsPanel,
+  TodayReservationsPanel,
+} from '@/components/Dashboard/v2/DashboardPrimitives';
+import { useDashboardData } from '@/hooks/useDashboardData';
 
 export default function DashboardPage() {
-  // Usando una fecha fija para los datos de demostración
-  const [fecha] = useState('2024-04-25');
-  
-  // Filtrar datos para la fecha de demostración
-  const reservasHoy = reservasMock.filter(r => r.fecha === fecha);
-  const pagosRecientes = pagosMock.filter(p => p.fechaPago === fecha);
-  
-  // Calcular KPIs
-  const reservasPendientes = reservasMock.filter(r => r.estado === 'Pendiente').length;
-  const reservasNoPagadas = reservasMock.filter(r => !r.pagado).length;
-  
-  const ingresosDiarios = movimientosCajaMock
-    .filter(m => m.fecha === fecha && m.tipo === 'ingreso')
-    .reduce((total, m) => total + m.importe, 0);
-    
-  const gastosDiarios = movimientosCajaMock
-    .filter(m => m.fecha === fecha && m.tipo === 'gasto')
-    .reduce((total, m) => total + m.importe, 0);
-  
-  const balanceDiario = ingresosDiarios - gastosDiarios;
-  
+  const {
+    hasManagerAccess,
+    isEmployee,
+    accountingUiLoading,
+    reservationsUiLoading,
+    parkingUiLoading,
+    accountingError,
+    reservationsError,
+    parkingError,
+    cashAccount,
+    latestCashMovement,
+    visibleAccounts,
+    todayReservations,
+    activityProgress,
+    parkingSummary,
+    pendingPayments,
+  } = useDashboardData();
+
+  const topbarBadge = hasManagerAccess ? 'Vista gerencia' : isEmployee ? 'Vista empleado' : 'Caja efectivo';
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Dashboard</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card 
-          title="Reservas Pendientes" 
-          icon={<CalendarIcon />}
-          className="bg-card-bg"
-        >
-          <div className="text-4xl font-bold text-center text-primary-dark dark:text-primary-light">{reservasPendientes}</div>
-          <div className="text-sm text-center text-gray-500 dark:text-gray-400 mt-2">Por confirmar o pendientes</div>
-        </Card>
-        
-        <Card 
-          title="Sin Pagar" 
-          icon={<WalletIcon />}
-          className="bg-card-bg"
-        >
-          <div className="text-4xl font-bold text-center text-primary-dark dark:text-primary-light">{reservasNoPagadas}</div>
-          <div className="text-sm text-center text-gray-500 dark:text-gray-400 mt-2">Reservas sin pago confirmado</div>
-        </Card>
-        
-        <Card 
-          title="Balance del Día" 
-          icon={<ChartIcon />}
-          className="bg-card-bg"
-        >
-          <div className={`text-4xl font-bold text-center ${balanceDiario >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
-            {balanceDiario.toFixed(2)} €
+    <div className="page-container space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary-dark">Dashboard</h1>
+
+        <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
+          <span className="text-[11px] font-black uppercase tracking-[0.08em] text-[#c78a00]">{topbarBadge}</span>
+        </div>
+      </div>
+
+      <section className="space-y-6 lg:space-y-8">
+        {(accountingError || reservationsError) ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+            {accountingError || reservationsError}
           </div>
-          <div className="text-sm text-center text-gray-500 dark:text-gray-400 mt-2">Ingresos - Gastos</div>
-        </Card>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ResumenDiario fecha={fecha} />
-        <ReservasHoy reservas={reservasHoy} />
-      </div>
-      
-      <div className="mt-6">
-        <PagosRecientes pagos={pagosRecientes} />
-      </div>
+        ) : null}
+
+        <div className="grid gap-6 lg:grid-cols-12">
+          <CashHeroCard
+            account={cashAccount}
+            latestMovement={latestCashMovement}
+            loading={accountingUiLoading}
+            managerAccess={hasManagerAccess}
+          />
+
+          <ActivityProgressCard
+            completed={activityProgress.completed}
+            total={activityProgress.total}
+            loading={reservationsUiLoading}
+          />
+        </div>
+
+        {!isEmployee ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
+            {accountingUiLoading
+              ? Array.from({ length: hasManagerAccess ? 4 : 1 }).map((_, index) => (
+                  <AccountBalanceCard
+                    key={`account-skeleton-${index}`}
+                    loading
+                    compact={!hasManagerAccess}
+                  />
+                ))
+              : visibleAccounts.map((account) => (
+                  <AccountBalanceCard
+                    key={account.cuenta_id}
+                    account={account}
+                    compact={!hasManagerAccess && visibleAccounts.length === 1}
+                  />
+                ))}
+          </div>
+        ) : null}
+
+        <div className="grid gap-6 xl:grid-cols-12">
+          <TodayReservationsPanel reservations={todayReservations} loading={reservationsUiLoading} />
+
+          <div className="space-y-6 xl:col-span-4">
+            <ParkingOccupancyCard
+              summary={parkingSummary}
+              loading={parkingUiLoading}
+              error={parkingError}
+            />
+
+            {hasManagerAccess ? (
+              <PendingPaymentsPanel payments={pendingPayments} loading={accountingUiLoading} />
+            ) : null}
+          </div>
+        </div>
+      </section>
     </div>
   );
-} 
+}

@@ -1,30 +1,73 @@
 @import "tailwindcss";
+@config "../../tailwind.config.js";
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf8ff;
+  --foreground: #001947;
+
   --primary-dark: #00296b;
   --primary: #003f88;
   --primary-light: #00509d;
   --accent: #fdc500;
   --accent-light: #ffd500;
-  --card-bg: #ffffff;
-  --card-border: #e5e7eb;
-  --input-bg: #ffffff;
-  --input-border: #d1d5db;
-  --table-head-bg: #f9fafb;
-  --table-row-hover: #f3f4f6;
+
+  --surface: #faf8ff;
+  --surface-dim: #ced9ff;
+  --surface-bright: #faf8ff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f2f3ff;
+  --surface-container: #eaedff;
+  --surface-container-high: #e2e7ff;
+  --surface-container-highest: #dae2ff;
+
+  --on-surface: #001947;
+  --on-surface-variant: #434751;
+  --outline: #737782;
+  --outline-variant: #c3c6d3;
+
+  --primary-container: #003f88;
+  --secondary: #1f5eac;
+  --secondary-container: #78acff;
+
+  --card-bg: var(--surface-container-lowest);
+  --card-border: #e0e5f4;
+  --input-bg: var(--surface-container-lowest);
+  --input-border: #d3d9eb;
+  --table-head-bg: #f4f6ff;
+  --table-row-hover: var(--surface-container-low);
   --modal-overlay: rgba(0, 0, 0, 0.5);
+
+  --font-sans: var(--font-inter), "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-headline: var(--font-manrope), var(--font-inter), "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", monospace;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+
   --color-primary-dark: var(--primary-dark);
   --color-primary: var(--primary);
   --color-primary-light: var(--primary-light);
+  --color-primary-container: var(--primary-container);
+  --color-secondary: var(--secondary);
+  --color-secondary-container: var(--secondary-container);
   --color-accent: var(--accent);
   --color-accent-light: var(--accent-light);
+
   --color-card-bg: var(--card-bg);
   --color-card-border: var(--card-border);
   --color-input-bg: var(--input-bg);
@@ -32,31 +75,486 @@
   --color-table-head-bg: var(--table-head-bg);
   --color-table-row-hover: var(--table-row-hover);
   --color-modal-overlay: var(--modal-overlay);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-headline: var(--font-headline);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1e293b;
-    --foreground: #f8fafc;
-    --primary-dark: #00509d;
-    --primary: #0066cc;
-    --primary-light: #0077e6;
-    --accent: #ffd700;
-    --accent-light: #ffe047;
-    --card-bg: #293548;
-    --card-border: #3e4c63;
-    --input-bg: #334155;
-    --input-border: #475569;
-    --table-head-bg: #293548;
-    --table-row-hover: #334155;
-    --modal-overlay: rgba(0, 0, 0, 0.7);
-  }
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+body.app-lock-scroll {
+  overflow: hidden;
+}
+
+/* Safari aplica un tamaño intrínseco más ancho a algunos campos date. */
+.activities-date-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  inline-size: 100%;
+  box-sizing: border-box;
+}
+
+.activities-date-input::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: inherit;
+}
+
+.activities-date-input::-webkit-datetime-edit,
+.activities-date-input::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+h1, h2, h3, h4, h5, h6,
+.font-headline {
+  font-family: var(--font-headline);
+}
+
+#__next {
+  height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.sidebar-gradient {
+  background: linear-gradient(180deg, #001947 0%, #00296b 100%);
+}
+
+.primary-gradient {
+  background: linear-gradient(135deg, #003f88 0%, #00296b 100%);
+}
+
+.glass-surface {
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid color-mix(in srgb, var(--outline-variant) 14%, transparent);
+}
+
+.shadow-sidebar-ambient {
+  box-shadow: 20px 0 40px rgba(0, 25, 71, 0.08);
+}
+
+.shadow-card-ambient {
+  box-shadow: 0 20px 40px rgba(0, 25, 71, 0.08);
+}
+
+.ease-fluid {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animaciones personalizadas para el modal */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.5s ease-out;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.5s ease-out;
+}
+
+.animate-slideInUp {
+  animation: slideInUp 0.5s ease-out;
+}
+
+/* Animación para el cambio de altura del modal */
+@keyframes modalResize {
+  from {
+    height: auto;
+    opacity: 0.8;
+  }
+  to {
+    height: auto;
+    opacity: 1;
+  }
+}
+
+.modal-resize {
+  animation: modalResize 0.5s ease-in-out;
+}
+
+/* Clases utilitarias para layout responsive */
+.h-screen-safe {
+  height: 100vh;
+  height: 100dvh; /* Dynamic viewport height */
+}
+
+.min-h-screen-safe {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.max-h-screen-safe {
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+.page-container {
+  width: 100%;
+  padding: 1.25rem 1rem 1.5rem;
+}
+
+.page-container-narrow {
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 1.5rem;
+}
+
+.app-safe-top {
+  padding-top: max(env(safe-area-inset-top), 0px);
+}
+
+.app-safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+/* Asegurar que el contenido se ajuste correctamente en móviles */
+@media (max-width: 768px) {
+  .h-screen-safe {
+    height: 100vh;
+    height: 100svh; /* Small viewport height para móviles */
+  }
+  
+  .min-h-screen-safe {
+    min-height: 100vh;
+    min-height: 100svh;
+  }
+}
+
+@media (min-width: 640px) {
+  .page-container,
+  .page-container-narrow {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    padding-top: 1.5rem;
+    padding-bottom: 1.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-container,
+  .page-container-narrow {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-top: 1.75rem;
+    padding-bottom: 2rem;
+  }
+}
+
+/* Animaciones para el SurfSpinner */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+/* Animación principal del windsurf - navegación con viento */
+@keyframes windsurf-sail {
+  0% {
+    transform: rotate(0deg) translateX(0px) translateY(0px);
+  }
+  25% {
+    transform: rotate(2deg) translateX(2px) translateY(-1px);
+  }
+  50% {
+    transform: rotate(0deg) translateX(0px) translateY(-2px);
+  }
+  75% {
+    transform: rotate(-2deg) translateX(-2px) translateY(-1px);
+  }
+  100% {
+    transform: rotate(0deg) translateX(0px) translateY(0px);
+  }
+}
+
+.animate-windsurf-sail {
+  animation: windsurf-sail 4s ease-in-out infinite;
+}
+
+/* Animación de la vela con efecto de viento */
+@keyframes sail-wind {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  25% {
+    transform: scale(1.02) rotate(1deg);
+    opacity: 0.95;
+  }
+  50% {
+    transform: scale(1.05) rotate(0deg);
+    opacity: 0.9;
+  }
+  75% {
+    transform: scale(1.02) rotate(-1deg);
+    opacity: 0.95;
+  }
+}
+
+.animate-sail-wind {
+  animation: sail-wind 3s ease-in-out infinite;
+}
+
+/* Animación del mástil - balanceo suave */
+@keyframes mast-sway {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(1deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(-1deg);
+  }
+}
+
+.animate-mast-sway {
+  animation: mast-sway 2.5s ease-in-out infinite;
+}
+
+/* Animación de la tabla flotando en el agua */
+@keyframes board-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(0.5deg);
+  }
+}
+
+.animate-board-float {
+  animation: board-float 3.5s ease-in-out infinite;
+}
+
+/* Animaciones de los detalles de la vela - efecto de viento variable */
+@keyframes sail-detail-1 {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.01);
+  }
+}
+
+.animate-sail-detail-1 {
+  animation: sail-detail-1 2.8s ease-in-out infinite;
+}
+
+@keyframes sail-detail-2 {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+.animate-sail-detail-2 {
+  animation: sail-detail-2 3.2s ease-in-out infinite;
+}
+
+@keyframes sail-detail-3 {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.015);
+  }
+}
+
+.animate-sail-detail-3 {
+  animation: sail-detail-3 2.6s ease-in-out infinite;
+}
+
+@keyframes sail-detail-4 {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.03);
+  }
+}
+
+.animate-sail-detail-4 {
+  animation: sail-detail-4 3.4s ease-in-out infinite;
+}
+
+/* Animación de las líneas de la vela - tensión del viento */
+@keyframes sail-lines {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scaleX(1);
+  }
+  25% {
+    opacity: 1;
+    transform: scaleX(1.01);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scaleX(1);
+  }
+  75% {
+    opacity: 1;
+    transform: scaleX(0.99);
+  }
+}
+
+.animate-sail-lines {
+  animation: sail-lines 2.2s ease-in-out infinite;
+}
+
+/* Animación de respiración para el spinner */
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+.animate-breathe {
+  animation: breathe 2s ease-in-out infinite;
+}
+
+/* Animaciones de ondas de agua */
+@keyframes water-wave-1 {
+  0% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.1;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+.animate-water-wave-1 {
+  animation: water-wave-1 3s ease-out infinite;
+}
+
+@keyframes water-wave-2 {
+  0% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+.animate-water-wave-2 {
+  animation: water-wave-2 3.5s ease-out infinite;
+  animation-delay: 0.5s;
+}
+
+@keyframes water-wave-3 {
+  0% {
+    transform: scale(1);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.1;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.animate-water-wave-3 {
+  animation: water-wave-3 4s ease-out infinite;
+  animation-delay: 1s;
 }

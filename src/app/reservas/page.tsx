@@ -56,10 +56,10 @@ export default function ReservasPage() {
   };
   
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="page-container space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-primary-dark dark:text-primary-light">Reservas</h1>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           <Button 
             variant={vistaCalendario ? 'outline' : 'secondary'}
             size="sm"
@@ -74,7 +74,7 @@ export default function ReservasPage() {
           >
             Calendario
           </Button>
-          <Button variant="primary" icon={<NewReservationIcon />}>
+          <Button variant="primary" icon={<NewReservationIcon />} className="min-h-11">
             Nueva Reserva
           </Button>
         </div>
@@ -100,10 +100,10 @@ export default function ReservasPage() {
               onChange={(e) => setFiltros({ ...filtros, estado: e.target.value as Reserva['estado'] || undefined })}
             >
               <option value="">Todos</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="confirmada">Confirmada</option>
-              <option value="completada">Completada</option>
-              <option value="cancelada">Cancelada</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="Confirmada">Confirmada</option>
+              <option value="Completada">Completada</option>
+              <option value="Cancelada">Cancelada</option>
             </select>
           </div>
           
@@ -198,8 +198,8 @@ export default function ReservasPage() {
       
       {/* Modal de detalles de reserva */}
       {reservaSeleccionada && (
-        <div className="fixed inset-0 bg-modal-overlay flex items-center justify-center p-4 z-50">
-          <div className="bg-card-bg dark:bg-card-bg border border-card-border dark:border-card-border rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-modal-overlay p-4 sm:items-center">
+          <div className="max-h-[90svh] w-full max-w-2xl overflow-y-auto rounded-t-[1.5rem] border border-card-border bg-card-bg p-6 dark:border-card-border dark:bg-card-bg sm:rounded-lg">
             <div className="flex justify-between items-start mb-4">
               <h2 className="text-xl font-bold text-primary-dark dark:text-primary-light">Detalles de la Reserva</h2>
               <button 
@@ -211,7 +211,7 @@ export default function ReservasPage() {
             </div>
             
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Actividad</label>
                   <p className="font-medium text-gray-900 dark:text-gray-100">{reservaSeleccionada.actividad}</p>
@@ -236,7 +236,7 @@ export default function ReservasPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Contacto</label>
-                  <p className="text-gray-900 dark:text-gray-100">{reservaSeleccionada.cliente?.telefono}</p>
+                  <p className="text-gray-900 dark:text-gray-100">{reservaSeleccionada.cliente?.movil}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Precio</label>
@@ -257,16 +257,16 @@ export default function ReservasPage() {
                 </div>
               )}
               
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4 flex flex-wrap gap-2">
-                <Button variant="primary" className="flex-1">
+              <div className="mt-4 flex flex-col gap-2 border-t border-gray-200 pt-4 dark:border-gray-700 sm:flex-row sm:flex-wrap">
+                <Button variant="primary" className="min-h-11 flex-1">
                   Editar Reserva
                 </Button>
                 {!reservaSeleccionada.pagado && (
-                  <Button variant="accent" className="flex-1">
+                  <Button variant="accent" className="min-h-11 flex-1">
                     Registrar Pago
                   </Button>
                 )}
-                <Button variant="outline" className="flex-1" onClick={() => setReservaSeleccionada(null)}>
+                <Button variant="outline" className="min-h-11 flex-1" onClick={() => setReservaSeleccionada(null)}>
                   Cerrar
                 </Button>
               </div>
