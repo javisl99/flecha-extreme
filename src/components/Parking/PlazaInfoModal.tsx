@@ -93,6 +93,12 @@ const ESTADO_RESERVA_CHIP: Record<EstadoReservaParking, string> = {
   finalizada: 'bg-slate-200 text-slate-700'
 };
 
+const SkeletonBlock = ({ className = '' }: { className?: string }) => (
+  <div className={`relative overflow-hidden rounded-lg bg-surface-container-high ${className}`}>
+    <div className="skeleton-shimmer absolute inset-y-0 left-0 w-1/2" />
+  </div>
+);
+
 export default function PlazaInfoModal({
   isOpen,
   onClose,
@@ -166,11 +172,6 @@ export default function PlazaInfoModal({
 
   const dataLabelClassName = 'text-[11px] font-black uppercase tracking-[0.12em] text-outline';
   const dataValueClassName = 'mt-1 text-sm font-semibold text-on-surface';
-  const SkeletonBlock = ({ className = '' }: { className?: string }) => (
-    <div className={`relative overflow-hidden rounded-lg bg-surface-container-high ${className}`}>
-      <div className="skeleton-shimmer absolute inset-y-0 left-0 w-1/2" />
-    </div>
-  );
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>

@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Flecha Extreme
 
-## Getting Started
+Aplicación web de gestión back-office para organizar reservas, clientes, actividades, empleados, parking, pagos, contabilidad, documentos y tienda.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 y React 19
+- TypeScript
+- Supabase para autenticación y persistencia
+- Tailwind CSS
+- Resend y React Email para el envío de correos
+- pnpm como gestor de paquetes
+
+## Puesta en marcha
+
+Requisitos: Node.js 22 o superior y pnpm 10.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Antes de iniciar sesión, completa `.env.local` con las variables del proyecto de Supabase. El envío de correo está desactivado por defecto en el ejemplo.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Variables de entorno
 
-## Learn More
+Consulta [.env.example](./.env.example). Nunca subas `.env.local`, claves de API, credenciales de Supabase con privilegios elevados ni claves privadas al repositorio.
 
-To learn more about Next.js, take a look at the following resources:
+La clave `NEXT_PUBLIC_SUPABASE_ANON_KEY` se utiliza desde el navegador; la protección real de los datos depende de las políticas RLS y de los permisos definidos en `supabase/migrations/`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Comandos útiles
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm dev
+pnpm lint
+pnpm build
+pnpm start
+```
 
-## Deploy on Vercel
+## Base de datos
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Las migraciones están en `supabase/migrations/`. Los scripts de `supabase/manual/` son operaciones explícitas para tareas puntuales y deben revisarse antes de ejecutarse en un entorno compartido o de producción.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Contribuir
+
+Consulta [CONTRIBUTING.md](./CONTRIBUTING.md) para el flujo de ramas, validaciones y Pull Requests.
+
+## Seguridad
+
+Consulta [SECURITY.md](./SECURITY.md) para informar de vulnerabilidades sin publicarlas en un issue.

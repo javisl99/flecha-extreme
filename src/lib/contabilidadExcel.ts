@@ -105,9 +105,9 @@ export async function exportContabilidadMovimientosToXlsx({
     },
   } as const;
 
-  const styleSheet = (sheet: any, rows: Array<Record<string, unknown>>) => {
+  const styleSheet = (sheet: Record<string, unknown>, rows: Array<Record<string, unknown>>) => {
     const ref = sheet['!ref'];
-    if (!ref) return;
+    if (typeof ref !== 'string') return;
 
     const range = XLSX.utils.decode_range(ref);
     const headers = Object.keys(rows[0] || {});
@@ -116,19 +116,21 @@ export async function exportContabilidadMovimientosToXlsx({
       for (let col = range.s.c; col <= range.e.c; col += 1) {
         const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
         const cell = sheet[cellAddress];
-        if (!cell) continue;
+        if (!cell || typeof cell !== 'object') continue;
+
+        const cellStyle = cell as { s?: unknown };
 
         if (row === range.s.r) {
-          cell.s = headerStyle;
+          cellStyle.s = headerStyle;
           continue;
         }
 
         const rowStyle = row % 2 === 0 ? evenRowStyle : oddRowStyle;
-        cell.s = rowStyle;
+        cellStyle.s = rowStyle;
 
         const header = headers[col];
         if (header && EURO_COLUMNS.has(header)) {
-          cell.s = {
+          cellStyle.s = {
             ...rowStyle,
             alignment: { horizontal: 'right', vertical: 'center' },
             numFmt: '€ #,##0.00',
@@ -137,8 +139,9 @@ export async function exportContabilidadMovimientosToXlsx({
       }
     }
 
-    sheet['!rows'] = sheet['!rows'] || [];
-    sheet['!rows'][range.s.r] = { hpt: 22 };
+    const rowStyles = (sheet['!rows'] as Array<{ hpt?: number } | undefined> | undefined) || [];
+    rowStyles[range.s.r] = { hpt: 22 };
+    sheet['!rows'] = rowStyles;
     sheet['!cols'] = autoSizeColumns(rows);
   };
 
