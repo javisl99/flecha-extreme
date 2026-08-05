@@ -93,6 +93,10 @@ export function useProductos() {
 
   const subtractStockFromProduct = async (productId: string, stockToSubtract: number) => {
     try {
+      if (!Number.isInteger(stockToSubtract) || stockToSubtract < 0) {
+        throw new Error('La cantidad a restar debe ser un entero no negativo');
+      }
+
       // Primero obtener el stock actual
       const { data: currentProduct, error: fetchError } = await supabase
         .from('producto')
@@ -144,6 +148,10 @@ export function useProductos() {
     try {
       // Verificar stock disponible para todos los productos antes de hacer cambios
       for (const item of items) {
+        if (!Number.isInteger(item.quantity) || item.quantity < 0) {
+          throw new Error(`Cantidad no válida para el producto ${item.id}`);
+        }
+
         const { data: currentProduct, error: fetchError } = await supabase
           .from('producto')
           .select('stock')

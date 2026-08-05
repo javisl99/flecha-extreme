@@ -24,6 +24,27 @@ export interface TicketData {
   discountLabel?: string;
 }
 
+function escapeHtml(value: string): string {
+  const entities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+
+  return value.replace(/[&<>"']/g, (character) => entities[character]);
+}
+
+function safeTicketUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? escapeHtml(url.toString()) : '#';
+  } catch {
+    return '#';
+  }
+}
+
 export function generatePurchaseEmailHTML(cliente: Cliente, ticketData: TicketData, ticketUrl: string): string {
   const formatPrice = (price: number): string => {
     return price.toFixed(2).replace('.', ',') + '€';
@@ -39,6 +60,10 @@ export function generatePurchaseEmailHTML(cliente: Cliente, ticketData: TicketDa
       minute: '2-digit'
     });
   };
+
+  const customerName = escapeHtml(cliente.nombre);
+  const paymentMethod = escapeHtml(ticketData.metodoPago);
+  const ticketHref = safeTicketUrl(ticketUrl);
 
   return `
 <!DOCTYPE html>
@@ -183,11 +208,11 @@ export function generatePurchaseEmailHTML(cliente: Cliente, ticketData: TicketDa
     <div class="container">
         <div class="header">
             <img src="https://flechaextreme.com/cropped-lgo.png" alt="Flecha Extreme" class="logo">
-            <div class="title">¡Gracias por comprar en Flecha Extreme, ${cliente.nombre}!</div>
+            <div class="title">¡Gracias por comprar en Flecha Extreme, ${customerName}!</div>
         </div>
         
         <div class="content">
-            <div class="greeting">¡Hola ${cliente.nombre}!</div>
+            <div class="greeting">¡Hola ${customerName}!</div>
             
             <div class="message">
                 Aquí tienes tu ticket de compra, ¡vuelve pronto!
@@ -203,14 +228,14 @@ export function generatePurchaseEmailHTML(cliente: Cliente, ticketData: TicketDa
                     </div>
                     <div class="ticket-row">
                         <span>Método de pago:</span>
-                        <span>${ticketData.metodoPago}</span>
+                        <span>${paymentMethod}</span>
                     </div>
                 </div>
                 
                 <div class="products-list">
                     ${ticketData.cartItems.map(item => `
                         <div class="product-item">
-                            <span class="product-name">${item.name}${item.quantity > 0 ? ` x${item.quantity}` : ''}</span>
+                            <span class="product-name">${escapeHtml(item.name)}${item.quantity > 0 ? ` x${item.quantity}` : ''}</span>
                             <span class="product-price">${formatPrice(item.id === 'producto-desconocido' ? item.price : item.price * item.quantity)}</span>
                         </div>
                     `).join('')}
@@ -227,7 +252,7 @@ export function generatePurchaseEmailHTML(cliente: Cliente, ticketData: TicketDa
                     </div>
                     ${ticketData.descuento > 0 ? `
                     <div class="ticket-row">
-                        <span>${ticketData.discountLabel ?? (ticketData.discountPercentage > 0 ? `Descuento (${ticketData.discountPercentage}%)` : 'Descuento')}:</span>
+                        <span>${escapeHtml(ticketData.discountLabel ?? (ticketData.discountPercentage > 0 ? `Descuento (${ticketData.discountPercentage}%)` : 'Descuento'))}:</span>
                         <span>-${formatPrice(ticketData.descuento)}</span>
                     </div>
                     ` : ''}
@@ -239,7 +264,7 @@ export function generatePurchaseEmailHTML(cliente: Cliente, ticketData: TicketDa
             </div>
             
             <div style="text-align: center;">
-                <a href="${ticketUrl}" class="download-button" target="_blank">
+                <a href="${ticketHref}" class="download-button" target="_blank" rel="noopener noreferrer">
                     📥 Descargar Ticket PDF
                 </a>
             </div>

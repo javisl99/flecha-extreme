@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Cliente, TicketData } from '../lib/emailTemplates';
+import supabaseClient from '@/lib/supabaseClient';
 
 interface EmailResponse {
   success: boolean;
@@ -27,11 +28,19 @@ export function useEmailAPI() {
     setError(null);
     
     try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+
       const response = await fetch('/api/send-email', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
+        cache: 'no-store',
         body: JSON.stringify(options),
       });
 

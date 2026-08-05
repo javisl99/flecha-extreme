@@ -589,7 +589,7 @@ export default function ModalDetalleReserva({
 
               const emailResult = await sendTicketEmail(
                 {
-                  id: clienteEmail,
+                  id: reserva.id_cliente || '',
                   nombre: reserva.cliente?.nombre || 'Cliente',
                   apellidos: reserva.cliente?.apellidos || '',
                   email: clienteEmail
@@ -683,7 +683,7 @@ export default function ModalDetalleReserva({
             try {
               const emailResult = await sendTicketEmail(
                 {
-                  id: clienteEmail,
+                  id: pagoPendiente.id_cliente,
                   nombre: reserva.cliente?.nombre || 'Cliente',
                   apellidos: reserva.cliente?.apellidos || '',
                   email: clienteEmail
