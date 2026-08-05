@@ -1,17 +1,29 @@
 import { Resend } from 'resend';
 
-// Verificar si estamos en modo de desarrollo y usar mock en ese caso
+// Evitar inicializar Resend cuando el envío está desactivado o no hay clave.
 const isDevelopment = process.env.NODE_ENV === 'development';
-const resendApiKey = process.env.RESEND_API_KEY || '';
+const resendApiKey = process.env.RESEND_API_KEY?.trim() || '';
+const emailDisabled = ['0', 'false', 'no', 'off'].includes(
+  process.env.EMAIL_ENABLED?.trim().toLowerCase() || ''
+);
+const useMock = isDevelopment || !resendApiKey || emailDisabled;
 
 let resend: Resend | { emails: { send: () => Promise<{ data: { id: string }; error: null }> } };
 
-if (isDevelopment && !resendApiKey) {
-  console.warn('Resend: Usando modo mock para desarrollo local');
-  // Crear un mock básico de Resend para desarrollo
+if (useMock) {
+  if (isDevelopment || emailDisabled) {
+    console.warn('Resend: Usando modo mock porque el envío está desactivado');
+  }
+
   resend = {
     emails: {
-      send: async () => ({ data: { id: 'mock-email-id' }, error: null }),
+      send: async () => {
+        if (!resendApiKey && !isDevelopment && !emailDisabled) {
+          throw new Error('RESEND_API_KEY no está configurada');
+        }
+
+        return { data: { id: 'mock-email-id' }, error: null };
+      },
     },
   };
 } else {
