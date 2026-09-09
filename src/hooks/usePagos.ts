@@ -142,34 +142,34 @@ export function usePagos() {
 
   const actualizarPago = async (id: string, updates: Partial<Pago>) => {
     try {
-      setLoading(true);
-      setError(null);
-
       const metodo_pago_id =
         updates.metodo !== undefined
           ? await resolvePaymentMethodIdByCode(supabase, updates.metodo)
           : undefined;
 
-      const { error: updateError } = await supabase
+      const { data: updatedPago, error: updateError } = await supabase
         .from('pago')
         .update({
           ...updates,
           ...(metodo_pago_id !== undefined ? { metodo_pago_id } : {}),
         })
-        .eq('id', id);
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
 
       if (updateError) {
         throw new Error(updateError.message);
+      }
+
+      if (!updatedPago) {
+        throw new Error('No se ha podido actualizar el pago. Recarga la lista y comprueba que sigue disponible.');
       }
 
       return { error: null };
     } catch (err) {
       console.error('Error actualizando pago:', err);
       const errorMessage = err instanceof Error ? err.message : 'Error al actualizar pago';
-      setError(errorMessage);
       return { error: errorMessage };
-    } finally {
-      setLoading(false);
     }
   };
 
