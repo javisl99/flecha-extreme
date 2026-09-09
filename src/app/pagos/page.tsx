@@ -425,7 +425,7 @@ function PagosPageContent() {
         await refreshPagos();
         setPagoSeleccionado(prev => prev ? { ...prev, estado: 'completado' } : null);
       } else {
-        throw new Error('Error al actualizar el pago');
+        throw new Error(result.error);
       }
     } catch (error) {
       console.error('Error al completar el pago:', error);
@@ -443,7 +443,7 @@ function PagosPageContent() {
         await refreshPagos();
         setPagoSeleccionado(prev => prev ? { ...prev, estado: 'cancelado' } : null);
       } else {
-        throw new Error('Error al actualizar el pago');
+        throw new Error(result.error);
       }
     } catch (error) {
       console.error('Error al cancelar el pago:', error);

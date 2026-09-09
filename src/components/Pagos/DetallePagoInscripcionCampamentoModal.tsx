@@ -129,6 +129,7 @@ export default function DetallePagoInscripcionCampamentoModal({
   onCompletarPago,
   onCancelarPago
 }: DetallePagoInscripcionCampamentoModalProps) {
+  const [actionError, setActionError] = useState<string | null>(null);
   const [isCompletando, setIsCompletando] = useState(false);
   const [isCancelando, setIsCancelando] = useState(false);
 
@@ -150,12 +151,13 @@ export default function DetallePagoInscripcionCampamentoModal({
   const handleCompletarPago = async () => {
     if (!onCompletarPago) return;
     try {
+      setActionError(null);
       setIsCompletando(true);
       await onCompletarPago(pago);
       toast.success('Pago completado correctamente');
     } catch (error) {
       console.error('Error al completar pago de campamento:', error);
-      toast.error('Error al completar el pago');
+      setActionError(error instanceof Error ? error.message : 'Error al completar el pago');
     } finally {
       setIsCompletando(false);
     }
@@ -164,19 +166,20 @@ export default function DetallePagoInscripcionCampamentoModal({
   const handleCancelarPago = async () => {
     if (!onCancelarPago) return;
     try {
+      setActionError(null);
       setIsCancelando(true);
       await onCancelarPago(pago);
       toast.success('Pago cancelado correctamente');
     } catch (error) {
       console.error('Error al cancelar pago de campamento:', error);
-      toast.error('Error al cancelar el pago');
+      setActionError(error instanceof Error ? error.message : 'Error al cancelar el pago');
     } finally {
       setIsCancelando(false);
     }
   };
 
   return (
-    <Transition.Root show={isOpen} as={Fragment}>
+    <Transition.Root show={isOpen} as={Fragment} afterLeave={() => setActionError(null)}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
         <Transition.Child
           as={Fragment}
@@ -341,6 +344,16 @@ export default function DetallePagoInscripcionCampamentoModal({
                     <p className={dataLabelClassName}>Fecha del pago</p>
                     <p className={dataValueClassName}>{formatearFecha(pago.created_at)}</p>
                   </div>
+                  {actionError ? (
+                    <p
+                      role="alert"
+                      tabIndex={-1}
+                      ref={(element) => element?.focus()}
+                      className="text-center text-sm text-red-600"
+                    >
+                      {actionError}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 border-t border-outline-variant/25 px-6 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
