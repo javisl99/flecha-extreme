@@ -256,7 +256,7 @@ export default function PublicDemo() {
   return (
     <div className="min-h-screen bg-surface text-on-surface lg:grid lg:grid-cols-[16rem_1fr]">
       <aside className="hidden min-h-screen flex-col bg-primary-dark p-5 text-white lg:flex">
-        <Image alt="Flecha Extreme" className="mx-auto max-w-[170px]" height={58} priority src="/cropped-lgo.png" style={{ height: 'auto', width: 'auto' }} width={170} />
+        <Image alt="Flecha Extreme" className="mx-auto" height={77} priority src="/cropped-lgo.png" width={170} />
         <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-accent">Modo demostración</p>
           <p className="mt-2 text-xs leading-5 text-white/70">Datos sintéticos. Ninguna acción se conecta a la base real.</p>
