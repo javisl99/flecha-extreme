@@ -5,6 +5,7 @@ import { Card, Button } from '@/shared/components';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useUserContext } from '@/context/UserContext';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -122,6 +123,22 @@ export default function LoginPage() {
             ) : 'Iniciar Sesión'}
           </Button>
         </form>
+
+        <div className="my-6 flex items-center gap-3" aria-hidden="true">
+          <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+          <span className="text-xs font-bold uppercase tracking-wider text-gray-400">o</span>
+          <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+        </div>
+
+        <Link
+          className="flex w-full items-center justify-center rounded-lg border border-primary/25 bg-primary/5 px-4 py-3 text-base font-semibold text-primary-dark transition hover:border-primary/45 hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          href="/demo"
+        >
+          Probar demo con datos ficticios
+        </Link>
+        <p className="mt-3 text-center text-xs leading-5 text-gray-500 dark:text-gray-400">
+          Acceso directo y aislado. Los cambios no se guardan ni llegan a la base real.
+        </p>
       </Card>
       
       <p className="mt-10 text-center text-xs text-gray-500 dark:text-gray-400">

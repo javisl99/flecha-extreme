@@ -29,6 +29,12 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 
 // Componente principal que provee el contexto de usuario
 export default function ClientSideLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  if (pathname === "/demo") {
+    return <>{children}</>;
+  }
+
   return (
     <UserProvider>
       <ProtectedLayout>{children}</ProtectedLayout>
