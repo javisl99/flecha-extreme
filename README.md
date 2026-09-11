@@ -2,6 +2,12 @@
 
 Aplicación web de gestión back-office para organizar reservas, clientes, actividades, empleados, parking, pagos, contabilidad, documentos y tienda.
 
+## Demo pública
+
+La ruta `/demo` ofrece un recorrido interactivo por dashboard, reservas, clientes y pagos con datos completamente ficticios. La demostración mantiene su estado únicamente en memoria, se reinicia al recargar y no monta la sesión de usuario ni realiza consultas de negocio contra Supabase.
+
+Desde la pantalla de acceso se puede entrar mediante **Probar demo con datos ficticios**, sin publicar credenciales ni conceder acceso a la base de datos real.
+
 ## Stack
 
 - Next.js 16 y React 19
